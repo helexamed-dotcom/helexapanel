@@ -10,7 +10,12 @@
 
 importScripts('/assets/js/helexa-db.js');
 
-var VERSION = 'v1.1.0';
+/* Bump this whenever a precached asset changes. The shell and static caches
+   are stale-while-revalidate, so without a bump a returning student gets one
+   more load of the previous CSS and JS — which after a redesign means the new
+   markup rendered against the old stylesheet. A new version name makes the
+   install step fetch the current files and activate drops the old caches. */
+var VERSION = 'v1.2.0';
 var CACHES = {
     shell:  'helexa-shell-'  + VERSION,
     static: 'helexa-static-' + VERSION,
