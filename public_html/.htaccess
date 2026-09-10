@@ -1,0 +1,82 @@
+# =====================================================================
+#  HeleXa Med — public entry point
+#  Everything is routed through index.php.
+# =====================================================================
+
+Options -Indexes -MultiViews
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Serve real files and directories directly (assets), route everything else.
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^ index.php [QSA,L]
+</IfModule>
+
+# Block dotfiles and backup/source leftovers.
+<FilesMatch "^\.|\.(env|ini|log|sql|sh|bak|old|swp|dist|lock|md|yml|yaml)$">
+    Require all denied
+</FilesMatch>
+
+# --- Request size ----------------------------------------------------
+# Apache refuses an oversized body before PHP is ever reached, and the
+# resulting error page is the raw "Request Entity Too Large" one. 50 MB
+# leaves room above the PHP post_max_size in .user.ini.
+LimitRequestBody 52428800
+
+# Only applied when the host still runs mod_php. Under PHP-FPM these
+# directives would abort the request, which is why the real values live
+# in public_html/.user.ini instead.
+<IfModule mod_php.c>
+    php_value upload_max_filesize 40M
+    php_value post_max_size 48M
+    php_value max_input_vars 5000
+    php_value memory_limit 256M
+    php_value max_execution_time 300
+    php_value max_input_time 300
+</IfModule>
+<IfModule mod_php7.c>
+    php_value upload_max_filesize 40M
+    php_value post_max_size 48M
+</IfModule>
+
+# --- PWA -------------------------------------------------------------
+# Shared hosting often has no MIME type for .webmanifest, and the browser
+# then refuses the manifest outright.
+AddType application/manifest+json .webmanifest
+AddType image/png .png
+
+<IfModule mod_headers.c>
+    # The worker script must never be served stale, or a released fix can sit
+    # unused on a device for a day.
+    <FilesMatch "^sw\.js$">
+        Header set Cache-Control "no-cache, no-store, must-revalidate"
+        Header set Service-Worker-Allowed "/"
+    </FilesMatch>
+
+    <FilesMatch "^manifest\.webmanifest$">
+        Header set Cache-Control "public, max-age=3600"
+    </FilesMatch>
+
+    # Fonts and icons are content-addressed by name and safe to keep.
+    <FilesMatch "\.(woff2|png)$">
+        Header set Cache-Control "public, max-age=2592000, immutable"
+    </FilesMatch>
+</IfModule>
+
+# Baseline headers even if PHP fails before sending its own.
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Frame-Options "SAMEORIGIN"
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+    Header always unset X-Powered-By
+</IfModule>
+
+<IfModule mod_php.c>
+    php_flag display_errors Off
+    php_flag expose_php Off
+</IfModule>
+
+ErrorDocument 403 /index.php
+ErrorDocument 404 /index.php

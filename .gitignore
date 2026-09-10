@@ -1,0 +1,4 @@
+config/config.php
+storage/sessions/sess_*
+storage/logs/*.log
+storage/cache/*

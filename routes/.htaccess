@@ -1,0 +1,7 @@
+# This directory must never be reachable over HTTP.
+Require all denied
+Deny from all
+Options -Indexes -ExecCGI
+<IfModule mod_php.c>
+    php_flag engine off
+</IfModule>

@@ -1,0 +1,4 @@
+# Never reachable over HTTP.
+Require all denied
+Deny from all
+Options -Indexes -ExecCGI

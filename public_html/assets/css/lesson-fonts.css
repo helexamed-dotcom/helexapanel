@@ -1,0 +1,32 @@
+/* =====================================================================
+   Local Persian font for lesson content.
+   Loaded inside the viewer frame when "local font fallback" is enabled.
+
+   The same file is registered under several family names, so a lesson that
+   asks for Vazirmatn, Vazir, Sahel or IRANSansX still renders in a proper
+   Persian face when its CDN is slow or blocked. When the CDN does answer,
+   the lesson's own @font-face is declared later in the document and wins.
+   ===================================================================== */
+
+@font-face { font-family: 'IRANSansWeb'; src: url('/assets/fonts/IRANSansWeb_FaNum.woff2') format('woff2');        font-weight: 400; font-display: swap; }
+@font-face { font-family: 'IRANSansWeb'; src: url('/assets/fonts/IRANSansWeb_FaNum_Medium.woff2') format('woff2'); font-weight: 500; font-display: swap; }
+@font-face { font-family: 'IRANSansWeb'; src: url('/assets/fonts/IRANSansWeb_FaNum_Bold.woff2') format('woff2');   font-weight: 700; font-display: swap; }
+
+@font-face { font-family: 'IRANSans';    src: url('/assets/fonts/IRANSansWeb_FaNum.woff2') format('woff2');        font-weight: 400; font-display: swap; }
+@font-face { font-family: 'IRANSans';    src: url('/assets/fonts/IRANSansWeb_FaNum_Medium.woff2') format('woff2'); font-weight: 500; font-display: swap; }
+@font-face { font-family: 'IRANSans';    src: url('/assets/fonts/IRANSansWeb_FaNum_Bold.woff2') format('woff2');   font-weight: 700; font-display: swap; }
+
+@font-face { font-family: 'IRANSansX';   src: url('/assets/fonts/IRANSansWeb_FaNum.woff2') format('woff2');        font-weight: 400; font-display: swap; }
+@font-face { font-family: 'IRANSansX';   src: url('/assets/fonts/IRANSansWeb_FaNum_Bold.woff2') format('woff2');   font-weight: 700; font-display: swap; }
+
+@font-face { font-family: 'IRANSansFN';  src: url('/assets/fonts/IRANSansWeb_FaNum.woff2') format('woff2');        font-weight: 400 900; font-display: swap; }
+
+@font-face { font-family: 'Vazirmatn';   src: url('/assets/fonts/IRANSansWeb_FaNum.woff2') format('woff2');        font-weight: 400; font-display: swap; }
+@font-face { font-family: 'Vazirmatn';   src: url('/assets/fonts/IRANSansWeb_FaNum_Medium.woff2') format('woff2'); font-weight: 500 600; font-display: swap; }
+@font-face { font-family: 'Vazirmatn';   src: url('/assets/fonts/IRANSansWeb_FaNum_Bold.woff2') format('woff2');   font-weight: 700 900; font-display: swap; }
+
+@font-face { font-family: 'Vazir';       src: url('/assets/fonts/IRANSansWeb_FaNum.woff2') format('woff2');        font-weight: 400; font-display: swap; }
+@font-face { font-family: 'Vazir';       src: url('/assets/fonts/IRANSansWeb_FaNum_Bold.woff2') format('woff2');   font-weight: 700; font-display: swap; }
+
+@font-face { font-family: 'Sahel';       src: url('/assets/fonts/IRANSansWeb_FaNum.woff2') format('woff2');        font-weight: 400; font-display: swap; }
+@font-face { font-family: 'Shabnam';     src: url('/assets/fonts/IRANSansWeb_FaNum.woff2') format('woff2');        font-weight: 400; font-display: swap; }

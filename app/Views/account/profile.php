@@ -1,0 +1,92 @@
+<div class="grid grid-2">
+    <div class="card">
+        <h3 class="card-title">اطلاعات شخصی</h3>
+
+        <div class="profile-head">
+            <div class="avatar avatar-lg">
+                <?php \HeleXa\Core\View::partial('partials.avatar', ['person' => $profile]); ?>
+            </div>
+            <div>
+                <form method="post" action="/account/avatar" enctype="multipart/form-data" class="filters" style="margin:0;">
+                    <input type="hidden" name="_token" value="<?= e($csrf_token) ?>">
+                    <input class="input" type="file" name="avatar" accept="image/jpeg,image/png,image/webp" required style="max-width:220px;">
+                    <button class="btn btn-primary btn-sm" type="submit">آپلود</button>
+                </form>
+                <?php if (!empty($profile['avatar_path'])): ?>
+                    <form method="post" action="/account/avatar/delete" style="margin-top:6px;">
+                        <input type="hidden" name="_token" value="<?= e($csrf_token) ?>">
+                        <button class="btn btn-ghost btn-sm" type="submit">حذف تصویر</button>
+                    </form>
+                <?php endif; ?>
+                <div style="color:var(--ink-3); font-size:11.5px; margin-top:6px;">
+                    JPG، PNG یا WEBP تا ۲ مگابایت. تصویر خارج از پوشه عمومی ذخیره می‌شود.
+                </div>
+            </div>
+        </div>
+
+        <form method="post" action="/account/profile" novalidate style="margin-top:18px;">
+            <input type="hidden" name="_token" value="<?= e($csrf_token) ?>">
+            <div class="field">
+                <label class="label" for="full_name">نام کامل</label>
+                <input class="input<?= isset($errors['full_name']) ? ' has-error' : '' ?>" id="full_name" name="full_name"
+                       value="<?= e($profile['full_name']) ?>" required>
+                <?php if (!empty($errors['full_name'])): ?><div class="field-error"><?= e($errors['full_name']) ?></div><?php endif; ?>
+            </div>
+            <div class="field">
+                <label class="label" for="mobile">شماره موبایل</label>
+                <input class="input<?= isset($errors['mobile']) ? ' has-error' : '' ?>" id="mobile" name="mobile" dir="ltr"
+                       value="<?= e($profile['mobile'] ?? '') ?>">
+                <?php if (!empty($errors['mobile'])): ?><div class="field-error"><?= e($errors['mobile']) ?></div><?php endif; ?>
+            </div>
+            <div class="field">
+                <label class="label" for="gender">جنسیت</label>
+                <select class="input" id="gender" name="gender">
+                    <option value="">ترجیح می‌دهم نگویم</option>
+                    <option value="male"   <?= ($profile['gender'] ?? '') === 'male'   ? 'selected' : '' ?>>مرد</option>
+                    <option value="female" <?= ($profile['gender'] ?? '') === 'female' ? 'selected' : '' ?>>زن</option>
+                </select>
+                <div style="color:var(--ink-3); font-size:11.5px; margin-top:4px;">
+                    فقط برای انتخاب تصویر پیش‌فرض پروفایل استفاده می‌شود.
+                </div>
+            </div>
+
+            <div class="field">
+                <label class="label" for="email">ایمیل (اختیاری)</label>
+                <input class="input<?= isset($errors['email']) ? ' has-error' : '' ?>" id="email" name="email" dir="ltr"
+                       value="<?= e($profile['email'] ?? '') ?>">
+                <?php if (!empty($errors['email'])): ?><div class="field-error"><?= e($errors['email']) ?></div><?php endif; ?>
+            </div>
+            <button class="btn btn-primary" type="submit">ذخیره</button>
+        </form>
+    </div>
+
+    <div class="card">
+        <h3 class="card-title">اطلاعات تحصیلی</h3>
+        <table class="data" style="min-width:auto;">
+            <tr><th>نام کاربری</th><td class="mono"><?= e($profile['username']) ?></td></tr>
+            <tr><th>دانشگاه</th><td><?= e($profile['university_title'] ?? '—') ?></td></tr>
+            <tr><th>رشته</th><td><?= e($profile['major_title'] ?? ($profile['major'] ?? '—')) ?></td></tr>
+            <tr><th>ترم‌ها</th><td><?= $termNames === [] ? '—' : e(implode('، ', $termNames)) ?></td></tr>
+            <tr><th>گروه</th><td><?= e($groupName ?? '—') ?></td></tr>
+            <tr><th>عضویت از</th><td><?= e(jdate($profile['created_at'])) ?></td></tr>
+            <tr><th>آخرین ورود</th><td><?= e(jdate($profile['last_login_at'])) ?></td></tr>
+        </table>
+        <p style="color:var(--ink-3); font-size:12px; margin-top:10px;">
+            نام کاربری، رشته، ترم و گروه توسط مدیر تعیین می‌شوند و از این صفحه قابل تغییر نیستند.
+        </p>
+
+        <h3 class="card-title" style="margin-top:22px;">امنیت حساب</h3>
+        <a class="btn btn-ghost btn-sm" href="/account/password">تغییر رمز عبور</a>
+
+        <div style="margin-top:14px;">
+            <div class="stat-label">دستگاه‌های فعال</div>
+            <?php foreach ($sessions as $session): ?>
+                <div class="leaf-meta" style="margin-top:6px;">
+                    <?= e($session['operating_system'] ?? '—') ?> / <?= e($session['browser'] ?? '—') ?>
+                    · <span class="mono"><?= e($session['ip_address']) ?></span>
+                    · آخرین فعالیت <?= e(jdate($session['last_activity'])) ?>
+                </div>
+            <?php endforeach; ?>
+        </div>
+    </div>
+</div>
