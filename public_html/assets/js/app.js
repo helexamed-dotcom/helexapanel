@@ -98,26 +98,87 @@
         });
     });
 
-    /* ------------------------------------------------ mobile drawer */
+    /* ------------------------------------------------ mobile drawer
+       The drawer is a modal on small screens, so it behaves like one: the page
+       behind it stops scrolling, Tab stays inside it, Escape closes it, and
+       focus returns to the button that opened it. */
     var toggle  = document.querySelector('[data-menu-toggle]');
     var sidebar = document.querySelector('[data-sidebar]');
     var scrim   = document.querySelector('[data-scrim]');
+    var closers = document.querySelectorAll('[data-menu-close]');
 
-    function closeMenu() {
-        if (sidebar) { sidebar.classList.remove('is-open'); }
-        if (scrim)   { scrim.classList.remove('is-open'); }
-        if (toggle)  { toggle.setAttribute('aria-expanded', 'false'); }
+    var FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select, textarea, [tabindex]:not([tabindex="-1"])';
+
+    function drawerIsModal() {
+        return window.matchMedia('(max-width: 900px)').matches;
     }
 
-    if (toggle && sidebar && scrim) {
+    function isMenuOpen() {
+        return !!sidebar && sidebar.classList.contains('is-open');
+    }
+
+    function closeMenu() {
+        if (!isMenuOpen()) { return; }
+        sidebar.classList.remove('is-open');
+        if (scrim) { scrim.classList.remove('is-open'); }
+        if (toggle) {
+            toggle.setAttribute('aria-expanded', 'false');
+            if (drawerIsModal()) { toggle.focus(); }
+        }
+        document.documentElement.classList.remove('drawer-open');
+    }
+
+    function openMenu() {
+        if (!sidebar || isMenuOpen()) { return; }
+        sidebar.classList.add('is-open');
+        if (scrim) { scrim.classList.add('is-open'); }
+        if (toggle) { toggle.setAttribute('aria-expanded', 'true'); }
+        document.documentElement.classList.add('drawer-open');
+
+        var first = sidebar.querySelector('.nav-item.is-active') || sidebar.querySelector(FOCUSABLE);
+        if (first && first.focus) { first.focus({ preventScroll: true }); }
+    }
+
+    if (toggle && sidebar) {
         toggle.addEventListener('click', function () {
-            var open = sidebar.classList.toggle('is-open');
-            scrim.classList.toggle('is-open', open);
-            toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+            if (isMenuOpen()) { closeMenu(); } else { openMenu(); }
         });
-        scrim.addEventListener('click', closeMenu);
-        document.addEventListener('keydown', function (e) {
-            if (e.key === 'Escape') { closeMenu(); }
+
+        if (scrim) { scrim.addEventListener('click', closeMenu); }
+        closers.forEach(function (button) { button.addEventListener('click', closeMenu); });
+
+        // Following a link inside the drawer navigates away; leaving the open
+        // state behind would flash the drawer again on the next page.
+        sidebar.addEventListener('click', function (event) {
+            if (event.target.closest && event.target.closest('a[href]')) { closeMenu(); }
+        });
+
+        document.addEventListener('keydown', function (event) {
+            if (event.key === 'Escape') { closeMenu(); return; }
+            if (event.key !== 'Tab' || !isMenuOpen() || !drawerIsModal()) { return; }
+
+            var items = Array.prototype.filter.call(
+                sidebar.querySelectorAll(FOCUSABLE),
+                function (el) { return el.offsetParent !== null; }
+            );
+            if (!items.length) { return; }
+
+            var first = items[0];
+            var last  = items[items.length - 1];
+
+            if (event.shiftKey && document.activeElement === first) {
+                event.preventDefault();
+                last.focus();
+            } else if (!event.shiftKey && document.activeElement === last) {
+                event.preventDefault();
+                first.focus();
+            }
+        });
+
+        // Growing past the breakpoint turns the drawer back into a static
+        // column; the locked body scroll has to be released with it.
+        window.addEventListener('resize', function () {
+            if (!drawerIsModal()) { closeMenu(); }
         });
     }
 

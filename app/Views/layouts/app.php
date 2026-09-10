@@ -34,30 +34,51 @@
 </head>
 <body>
 <a class="skip-link" href="#main">پرش به محتوای اصلی</a>
+<?php $isAdminArea = isset($currentUser['role_slug']) && $currentUser['role_slug'] !== 'student'; ?>
 <div class="shell">
     <aside class="sidebar" data-sidebar aria-label="منوی کناری">
         <?php $siteLogo = \HeleXa\Services\Settings::get('site_logo_path', ''); ?>
-        <div class="brand">
-            <?php if ($siteLogo !== ''): ?>
-                <div class="brand-mark brand-mark-image"><img src="/assets/<?= e($siteLogo) ?>" alt="<?= e($appName) ?>"></div>
-            <?php else: ?>
-                <div class="brand-mark">H</div>
-            <?php endif; ?>
-            <div class="brand-name nav-text"><?= e($appName) ?></div>
+        <div class="sidebar-head">
+            <div class="brand">
+                <?php if ($siteLogo !== ''): ?>
+                    <div class="brand-mark brand-mark-image"><img src="/assets/<?= e($siteLogo) ?>" alt="<?= e($appName) ?>"></div>
+                <?php else: ?>
+                    <div class="brand-mark">H</div>
+                <?php endif; ?>
+                <div class="brand-text nav-text">
+                    <span class="brand-name"><?= e($appName) ?></span>
+                    <span class="brand-sub"><?= $isAdminArea ? 'پنل مدیریت' : 'پنل دانشجو' ?></span>
+                </div>
+            </div>
             <button class="rail-toggle" type="button" data-sidebar-toggle
                     aria-label="جمع کردن یا باز کردن منو">
                 <span class="rail-icon-collapse"><?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'collapse']); ?></span>
                 <span class="rail-icon-expand"><?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'expand']); ?></span>
             </button>
+            <button class="drawer-close" type="button" data-menu-close aria-label="بستن منو">
+                <?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'close']); ?>
+            </button>
         </div>
-        <?php
-        $isAdminArea = isset($currentUser['role_slug']) && $currentUser['role_slug'] !== 'student';
-        \HeleXa\Core\View::partial($isAdminArea ? 'partials.nav_admin' : 'partials.nav_student', [
-            'currentPath'  => $currentPath ?? '/',
-            'permissions'  => $permissions ?? [],
-            'unreadCounts' => $unreadCounts ?? ['notifications' => 0, 'messages' => 0, 'support_open' => 0],
-        ]);
-        ?>
+
+        <nav class="nav-scroll">
+            <?php
+            \HeleXa\Core\View::partial($isAdminArea ? 'partials.nav_admin' : 'partials.nav_student', [
+                'currentPath'  => $currentPath ?? '/',
+                'permissions'  => $permissions ?? [],
+                'unreadCounts' => $unreadCounts ?? ['notifications' => 0, 'messages' => 0, 'support_open' => 0],
+            ]);
+            ?>
+        </nav>
+
+        <div class="sidebar-foot">
+            <form method="post" action="/logout">
+                <input type="hidden" name="_token" value="<?= e($csrf_token) ?>">
+                <button type="submit" class="nav-item nav-item-danger" data-tip="خروج از حساب">
+                    <?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'logout']); ?>
+                    <span class="nav-text">خروج از حساب</span>
+                </button>
+            </form>
+        </div>
     </aside>
     <div class="scrim" data-scrim></div>
 
@@ -103,7 +124,7 @@
                     </a>
 
                     <a class="user-panel-row" href="/account/password">
-                        <span class="row-icon"><?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'settings']); ?></span>
+                        <span class="row-icon"><?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'key']); ?></span>
                         <span>تغییر رمز عبور</span>
                     </a>
 
