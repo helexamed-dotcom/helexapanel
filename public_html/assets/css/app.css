@@ -42,6 +42,9 @@
     --line:        #e8edf6;
     --surface:     #ffffff;
     --surface-2:   #f8fafd;
+    /* Channels, so a fade can end at the same colour with zero alpha instead
+       of at "transparent", which is black and greys the middle of the ramp. */
+    --surface-rgb: 255, 255, 255;
     --canvas:      #f4f6fb;
     --green:       #16a34a;
     --amber:       #d97706;
@@ -92,20 +95,21 @@ button { font-family: inherit; }
     background: var(--surface);
     border: 1px solid var(--line);
     border-radius: 24px;
-    padding: 36px 30px;
+    padding: 34px 30px 30px;
     box-shadow: var(--shadow-lg);
 }
 
 .auth-logo {
     width: 56px; height: 56px;
     display: grid; place-items: center;
-    border-radius: 16px;
-    background: linear-gradient(135deg, var(--blue), var(--teal));
-    color: #fff; font-weight: 700; font-size: 22px;
-    margin-bottom: 18px;
+    border-radius: 18px;
+    background: linear-gradient(140deg, var(--blue), var(--teal));
+    color: #fff; font-weight: 700; font-size: 23px;
+    margin-bottom: 20px;
+    box-shadow: 0 10px 24px -10px rgba(47, 107, 255, .6);
 }
 
-.auth-title { font-size: 22px; font-weight: 700; margin: 0 0 4px; }
+.auth-title { font-size: 22px; font-weight: 700; margin: 0 0 5px; letter-spacing: -.3px; }
 .auth-sub   { color: var(--ink-3); font-size: 13.5px; margin: 0 0 26px; }
 
 /* ------------------------------------------------------------- controls */
@@ -116,42 +120,56 @@ button { font-family: inherit; }
 .input {
     width: 100%;
     padding: 12px 14px;
-    border: 1.5px solid var(--line);
+    border: 1px solid var(--line);
     border-radius: var(--radius-sm);
-    background: #fbfcfe;
+    background: var(--surface-2);
     font-size: 14.5px;
     color: var(--ink);
     transition: border-color .15s, box-shadow .15s, background .15s;
 }
+.input:hover { border-color: #d6dfec; }
 .input:focus {
     outline: none;
-    background: #fff;
+    background: var(--surface);
     border-color: var(--blue);
-    box-shadow: 0 0 0 4px rgba(37, 99, 235, .12);
+    box-shadow: 0 0 0 3px rgba(47, 99, 235, .16);
 }
 .input.has-error { border-color: var(--red); }
+.input.has-error:focus { box-shadow: 0 0 0 3px rgba(220, 38, 38, .16); }
 
+/* Solid, not a gradient: the two-tone fill is the single thing that dated
+   this interface fastest, and a flat fill keeps the label legible at every
+   button width. The gradient survives where it belongs — on the logo mark. */
 .btn {
     display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-    padding: 12px 18px;
-    border: 0; border-radius: var(--radius-sm);
-    font-size: 14.5px; font-weight: 500;
+    padding: 11px 18px;
+    border: 1px solid transparent; border-radius: var(--radius-sm);
+    font-size: 14.5px; font-weight: 600; line-height: 1.6;
     cursor: pointer;
-    transition: transform .12s, box-shadow .15s, background .15s;
+    transition: transform .12s, box-shadow .15s, background .15s, border-color .15s;
 }
 .btn:active { transform: translateY(1px); }
-.btn-primary { background: linear-gradient(135deg, var(--blue), var(--teal)); color: #fff; box-shadow: 0 6px 18px rgba(37,99,235,.28); }
-.btn-ghost   { background: #fff; color: var(--ink-2); border: 1.5px solid var(--line); }
-.btn-danger  { background: #fff; color: var(--red); border: 1.5px solid #fbd5d5; }
+.btn-primary {
+    background: var(--blue); color: #fff;
+    box-shadow: 0 6px 16px -6px rgba(47, 107, 255, .6);
+}
+.btn-primary:hover { background: #245ce0; }
+.btn-ghost   { background: var(--surface); color: var(--ink-2); border-color: var(--line); }
+.btn-ghost:hover { background: var(--surface-2); color: var(--ink); }
+.btn-danger  { background: var(--surface); color: var(--red); border-color: #fbd5d5; }
 .btn-danger:hover { background: #fef2f2; }
 .btn-block   { width: 100%; }
-.btn-sm      { padding: 7px 12px; font-size: 13px; border-radius: 10px; }
+.btn-sm      { padding: 7px 13px; font-size: 13px; border-radius: var(--radius-xs); }
 
 /* --------------------------------------------------------------- alerts */
 
-.alert { padding: 12px 14px; border-radius: var(--radius-sm); font-size: 13.5px; margin-bottom: 18px; }
-.alert-error   { background: #fef2f2; color: #991b1b; border: 1px solid #fbd5d5; }
-.alert-success { background: #f0fdf4; color: #14532d; border: 1px solid #bbf7d0; }
+.alert {
+    padding: 12px 15px; border-radius: var(--radius-sm);
+    font-size: 13.5px; margin-bottom: 18px;
+    border-right-width: 3px; border-right-style: solid;
+}
+.alert-error   { background: #fef2f2; color: #991b1b; border: 1px solid #fbd5d5; border-right: 3px solid var(--red); }
+.alert-success { background: #f0fdf4; color: #14532d; border: 1px solid #bbf7d0; border-right: 3px solid var(--green); }
 .field-error   { color: var(--red); font-size: 12.5px; margin-top: 6px; }
 
 /* ---------------------------------------------------------------- shell */
@@ -290,9 +308,12 @@ button { font-family: inherit; }
 }
 .card-title { font-size: 14.5px; font-weight: 600; margin: 0 0 14px; display: flex; align-items: center; gap: 8px; }
 
-.stat-label { font-size: 12.5px; color: var(--ink-3); margin-bottom: 8px; }
-.stat-value { font-size: 28px; font-weight: 700; letter-spacing: -.5px; }
-.stat-chip  { display: inline-block; padding: 3px 9px; border-radius: 999px; font-size: 11.5px; margin-top: 10px; }
+.stat-label { font-size: 12.5px; color: var(--ink-3); margin-bottom: 6px; }
+.stat-value { font-size: 29px; font-weight: 700; letter-spacing: -.7px; line-height: 1.3; }
+.stat-chip  {
+    display: inline-block; padding: 3px 10px; border-radius: 999px;
+    font-size: 11.5px; font-weight: 600; margin-top: 10px;
+}
 .chip-blue  { background: var(--blue-soft);   color: var(--blue); }
 .chip-teal  { background: var(--teal-soft);   color: var(--teal); }
 .chip-purple{ background: var(--purple-soft); color: var(--purple); }
@@ -302,16 +323,25 @@ button { font-family: inherit; }
 
 /* ---------------------------------------------------------------- table */
 
-.table-wrap { overflow-x: auto; border-radius: var(--radius); }
+.table-wrap { overflow-x: auto; border-radius: var(--radius-sm); }
 table.data { width: 100%; border-collapse: collapse; font-size: 13.5px; min-width: 640px; }
 table.data th {
-    text-align: right; font-weight: 500; color: var(--ink-3); font-size: 12.5px;
-    padding: 10px 12px; border-bottom: 1px solid var(--line); white-space: nowrap;
+    text-align: right; font-weight: 600; color: var(--ink-3); font-size: 12px;
+    padding: 11px 12px; background: var(--surface-2);
+    border-bottom: 1px solid var(--line); white-space: nowrap;
+    letter-spacing: .2px;
 }
-table.data td { padding: 12px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+table.data thead tr:first-child th:first-child { border-start-start-radius: var(--radius-sm); }
+table.data thead tr:first-child th:last-child  { border-start-end-radius: var(--radius-sm); }
+table.data td { padding: 12px; border-bottom: 1px solid var(--line); vertical-align: middle; }
 table.data tr:last-child td { border-bottom: 0; }
-table.data tr:hover td { background: #fbfcfe; }
-.mono { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12.5px; direction: ltr; display: inline-block; }
+table.data tbody tr:hover td { background: var(--surface-2); }
+/* Also used on <td>, where display:inline-block would drop the cell out of the
+   table layout and shrink its bottom border to the width of the text. Only the
+   inline uses need a block box of their own. */
+.mono { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12.5px; direction: ltr; }
+span.mono, div.mono { display: inline-block; }
+td.mono, th.mono { text-align: right; }
 
 .empty { text-align: center; color: var(--ink-3); padding: 34px 10px; font-size: 13.5px; }
 
@@ -673,6 +703,7 @@ html { scroll-behavior: smooth; }
 .skip-link {
     position: absolute; right: -9999px; top: 8px; z-index: 200;
     background: var(--blue); color: #fff; padding: 10px 16px; border-radius: 10px;
+    font-size: 13.5px; font-weight: 600; box-shadow: var(--shadow-lg);
 }
 .skip-link:focus { right: 12px; }
 
@@ -701,8 +732,9 @@ html { scroll-behavior: smooth; }
     position: relative;
 }
 .alert-close {
-    margin-right: auto; background: none; border: 0; cursor: pointer;
-    color: inherit; opacity: .55; font-size: 16px; line-height: 1; padding: 2px 4px;
+    margin-inline-start: auto; background: none; border: 0; cursor: pointer;
+    color: inherit; opacity: .55; font-size: 17px; line-height: 1; padding: 2px 5px;
+    border-radius: 6px; flex: 0 0 auto;
 }
 .alert-close:hover { opacity: 1; }
 .alert.is-leaving { opacity: 0; transform: translateY(-6px); transition: opacity .25s, transform .25s; }
@@ -716,13 +748,13 @@ html { scroll-behavior: smooth; }
     border: 2px solid currentColor; border-top-color: transparent;
     border-radius: 50%; display: inline-block; animation: spin .7s linear infinite;
 }
-.btn-primary:hover { box-shadow: 0 8px 22px rgba(37, 99, 235, .34); }
+.btn-primary:hover { box-shadow: 0 10px 24px -8px rgba(47, 107, 255, .7); }
 
 /* tables --------------------------------------------------------------- */
 
 table.data thead th {
     position: sticky; top: 0; z-index: 2;
-    background: #fff; box-shadow: inset 0 -1px 0 var(--line);
+    background: var(--surface-2); box-shadow: inset 0 -1px 0 var(--line);
 }
 
 /* A hint that a wide table can be scrolled, instead of it just looking cut off. */
@@ -730,7 +762,8 @@ table.data thead th {
 .table-wrap.is-scrollable::after {
     content: ''; position: absolute; inset: 0 auto 0 0; width: 26px;
     pointer-events: none;
-    background: linear-gradient(to left, rgba(255,255,255,.96), rgba(255,255,255,0));
+    background: linear-gradient(to left,
+        rgba(var(--surface-rgb), 1), rgba(var(--surface-rgb), 0));
 }
 
 /* skeletons ------------------------------------------------------------ */
@@ -749,8 +782,9 @@ table.data thead th {
     animation: fade .35s ease both;
 }
 .empty::before {
-    content: '◍'; font-size: 26px; color: var(--line);
-    line-height: 1; display: block;
+    content: ''; display: block;
+    width: 38px; height: 38px; border-radius: 50%;
+    border: 2px dashed var(--line);
 }
 
 /* scrollbars ----------------------------------------------------------- */
@@ -849,6 +883,7 @@ table.data thead th {
     --line:        #26303f;
     --surface:     #151c26;
     --surface-2:   #1b2431;
+    --surface-rgb: 21, 28, 38;
     --canvas:      #0e131a;
     --green:       #34d399;
     --amber:       #fbbf24;
@@ -864,7 +899,6 @@ table.data thead th {
 :root[data-theme="dark"] .offline-bar   { background: rgba(21, 28, 38, .92); }
 :root[data-theme="dark"] .input         { background: #111823; color: var(--ink); }
 :root[data-theme="dark"] .input:focus   { background: #131b28; }
-:root[data-theme="dark"] table.data thead th { background: var(--surface); }
 :root[data-theme="dark"] table.data td       { border-bottom-color: #1d2632; }
 :root[data-theme="dark"] table.data tr:hover td { background: #19222e; }
 :root[data-theme="dark"] .tree-node,
@@ -889,9 +923,6 @@ table.data thead th {
 :root[data-theme="dark"] .alert-error  { background: #2a1618; color: #fca5a5; border-color: #4a2226; }
 :root[data-theme="dark"] .alert-success{ background: #10251c; color: #86efac; border-color: #1d4433; }
 :root[data-theme="dark"] .pwa-banner   { background: #0a0f16; }
-:root[data-theme="dark"] .table-wrap.is-scrollable::after {
-    background: linear-gradient(to left, rgba(21,28,38,.96), rgba(21,28,38,0));
-}
 :root[data-theme="dark"] .auth-wrap {
     background:
         radial-gradient(1000px 500px at 85% -10%, #16233d, transparent 60%),
@@ -991,7 +1022,9 @@ table.data thead th {
     .rail-toggle { display: none; }
 }
 
-.auth-theme { position: absolute; inset: 18px 18px auto auto; }
+/* Opposite the logo mark, not on top of it: in RTL the card's leading edge is
+   the right one, which is where the logo sits. */
+.auth-theme { position: absolute; inset-block-start: 18px; inset-inline-end: 18px; }
 .auth-card { position: relative; }
 
 /* =====================================================================

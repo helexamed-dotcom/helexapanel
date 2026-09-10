@@ -335,16 +335,17 @@ final class SyncController extends Controller
 
         $anchor = $payload['anchor'] ?? null;
         $kind   = is_string($payload['kind'] ?? null) ? $payload['kind'] : 'text';
-        if (!is_array($anchor) || !in_array($kind, ['text', 'area'], true)) {
+
+        // Text is the only kind there is; image regions were removed from the
+        // viewer. Refused here too, so a queue written by an older client
+        // cannot reintroduce one through the offline path.
+        if (!is_array($anchor) || $kind !== 'text') {
             return 'INVALID_ANCHOR';
         }
 
         // The offline path reuses the same validation as the online one, so a
         // crafted payload cannot take a shortcut by arriving through sync.
-        $checked = $kind === 'text'
-            ? $this->checkTextAnchor($anchor)
-            : $this->checkAreaAnchor($anchor);
-
+        $checked = $this->checkTextAnchor($anchor);
         if ($checked === null) {
             return 'INVALID_ANCHOR';
         }
@@ -386,30 +387,6 @@ final class SyncController extends Controller
             'prefix' => mb_substr((string) ($anchor['prefix'] ?? ''), 0, 60),
             'suffix' => mb_substr((string) ($anchor['suffix'] ?? ''), 0, 60),
         ];
-    }
-
-    private function checkAreaAnchor(array $anchor): ?array
-    {
-        $index = $anchor['imageIndex'] ?? null;
-        if (!is_numeric($index) || (int) $index < 0 || (int) $index > 5000) {
-            return null;
-        }
-
-        $rect = [];
-        foreach (['x', 'y', 'w', 'h'] as $key) {
-            if (!is_numeric($anchor[$key] ?? null)) {
-                return null;
-            }
-            $rect[$key] = max(0.0, min(100.0, round((float) $anchor[$key], 3)));
-        }
-        if ($rect['w'] <= 0.2 || $rect['h'] <= 0.2) {
-            return null;
-        }
-
-        return [
-            'imageIndex' => (int) $index,
-            'srcKey'     => mb_substr((string) ($anchor['srcKey'] ?? ''), 0, 64),
-        ] + $rect;
     }
 
     /* ---------------------------------------------------------- helpers */
