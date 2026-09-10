@@ -19,17 +19,28 @@
         disallowed: { label: 'آفلاین در دسترس نیست',     cls: 'btn-ghost',   disabled: true  }
     };
 
+    /* The button's own classes are left alone and only the state class is
+       swapped, so the same control can sit in a toolbar menu row or as a
+       standalone button without this function flattening its styling. */
     function render(button, key, detail) {
         var config = STATES[key] || STATES.idle;
-        button.className = 'btn btn-sm offline-btn ' + config.cls;
+
+        Object.keys(STATES).forEach(function (name) { button.classList.remove(STATES[name].cls); });
+        button.classList.add('offline-btn', config.cls);
+
         button.disabled = config.disabled;
         button.dataset.offlineState = key;
-        button.textContent = config.label;
+        label(button).textContent = config.label;
         if (detail) { button.title = detail; }
     }
 
+    /** Menu rows carry an icon beside the text, so only the label is rewritten. */
+    function label(button) {
+        return button.querySelector('[data-offline-label]') || button;
+    }
+
     function progress(button, step) {
-        button.textContent = step;
+        label(button).textContent = step;
     }
 
     function humanBytes(bytes) {

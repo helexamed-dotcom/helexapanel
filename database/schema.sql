@@ -562,9 +562,9 @@ CREATE TABLE content_highlights (
     user_id         BIGINT UNSIGNED NOT NULL,
     content_id      INT UNSIGNED NOT NULL,
     course_id       INT UNSIGNED NOT NULL,
-    kind            ENUM('text','area') NOT NULL DEFAULT 'text',
+    kind            ENUM('text') NOT NULL DEFAULT 'text',
     color           VARCHAR(16)  NOT NULL DEFAULT 'yellow',
-    anchor          JSON         NOT NULL,   -- node path + offsets, or a percentage rect
+    anchor          JSON         NOT NULL,   -- character offsets across the document
     quote           VARCHAR(500) NULL,       -- lets a lost anchor be re-found by search
     note            VARCHAR(500) NULL,
     content_version CHAR(64)     NULL,       -- lesson checksum when it was made

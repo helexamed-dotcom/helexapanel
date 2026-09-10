@@ -88,15 +88,22 @@ body.is-offline [data-needs-network] { opacity: .45; pointer-events: none; }
 /* offline reader -------------------------------------------------------- */
 
 .reader-head {
-    display: flex; align-items: center; gap: 10px;
-    background: #fff; border: 1px solid var(--line);
-    border-radius: var(--radius-sm); padding: 10px 12px;
+    display: flex; align-items: center; gap: 8px;
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: var(--radius-sm); padding: 8px 10px;
 }
 .reader-title {
-    flex: 1; min-width: 0; font-size: 14px; font-weight: 500;
+    flex: 1 1 auto; min-width: 0; font-size: 14px; font-weight: 600;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .reader-status { display: flex; gap: 6px; flex-wrap: wrap; }
+
+/* Standing on its own here rather than under a toolbar, so it reads as a
+   panel instead of a strip with a stray bottom rule. */
+.offline-shell .vpalette {
+    border: 1px solid var(--line); border-radius: var(--radius-sm);
+    background: var(--surface-2); padding: 9px 12px;
+}
 
 .reader-stage {
     position: relative; flex: 1; min-height: 60vh;
@@ -115,6 +122,8 @@ body.is-offline [data-needs-network] { opacity: .45; pointer-events: none; }
     .offline-summary .row-actions { justify-content: stretch; }
     .offline-summary .row-actions .btn { flex: 1; justify-content: center; }
     .reader-head { flex-wrap: wrap; }
+    .reader-head .reader-title { flex: 1 1 100%; order: -1; }
+    .reader-head .timer, .reader-head .hl-mini { font-size: 11.5px; }
 }
 
 @media print {

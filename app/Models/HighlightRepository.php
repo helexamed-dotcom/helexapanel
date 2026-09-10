@@ -5,13 +5,18 @@ namespace HeleXa\Models;
 
 final class HighlightRepository extends BaseRepository
 {
+    /**
+     * Image-region highlights were removed from the product. Rows from that era
+     * are filtered out here, in the one place every reader goes through, so a
+     * leftover row is never sent to a viewer that has no way to draw it.
+     */
     public function forContent(int $userId, int $contentId): array
     {
         return $this->select(
-            'SELECT uuid, kind, color, anchor, quote, note, content_version, created_at
+            "SELECT uuid, kind, color, anchor, quote, note, content_version, created_at
              FROM content_highlights
-             WHERE user_id = :user AND content_id = :content
-             ORDER BY id',
+             WHERE user_id = :user AND content_id = :content AND kind = 'text'
+             ORDER BY id",
             ['user' => $userId, 'content' => $contentId]
         );
     }

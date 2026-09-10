@@ -73,12 +73,51 @@
         </section>
 
         <section id="view-reader" hidden>
+            <?php
+            $colors     = \HeleXa\Controllers\HighlightController::COLORS;
+            $colorNames = ['yellow' => 'زرد', 'green' => 'سبز', 'blue' => 'آبی', 'pink' => 'صورتی', 'purple' => 'بنفش'];
+            ?>
             <div class="reader-head">
-                <button class="btn btn-ghost btn-sm" id="btn-reader-back" type="button">→ کتابخانه</button>
+                <button class="vbar-btn" id="btn-reader-back" type="button" aria-label="بازگشت به کتابخانه" title="بازگشت به کتابخانه">
+                    <?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'back']); ?>
+                </button>
                 <div class="reader-title" id="reader-title"></div>
+
+                <div class="vbar-tools" role="toolbar" aria-label="ابزار هایلایت">
+                    <button class="vbar-btn tool-btn" type="button" data-tool="pen"
+                            aria-pressed="false" title="قلم هایلایت">
+                        <?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'pen']); ?>
+                        <i class="tool-dot" data-tool-dot data-color="<?= e($colors[0]) ?>"></i>
+                    </button>
+                    <button class="vbar-btn tool-btn" type="button" data-tool="eraser"
+                            aria-pressed="false" title="پاک‌کن هایلایت">
+                        <?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'eraser']); ?>
+                    </button>
+                    <span class="vbar-sep" aria-hidden="true"></span>
+                    <button class="vbar-btn" type="button" data-undo disabled title="واگرد" aria-label="واگرد">
+                        <?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'undo']); ?>
+                    </button>
+                    <button class="vbar-btn" type="button" data-redo disabled title="از نو" aria-label="از نو">
+                        <?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'redo']); ?>
+                    </button>
+                </div>
+
                 <span class="timer" id="reader-timer">۰۰:۰۰:۰۰</span>
                 <span class="hl-mini" id="reader-hl-count" title="هایلایت‌های این جزوه"></span>
             </div>
+
+            <div class="vpalette" data-palette hidden>
+                <span class="vpalette-hint">متن را انتخاب کنید تا هایلایت شود</span>
+                <div class="vpalette-colors">
+                    <?php foreach ($colors as $color): ?>
+                        <button class="swatch<?= $color === $colors[0] ? ' is-on' : '' ?>" type="button"
+                                data-color="<?= e($color) ?>"
+                                aria-label="<?= e($colorNames[$color] ?? $color) ?>"
+                                title="<?= e($colorNames[$color] ?? $color) ?>"></button>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+
             <div class="reader-status">
                 <button class="status-btn" data-status="completed" type="button">کامل شد</button>
                 <button class="status-btn" data-status="studying" type="button">در حال مطالعه</button>

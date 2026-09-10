@@ -75,10 +75,24 @@ CSS : '';
 <meta name="robots" content="noindex, nofollow, noarchive, noimageindex">
 <style id="helexa-guard">
 {$printCss}
+/* Lessons are authored for a light page. One that declares no background of
+   its own would otherwise follow the device's dark preference and render its
+   own colours against a canvas they were never chosen for. Declared here, at
+   the top of the head, so a lesson that does set its own still wins. */
+html { color-scheme: light; }
+
+/* Selecting text is the whole highlight gesture, so it is forced on over
+   anything the lesson's own stylesheet may declare. Copying is stopped by
+   the copy/cut listeners instead, which is the part that actually matters
+   and which works on touch screens too. */
+html, body {
+  -webkit-user-select: text !important; user-select: text !important;
+}
 #helexa-watermark{
   position:fixed; inset:0; z-index:2147483000; pointer-events:none;
   display:flex; flex-wrap:wrap; align-content:center; justify-content:center;
-  gap:120px 60px; overflow:hidden; user-select:none;
+  gap:120px 60px; overflow:hidden;
+  -webkit-user-select:none !important; user-select:none !important;
 }
 #helexa-watermark span{
   transform:rotate(-30deg); font:600 15px/1.4 system-ui,-apple-system,'Segoe UI',Tahoma,sans-serif;
@@ -88,49 +102,31 @@ CSS : '';
   position:fixed; inset:0; background:#fff; z-index:2147483600; display:none;
 }
 mark.hlx{
-  background:var(--hlx-c,rgba(255,214,0,.42)); color:inherit; padding:0; border-radius:2px;
-  box-decoration-break:clone; -webkit-box-decoration-break:clone; cursor:pointer;
+  background:var(--hlx-c,rgba(255,214,0,.42)); color:inherit; padding:0; border-radius:3px;
+  box-decoration-break:clone; -webkit-box-decoration-break:clone;
+  transition:box-shadow .15s ease;
 }
 mark.hlx[data-color="yellow"]{--hlx-c:rgba(255,214,0,.45)}
 mark.hlx[data-color="green"] {--hlx-c:rgba(52,211,153,.40)}
 mark.hlx[data-color="blue"]  {--hlx-c:rgba(96,165,250,.40)}
 mark.hlx[data-color="pink"]  {--hlx-c:rgba(244,114,182,.38)}
 mark.hlx[data-color="purple"]{--hlx-c:rgba(167,139,250,.40)}
-.hlx-area{
-  position:absolute; border-radius:4px; cursor:pointer; pointer-events:auto;
-  background:var(--hlx-c,rgba(255,214,0,.30)); outline:2px solid var(--hlx-o,rgba(234,179,8,.75));
+
+/* Tool feedback. The eraser makes every mark look tappable, which is what
+   turns "remove a highlight" into a single tap on a phone. */
+body.hlx-pen    { cursor:text; }
+body.hlx-eraser mark.hlx{
+  cursor:pointer; box-shadow:0 0 0 2px rgba(239,68,68,.55);
 }
-.hlx-area[data-color="green"] {--hlx-c:rgba(52,211,153,.28);--hlx-o:rgba(16,185,129,.8)}
-.hlx-area[data-color="blue"]  {--hlx-c:rgba(96,165,250,.28);--hlx-o:rgba(59,130,246,.8)}
-.hlx-area[data-color="pink"]  {--hlx-c:rgba(244,114,182,.26);--hlx-o:rgba(236,72,153,.8)}
-.hlx-area[data-color="purple"]{--hlx-c:rgba(167,139,250,.28);--hlx-o:rgba(139,92,246,.8)}
-.hlx-wrap{position:relative; display:inline-block; max-width:100%}
-.hlx-bar{
-  position:absolute; z-index:2147483500; display:flex; gap:6px; align-items:center;
-  background:#101a2c; padding:7px 9px; border-radius:12px; direction:rtl;
-  box-shadow:0 10px 30px rgba(0,0,0,.35); font:400 12px/1 system-ui,Tahoma,sans-serif;
+body.hlx-eraser mark.hlx:active{ background:rgba(239,68,68,.22); }
+
+mark.hlx.is-flash{ animation:hlx-flash 1.1s ease; }
+@keyframes hlx-flash{
+  0%,100%{ box-shadow:0 0 0 0 rgba(37,99,235,0); }
+  35%    { box-shadow:0 0 0 3px rgba(37,99,235,.55); }
 }
-.hlx-bar button{
-  width:22px; height:22px; border-radius:50%; border:2px solid rgba(255,255,255,.35);
-  cursor:pointer; padding:0; background:#ffd600;
-}
-.hlx-bar button[data-c="green"] {background:#34d399}
-.hlx-bar button[data-c="blue"]  {background:#60a5fa}
-.hlx-bar button[data-c="pink"]  {background:#f472b6}
-.hlx-bar button[data-c="purple"]{background:#a78bfa}
-.hlx-bar .hlx-del{
-  width:22px; height:22px; padding:0; border-radius:50%;
-  background:#ef4444; border-color:rgba(255,255,255,.4);
-  display:flex; align-items:center; justify-content:center;
-  margin-right:2px;
-}
-.hlx-bar .hlx-del:hover{ background:#dc2626; }
-.hlx-area-mode img{outline:2px dashed rgba(37,99,235,.6); cursor:crosshair}
-.hlx-drag{
-  position:absolute; border:2px dashed #2563eb; background:rgba(37,99,235,.15);
-  pointer-events:none; border-radius:4px; z-index:2147483400;
-}
-@media print{ mark.hlx{background:transparent!important} .hlx-bar,.hlx-area{display:none!important} }
+@media (prefers-reduced-motion: reduce){ mark.hlx.is-flash{ animation:none; } }
+@media print{ mark.hlx{background:transparent!important} }
 </style>
 <script>
 (function () {
@@ -212,19 +208,26 @@ mark.hlx[data-color="purple"]{--hlx-c:rgba(167,139,250,.40)}
     }, true);
   }
 
-  document.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+  function coarsePointer() {
+    return !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+  }
+
+  /* On a touch screen the long-press that opens the context menu is also the
+     only way to start a text selection, and preventing it prevents selection
+     with it — which is exactly why highlights could be made on a phone but
+     never removed. Blocking it stays for mouse input, where right-click is
+     not a selection gesture. */
+  document.addEventListener('contextmenu', function (e) {
+    if (coarsePointer()) { return; }
+    e.preventDefault();
+  });
   document.addEventListener('dragstart', function (e) { e.preventDefault(); });
 
   /* ------------------------------------------------------- copy deterrent
      The copy/cut events are what actually get blocked — they fire for every
-     way of copying (Ctrl+C, the right-click menu were it not already
-     disabled above, and mobile's "Copy" button in the selection toolbar) in
-     one place, so this one listener covers desktop and mobile alike.
-
-     Selection itself is deliberately left alone: highlighting depends on
-     the browser's normal text-selection gesture, so nothing here touches
-     mousedown, mouseup, or selectionchange. A student can still select a
-     sentence to highlight it; they just cannot copy the selected text out. */
+     way of copying (Ctrl+C, the right-click menu, and mobile's "Copy" button
+     in the selection toolbar) in one place, so this one listener covers
+     desktop and mobile alike, without touching the selection gesture. */
   function blockClipboardEvent(e) {
     e.preventDefault();
     if (e.clipboardData) {
@@ -244,7 +247,9 @@ mark.hlx[data-color="purple"]{--hlx-c:rgba(167,139,250,.40)}
 
   /* ---------------------------------------------------------- highlights
      Runs inside the lesson frame, because the frame has an opaque origin and
-     the parent cannot reach its DOM at all. Everything crosses by postMessage.
+     the parent cannot reach its DOM at all. Everything crosses by postMessage:
+     the toolbar in the parent sets the tool, this side does the DOM work and
+     reports back what changed.
 
      Anchoring is by character offset across the whole document rather than by
      a DOM path: wrapping a selection in <mark> changes the child counts of the
@@ -252,30 +257,63 @@ mark.hlx[data-color="purple"]{--hlx-c:rgba(167,139,250,.40)}
      wrong. Character offsets survive, because wrapping adds elements without
      adding a single character.
   ----------------------------------------------------------------------- */
-  var HL = CFG.highlight || { enabled: false, colors: [], items: [] };
-  var areaMode = false;
+  var HL       = CFG.highlight || { enabled: false, colors: [], items: [] };
+  var COLORS   = HL.colors && HL.colors.length ? HL.colors : ['yellow'];
+  var tool     = 'off';               // 'off' | 'pen' | 'eraser'
+  var penColor = COLORS[0];
+  var items    = {};                  // uuid -> stored highlight
+  var undoStack = [];
+  var redoStack = [];
+  var HISTORY_LIMIT = 100;
+
+  var UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  function isUuid(value) { return typeof value === 'string' && UUID_RE.test(value); }
+
+  /* The text-node list is rebuilt on every structural change and cached in
+     between, because every offset lookup walks it. */
+  var nodeCache = null;
+
+  /**
+   * Whether a text node counts towards the document's character offsets.
+   *
+   * Every lookup has to agree on this, not just the walker: a selection
+   * boundary reported on <body> is resolved by scanning children, and if that
+   * scan could return a node the offset map does not contain — the watermark
+   * is full of them — the lookup would come back as "not found" and the whole
+   * selection would be discarded.
+   */
+  function isEligible(node) {
+    if (!node || node.nodeType !== 3 || !node.nodeValue || !node.nodeValue.length) { return false; }
+
+    var parent = node.parentNode;
+    while (parent && parent !== document.body) {
+      var tag = parent.nodeName;
+      if (tag === 'SCRIPT' || tag === 'STYLE' || parent.id === 'helexa-watermark') { return false; }
+      parent = parent.parentNode;
+    }
+    return parent === document.body;
+  }
 
   function textNodes() {
+    if (nodeCache) { return nodeCache; }
     var walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, {
       acceptNode: function (node) {
-        if (!node.nodeValue) { return NodeFilter.FILTER_REJECT; }
-        var parent = node.parentNode;
-        while (parent && parent !== document.body) {
-          var tag = parent.nodeName;
-          if (tag === 'SCRIPT' || tag === 'STYLE' || parent.id === 'helexa-watermark') {
-            return NodeFilter.FILTER_REJECT;
-          }
-          parent = parent.parentNode;
-        }
-        return NodeFilter.FILTER_ACCEPT;
+        return isEligible(node) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
       }
     });
     var nodes = [], node;
     while ((node = walker.nextNode())) { nodes.push(node); }
+    nodeCache = nodes;
     return nodes;
   }
 
-  /** Absolute character offset of a (node, offset) pair. */
+  function invalidate() { nodeCache = null; }
+
+  function documentText() {
+    return textNodes().map(function (n) { return n.nodeValue; }).join('');
+  }
+
+  /** Absolute character offset of a (text node, offset) pair. */
   function offsetOf(target, targetOffset) {
     var nodes = textNodes(), total = 0;
     for (var i = 0; i < nodes.length; i++) {
@@ -285,50 +323,91 @@ mark.hlx[data-color="purple"]{--hlx-c:rgba(167,139,250,.40)}
     return -1;
   }
 
-  /** The reverse: turn an absolute offset back into a (node, offset) pair. */
-  function locate(offset) {
-    var nodes = textNodes(), total = 0;
-    for (var i = 0; i < nodes.length; i++) {
-      var len = nodes[i].nodeValue.length;
-      if (offset <= total + len) { return { node: nodes[i], offset: offset - total }; }
-      total += len;
-    }
+  function firstTextNode(root) {
+    if (root.nodeType === 3) { return isEligible(root) ? root : null; }
+    if (root.nodeType !== 1) { return null; }
+    var walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null), node;
+    while ((node = walker.nextNode())) { if (isEligible(node)) { return node; } }
     return null;
   }
 
-  function documentText() {
-    return textNodes().map(function (n) { return n.nodeValue; }).join('');
+  function lastTextNode(root) {
+    if (root.nodeType === 3) { return isEligible(root) ? root : null; }
+    if (root.nodeType !== 1) { return null; }
+    var walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null), node, last = null;
+    while ((node = walker.nextNode())) { if (isEligible(node)) { last = node; } }
+    return last;
   }
 
-  function rangeFromOffsets(start, end) {
-    var from = locate(start), to = locate(end);
-    if (!from || !to) { return null; }
-    var range = document.createRange();
-    try {
-      range.setStart(from.node, from.offset);
-      range.setEnd(to.node, to.offset);
-    } catch (e) { return null; }
-    return range;
-  }
+  /**
+   * A selection boundary is not always inside a text node: triple-clicking a
+   * paragraph, or "select all", reports the boundary on the element and an
+   * index into its children. Both forms are resolved to a real text position
+   * here, otherwise those selections could never be anchored.
+   */
+  function resolvePoint(container, offset, preferEnd) {
+    if (container.nodeType === 3) { return { node: container, offset: offset }; }
+    if (container.nodeType !== 1) { return null; }
 
-  /** Wraps every text node inside the range, so a selection may span elements. */
-  function paint(range, id, color) {
-    var nodes = [];
-    var walker = document.createTreeWalker(range.commonAncestorContainer, NodeFilter.SHOW_TEXT, null);
-    var node;
-    while ((node = walker.nextNode())) {
-      if (range.intersectsNode(node) && node.nodeValue.length) { nodes.push(node); }
+    var kids = container.childNodes, i, found;
+
+    if (!preferEnd) {
+      for (i = offset; i < kids.length; i++) {
+        found = firstTextNode(kids[i]);
+        if (found) { return { node: found, offset: 0 }; }
+      }
     }
-    if (!nodes.length && range.startContainer.nodeType === 3) { nodes.push(range.startContainer); }
+    for (i = Math.min(offset, kids.length) - 1; i >= 0; i--) {
+      found = lastTextNode(kids[i]);
+      if (found) { return { node: found, offset: found.nodeValue.length }; }
+    }
+    found = preferEnd ? lastTextNode(container) : firstTextNode(container);
+    return found ? { node: found, offset: preferEnd ? found.nodeValue.length : 0 } : null;
+  }
 
-    nodes.forEach(function (textNode) {
-      var from = textNode === range.startContainer ? range.startOffset : 0;
-      var to   = textNode === range.endContainer ? range.endOffset : textNode.nodeValue.length;
-      if (to <= from) { return; }
+  function absoluteOffset(container, offset, preferEnd) {
+    var point = resolvePoint(container, offset, preferEnd);
+    return point ? offsetOf(point.node, point.offset) : -1;
+  }
 
-      var piece = textNode;
-      if (to < piece.nodeValue.length) { piece.splitText(to); }
-      if (from > 0) { piece = piece.splitText(from); }
+  /**
+   * Wraps the document text between two absolute offsets in <mark> elements,
+   * one per text node the span crosses.
+   *
+   * Working from offsets rather than the live Range is deliberate: what gets
+   * painted is then exactly what gets stored, so a highlight always reappears
+   * over the same words after a reload.
+   *
+   * @return {{matched:boolean, painted:boolean}}
+   */
+  function paintOffsets(start, end, id, color) {
+    var nodes = textNodes(), total = 0, slices = [], i;
+
+    for (i = 0; i < nodes.length && total < end; i++) {
+      var node = nodes[i];
+      var len  = node.nodeValue.length;
+      var from = total;
+      total += len;
+
+      if (total <= start) { continue; }
+      slices.push({
+        node: node,
+        from: Math.max(0, start - from),
+        to:   Math.min(len, end - from)
+      });
+    }
+
+    var painted = false;
+    slices.forEach(function (slice) {
+      if (slice.to <= slice.from) { return; }
+      // Never nest one mark inside another: a re-painted range that overlaps
+      // an existing highlight would otherwise double its tint.
+      if (slice.node.parentNode && slice.node.parentNode.closest &&
+          slice.node.parentNode.closest('mark.hlx')) { return; }
+
+      var piece = slice.node;
+      if (slice.to < piece.nodeValue.length) { piece.splitText(slice.to); }
+      if (slice.from > 0) { piece = piece.splitText(slice.from); }
 
       var mark = document.createElement('mark');
       mark.className = 'hlx';
@@ -336,125 +415,154 @@ mark.hlx[data-color="purple"]{--hlx-c:rgba(167,139,250,.40)}
       mark.setAttribute('data-color', color);
       piece.parentNode.insertBefore(mark, piece);
       mark.appendChild(piece);
+      painted = true;
     });
+
+    if (painted) { invalidate(); }
+    return { matched: slices.length > 0, painted: painted };
   }
 
-  function paintArea(item) {
-    var images = document.images;
-    var image  = images[item.anchor.imageIndex];
-    if (!image) { return false; }
-
-    // The fingerprint stops a region from landing on a different picture if the
-    // lesson was re-ordered since the highlight was made.
-    if (item.anchor.srcKey && srcKeyOf(image) !== item.anchor.srcKey) { return false; }
-
-    var wrap = image.parentNode;
-    if (!wrap || !wrap.classList || !wrap.classList.contains('hlx-wrap')) {
-      wrap = document.createElement('span');
-      wrap.className = 'hlx-wrap';
-      image.parentNode.insertBefore(wrap, image);
-      wrap.appendChild(image);
-    }
-
-    var box = document.createElement('div');
-    box.className = 'hlx-area';
-    box.setAttribute('data-id', item.uuid);
-    box.setAttribute('data-color', item.color);
-    box.style.left   = item.anchor.x + '%';
-    box.style.top    = item.anchor.y + '%';
-    box.style.width  = item.anchor.w + '%';
-    box.style.height = item.anchor.h + '%';
-    wrap.appendChild(box);
-    return true;
+  function marksFor(id) {
+    if (!isUuid(id)) { return []; }
+    return Array.prototype.slice.call(document.querySelectorAll('mark.hlx[data-id="' + id + '"]'));
   }
 
-  function srcKeyOf(image) {
-    var src = image.getAttribute('src') || '';
-    return String(src.length) + ':' + src.slice(-40);
+  function unpaint(id) {
+    var found = marksFor(id);
+    found.forEach(function (mark) {
+      var parent = mark.parentNode;
+      if (!parent) { return; }
+      while (mark.firstChild) { parent.insertBefore(mark.firstChild, mark); }
+      parent.removeChild(mark);
+      parent.normalize();
+    });
+    if (found.length) { invalidate(); }
+    return found.length > 0;
   }
 
-  function restore(items) {
+  function recolorMarks(id, color) {
+    marksFor(id).forEach(function (mark) { mark.setAttribute('data-color', color); });
+  }
+
+  function restore(list) {
     var missed = 0;
+    var whole  = documentText();
 
-    (items || []).forEach(function (item) {
+    (list || []).forEach(function (item) {
+      // Image regions were removed from the product; any row left over from
+      // that era is skipped rather than reported as a lost highlight.
+      if (!item || item.kind === 'area' || !isUuid(item.uuid)) { return; }
+      if (items[item.uuid]) { return; }
+
       try {
-        if (item.kind === 'area') {
-          if (!paintArea(item)) { missed++; }
-          return;
-        }
-
-        var range = rangeFromOffsets(item.anchor.start, item.anchor.end);
+        var anchor = item.anchor || {};
+        var start  = typeof anchor.start === 'number' ? anchor.start : -1;
+        var end    = typeof anchor.end === 'number' ? anchor.end : -1;
+        var quote  = item.quote || '';
+        var result = { matched: false, painted: false };
 
         // The stored words are the check: if the offsets no longer land on the
         // same text, the file has changed and we search for the quote instead
         // of painting over something unrelated.
-        if (range && item.quote && range.toString() !== item.quote) { range = null; }
+        var offsetsAgree = start >= 0 && end > start &&
+          (quote === '' || whole.slice(start, end) === quote);
 
-        if (!range && item.quote) {
-          var at = documentText().indexOf(item.quote);
-          if (at >= 0) { range = rangeFromOffsets(at, at + item.quote.length); }
+        if (offsetsAgree) { result = paintOffsets(start, end, item.uuid, item.color); }
+
+        if (!result.matched && quote !== '') {
+          var at = whole.indexOf(quote);
+          if (at >= 0) {
+            result = paintOffsets(at, at + quote.length, item.uuid, item.color);
+            // The lesson moved under this highlight. Remember where it really
+            // landed, so erasing and undo work on its actual position rather
+            // than the offsets it was recorded at.
+            if (result.matched) {
+              start = at;
+              end   = at + quote.length;
+            }
+          }
         }
 
-        if (!range) { missed++; return; }
-        paint(range, item.uuid, item.color);
+        if (!result.matched) { missed++; return; }
+
+        item.anchor = Object.assign({}, anchor, { start: start, end: end });
+        items[item.uuid] = item;
       } catch (e) { missed++; }
     });
 
     if (missed > 0) { send('highlight-unanchored', { count: missed }); }
   }
 
-  /* --------------------------------------------------------- the palette */
+  /* ------------------------------------------------------------- history */
 
-  var bar = null;
-
-  function hideBar() {
-    if (bar && bar.parentNode) { bar.parentNode.removeChild(bar); }
-    bar = null;
-  }
-
-  function showBar(x, y, onColor, onDelete) {
-    hideBar();
-    bar = document.createElement('div');
-    bar.className = 'hlx-bar';
-
-    (HL.colors || []).forEach(function (color) {
-      var button = document.createElement('button');
-      button.type = 'button';
-      button.setAttribute('data-c', color);
-      button.setAttribute('aria-label', color);
-      button.addEventListener('mousedown', function (event) {
-        event.preventDefault();
-        event.stopPropagation();
-        onColor(color);
-        hideBar();
-      });
-      bar.appendChild(button);
+  function reportState() {
+    send('highlight-state', {
+      canUndo: undoStack.length > 0,
+      canRedo: redoStack.length > 0,
+      total:   Object.keys(items).length
     });
-
-    if (onDelete) {
-      var remove = document.createElement('button');
-      remove.type = 'button';
-      remove.className = 'hlx-del';
-      remove.setAttribute('aria-label', 'پاک کردن هایلایت');
-      remove.setAttribute('title', 'پاک کردن هایلایت');
-      remove.innerHTML = '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>';
-      remove.addEventListener('mousedown', function (event) {
-        event.preventDefault();
-        event.stopPropagation();
-        onDelete();
-        hideBar();
-      });
-      bar.appendChild(remove);
-    }
-
-    document.body.appendChild(bar);
-    var width = bar.offsetWidth || 180;
-    bar.style.left = Math.max(6, Math.min(x - width / 2, window.innerWidth - width - 6) + window.scrollX) + 'px';
-    bar.style.top  = Math.max(6, y - bar.offsetHeight - 10 + window.scrollY) + 'px';
   }
+
+  function record(action) {
+    undoStack.push(action);
+    if (undoStack.length > HISTORY_LIMIT) { undoStack.shift(); }
+    redoStack.length = 0;
+    reportState();
+  }
+
+  function reAdd(item) {
+    var anchor = item.anchor || {};
+    var result = paintOffsets(anchor.start, anchor.end, item.uuid, item.color);
+    if (!result.matched && item.quote) {
+      var at = documentText().indexOf(item.quote);
+      if (at >= 0) { result = paintOffsets(at, at + item.quote.length, item.uuid, item.color); }
+    }
+    if (!result.matched) { return false; }
+    items[item.uuid] = item;
+    send('highlight-create', item);
+    return true;
+  }
+
+  function drop(uuid) {
+    unpaint(uuid);
+    delete items[uuid];
+    send('highlight-delete', { uuid: uuid });
+  }
+
+  function applyColor(uuid, color) {
+    recolorMarks(uuid, color);
+    if (items[uuid]) { items[uuid].color = color; }
+    send('highlight-recolor', { uuid: uuid, color: color });
+  }
+
+  function undo() {
+    var action = undoStack.pop();
+    if (!action) { return; }
+
+    if (action.op === 'create')      { drop(action.item.uuid); }
+    else if (action.op === 'delete') { reAdd(action.item); }
+    else if (action.op === 'recolor'){ applyColor(action.uuid, action.from); }
+
+    redoStack.push(action);
+    reportState();
+  }
+
+  function redo() {
+    var action = redoStack.pop();
+    if (!action) { return; }
+
+    if (action.op === 'create')      { reAdd(action.item); }
+    else if (action.op === 'delete') { drop(action.item.uuid); }
+    else if (action.op === 'recolor'){ applyColor(action.uuid, action.to); }
+
+    undoStack.push(action);
+    reportState();
+  }
+
+  /* --------------------------------------------------------- the actions */
 
   function uuidV4() {
-    if (crypto && crypto.randomUUID) { return crypto.randomUUID(); }
+    if (window.crypto && crypto.randomUUID) { return crypto.randomUUID(); }
     var bytes = new Uint8Array(16);
     crypto.getRandomValues(bytes);
     bytes[6] = (bytes[6] & 0x0f) | 0x40;
@@ -469,193 +577,208 @@ mark.hlx[data-color="purple"]{--hlx-c:rgba(167,139,250,.40)}
     } catch (e) {}
   }
 
-  function closestMark(node) {
-    var el = node && node.nodeType === 3 ? node.parentElement : node;
-    return el && el.closest ? el.closest('mark.hlx') : null;
-  }
+  function createFromOffsets(start, end, color) {
+    var whole = documentText();
+    var quote = whole.slice(start, end);
+    if (!quote.trim()) { return; }
 
-  /** Shared by both ways into editing an existing highlight: clicking it
-      directly, or re-selecting the same span of text it covers. */
-  function openEditBar(id, rect) {
-    showBar(rect.left + rect.width / 2, rect.top, function (color) {
-      document.querySelectorAll('[data-id="' + id + '"]').forEach(function (el) {
-        el.setAttribute('data-color', color);
-      });
-      send('highlight-recolor', { uuid: id, color: color });
-    }, function () {
-      document.querySelectorAll('mark.hlx[data-id="' + id + '"]').forEach(function (mark) {
-        var parent = mark.parentNode;
-        while (mark.firstChild) { parent.insertBefore(mark.firstChild, mark); }
-        parent.removeChild(mark);
-        parent.normalize();
-      });
-      document.querySelectorAll('.hlx-area[data-id="' + id + '"]').forEach(function (box) {
-        box.parentNode.removeChild(box);
-      });
-      var sel = window.getSelection();
-      if (sel && sel.removeAllRanges) { sel.removeAllRanges(); }
-      send('highlight-delete', { uuid: id });
-    });
-  }
-
-  function captureSelection() {
-    var selection = window.getSelection();
-    if (!selection || selection.isCollapsed || selection.rangeCount === 0) { hideBar(); return; }
-
-    var range = selection.getRangeAt(0);
-    var text  = range.toString();
-    if (!text.trim() || text.length > 20000) { hideBar(); return; }
-
-    // Selecting text that already sits inside one existing highlight opens
-    // that highlight (recolor / remove) instead of stacking a second one on
-    // top of it. On a touch screen, re-selecting the highlighted words is
-    // often the more natural gesture than tapping the mark precisely.
-    var startMark = closestMark(range.startContainer);
-    var endMark   = closestMark(range.endContainer);
-    if (startMark && startMark === endMark) {
-      openEditBar(startMark.getAttribute('data-id'), range.getBoundingClientRect());
-      return;
-    }
-
-    var start = offsetOf(range.startContainer, range.startOffset);
-    var end   = offsetOf(range.endContainer, range.endOffset);
-    if (start < 0 || end <= start) { hideBar(); return; }
-
-    var whole  = documentText();
-    var rect   = range.getBoundingClientRect();
-
-    showBar(rect.left + rect.width / 2, rect.top, function (color) {
-      var id = uuidV4();
-      var payload = {
-        uuid: id,
-        kind: 'text',
-        color: color,
-        quote: text.slice(0, 500),
-        anchor: {
-          start: start,
-          end: end,
-          prefix: whole.slice(Math.max(0, start - 40), start),
-          suffix: whole.slice(end, end + 40)
-        }
-      };
-
-      paint(range, id, color);
-      selection.removeAllRanges();
-      send('highlight-create', payload);
-    }, null);
-  }
-
-  /* ------------------------------------------------------- area drawing */
-
-  var drag = null;
-
-  function beginDrag(event) {
-    if (!areaMode || event.target.nodeName !== 'IMG') { return; }
-    event.preventDefault();
-
-    var image = event.target;
-    var rect  = image.getBoundingClientRect();
-
-    drag = {
-      image: image,
-      rect: rect,
-      x: event.clientX,
-      y: event.clientY,
-      box: document.createElement('div')
-    };
-    drag.box.className = 'hlx-drag';
-    document.body.appendChild(drag.box);
-  }
-
-  function moveDrag(event) {
-    if (!drag) { return; }
-    var left = Math.min(drag.x, event.clientX);
-    var top  = Math.min(drag.y, event.clientY);
-    drag.box.style.left   = (left + window.scrollX) + 'px';
-    drag.box.style.top    = (top + window.scrollY) + 'px';
-    drag.box.style.width  = Math.abs(event.clientX - drag.x) + 'px';
-    drag.box.style.height = Math.abs(event.clientY - drag.y) + 'px';
-  }
-
-  function endDrag(event) {
-    if (!drag) { return; }
-
-    var rect = drag.rect;
-    var x1 = Math.min(drag.x, event.clientX), x2 = Math.max(drag.x, event.clientX);
-    var y1 = Math.min(drag.y, event.clientY), y2 = Math.max(drag.y, event.clientY);
-
-    // Percentages of the image box, so the region survives any resize.
-    var payload = {
-      uuid: uuidV4(),
-      kind: 'area',
-      color: HL.colors[0] || 'yellow',
-      quote: null,
+    var item = {
+      uuid:  uuidV4(),
+      kind:  'text',
+      color: color,
+      quote: quote.slice(0, 500),
       anchor: {
-        imageIndex: Array.prototype.indexOf.call(document.images, drag.image),
-        srcKey: srcKeyOf(drag.image),
-        x: ((x1 - rect.left) / rect.width) * 100,
-        y: ((y1 - rect.top) / rect.height) * 100,
-        w: ((x2 - x1) / rect.width) * 100,
-        h: ((y2 - y1) / rect.height) * 100
+        start:  start,
+        end:    end,
+        prefix: whole.slice(Math.max(0, start - 40), start),
+        suffix: whole.slice(end, end + 40)
       }
     };
 
-    if (drag.box.parentNode) { drag.box.parentNode.removeChild(drag.box); }
-    var image = drag.image;
-    drag = null;
+    var result = paintOffsets(start, end, item.uuid, item.color);
+    if (!result.painted) { return; }
 
-    if (payload.anchor.w < 1 || payload.anchor.h < 1) { return; }
+    items[item.uuid] = item;
+    send('highlight-create', item);
+    record({ op: 'create', item: item });
+  }
 
-    payload.anchor.x = Math.max(0, Math.min(100, payload.anchor.x));
-    payload.anchor.y = Math.max(0, Math.min(100, payload.anchor.y));
+  function deleteHighlight(uuid) {
+    var item = items[uuid];
+    if (!item) { return; }
+    drop(uuid);
+    record({ op: 'delete', item: item });
+  }
 
-    if (paintArea({ uuid: payload.uuid, color: payload.color, anchor: payload.anchor, kind: 'area' })) {
-      send('highlight-create', payload);
+  /**
+   * Every highlight the span really overlaps, read from the document rather
+   * than from the stored offsets, so a swipe of the eraser clears exactly the
+   * marks under it. One walk covers them all.
+   */
+  function marksBetween(start, end) {
+    var nodes = textNodes(), total = 0, ids = [];
+
+    for (var i = 0; i < nodes.length && total < end; i++) {
+      var len  = nodes[i].nodeValue.length;
+      var from = total;
+      total += len;
+      if (total <= start) { continue; }
+
+      var parent = nodes[i].parentNode;
+      var mark   = parent && parent.closest ? parent.closest('mark.hlx') : null;
+      if (!mark) { continue; }
+
+      var id = mark.getAttribute('data-id');
+      if (id && ids.indexOf(id) === -1) { ids.push(id); }
     }
+
+    return ids;
+  }
+
+  function eraseWithin(start, end) {
+    var hit = marksBetween(start, end);
+    hit.forEach(deleteHighlight);
+    return hit.length;
+  }
+
+  /* ---------------------------------------------------- selection capture
+     Only the gesture-end events trigger a capture, never selectionchange:
+     that one fires continuously while the selection is being dragged and
+     would highlight half a word mid-drag.
+
+     On a touch screen the capture is delayed, and a new touch cancels the
+     pending one. That is what lets a student long-press to select a word and
+     then drag the handles to widen it: each handle drag postpones the
+     capture, and the highlight lands only once they stop adjusting. */
+  var pending  = null;
+  var TOUCH_SETTLE = 350;
+
+  function cancelCapture() {
+    if (pending) { clearTimeout(pending); pending = null; }
+  }
+
+  function scheduleCapture(delay) {
+    cancelCapture();
+    pending = setTimeout(function () { pending = null; capture(); }, delay);
+  }
+
+  function capture() {
+    if (tool === 'off' || !HL.enabled) { return; }
+
+    var selection = window.getSelection();
+    if (!selection || selection.isCollapsed || selection.rangeCount === 0) { return; }
+
+    var range = selection.getRangeAt(0);
+    var text  = range.toString();
+    if (!text.trim() || text.length > 20000) { return; }
+
+    var start = absoluteOffset(range.startContainer, range.startOffset, false);
+    var end   = absoluteOffset(range.endContainer, range.endOffset, true);
+    if (start < 0 || end <= start) { return; }
+
+    if (tool === 'eraser') {
+      eraseWithin(start, end);
+    } else {
+      createFromOffsets(start, end, penColor);
+    }
+
+    // Collapsing the selection clears the touch handles, so the next gesture
+    // starts clean instead of re-triggering on the same words.
+    if (selection.removeAllRanges) { selection.removeAllRanges(); }
   }
 
   function wireHighlights() {
     if (!HL.enabled) { return; }
 
     restore(HL.items);
+    reportState();
 
     document.addEventListener('mouseup', function (event) {
-      if (areaMode || drag) { return; }
-      if (event.target && event.target.closest && event.target.closest('.hlx-bar')) { return; }
-      window.setTimeout(captureSelection, 10);
+      if (event.target && event.target.closest && event.target.closest('mark.hlx') && tool === 'eraser') { return; }
+      scheduleCapture(10);
     });
 
+    document.addEventListener('touchstart', function () { cancelCapture(); }, { passive: true });
+    document.addEventListener('touchend',   function () { scheduleCapture(TOUCH_SETTLE); }, { passive: true });
+    document.addEventListener('touchcancel', cancelCapture, { passive: true });
+
+    // A single tap on a highlight erases it — the gesture that was impossible
+    // before, because it needed the exact same text to be re-selected first.
     document.addEventListener('click', function (event) {
-      var hit = event.target.closest ? event.target.closest('mark.hlx, .hlx-area') : null;
-      if (!hit) { hideBar(); return; }
+      if (tool !== 'eraser') { return; }
+      var mark = event.target && event.target.closest ? event.target.closest('mark.hlx') : null;
+      if (!mark) { return; }
       event.preventDefault();
-      openEditBar(hit.getAttribute('data-id'), hit.getBoundingClientRect());
-    });
+      event.stopPropagation();
+      cancelCapture();
+      deleteHighlight(mark.getAttribute('data-id'));
+    }, true);
 
-    document.addEventListener('scroll', hideBar, true);
-    document.addEventListener('mousedown', beginDrag);
-    document.addEventListener('mousemove', moveDrag);
-    document.addEventListener('mouseup', endDrag);
+    document.addEventListener('keydown', function (event) {
+      var target = event.target;
+      if (target && (target.nodeName === 'INPUT' || target.nodeName === 'TEXTAREA' || target.isContentEditable)) {
+        return;
+      }
+      if (!(event.ctrlKey || event.metaKey)) { return; }
+
+      var key = (event.key || '').toLowerCase();
+      if (key === 'z') {
+        event.preventDefault();
+        if (event.shiftKey) { redo(); } else { undo(); }
+      } else if (key === 'y') {
+        event.preventDefault();
+        redo();
+      }
+    });
   }
 
-  // The parent turns image-region mode on and off.
+  function setTool(next) {
+    tool = (next === 'pen' || next === 'eraser') ? next : 'off';
+    document.body.classList.toggle('hlx-pen', tool === 'pen');
+    document.body.classList.toggle('hlx-eraser', tool === 'eraser');
+    cancelCapture();
+  }
+
+  /* The parent's toolbar drives the engine from here. */
   window.addEventListener('message', function (event) {
     var data = event.data || {};
     if (data.source !== 'helexa-shell') { return; }
-    if (data.type === 'area-mode') {
-      areaMode = !!data.on;
-      document.body.classList.toggle('hlx-area-mode', areaMode);
-      hideBar();
+
+    if (data.type === 'tool') { setTool(data.tool); return; }
+
+    if (data.type === 'color') {
+      if (COLORS.indexOf(data.color) !== -1) { penColor = data.color; }
+      return;
     }
+
+    if (data.type === 'undo') { undo(); return; }
+    if (data.type === 'redo') { redo(); return; }
+
+    // Deleting from the list in the parent, for a highlight whose text has
+    // scrolled away or can no longer be found in the page.
+    if (data.type === 'erase') {
+      if (isUuid(data.uuid)) { deleteHighlight(data.uuid); }
+      return;
+    }
+
     if (data.type === 'apply-highlights') {
       // Used by the offline reader: the stored copy of the lesson carries the
       // highlights that existed when it was downloaded, so anything made since
       // is painted here instead of being invisible until the next download.
       restore(data.items || []);
+      reportState();
+      return;
     }
+
     if (data.type === 'scroll-to') {
-      var target = document.querySelector('[data-id="' + data.uuid + '"]');
-      if (target && target.scrollIntoView) { target.scrollIntoView({ block: 'center' }); }
+      var target = marksFor(data.uuid)[0];
+      if (!target) { return; }
+      if (target.scrollIntoView) { target.scrollIntoView({ block: 'center' }); }
+      marksFor(data.uuid).forEach(function (mark) {
+        mark.classList.remove('is-flash');
+        void mark.offsetWidth;
+        mark.classList.add('is-flash');
+      });
     }
   });
 

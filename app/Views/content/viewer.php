@@ -21,97 +21,137 @@
     </script>
     <link rel="stylesheet" href="/assets/css/app.css">
     <link rel="stylesheet" href="/assets/css/pwa.css">
-    <style>
-        html, body { height: 100%; overflow: hidden; background: var(--canvas); }
-        .viewer { display: flex; flex-direction: column; height: 100dvh; }
-        .viewer-bar {
-            display: flex; align-items: center; gap: 10px;
-            padding: 0 14px; height: 56px; flex: 0 0 56px;
-            background: #fff; border-bottom: 1px solid var(--line);
-        }
-        .viewer-title { font-size: 14.5px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .viewer-course { font-size: 11.5px; color: var(--ink-3); }
-        .viewer-frame { flex: 1 1 auto; width: 100%; border: 0; background: #fff; opacity: 0; transition: opacity .35s ease; }
-        .viewer-frame.is-ready { opacity: 1; }
-        .viewer-stage { position: relative; flex: 1 1 auto; display: flex; }
-        .viewer-loading {
-            position: absolute; inset: 0; background: #fff; z-index: 5;
-            display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
-        }
-        .viewer-loading.is-hidden { opacity: 0; pointer-events: none; transition: opacity .3s ease; }
-        .loader-ring {
-            width: 34px; height: 34px; border-radius: 50%;
-            border: 3px solid var(--line); border-top-color: var(--blue);
-            animation: viewer-spin .8s linear infinite;
-        }
-        @keyframes viewer-spin { to { transform: rotate(360deg); } }
-        .loader-text { font-size: 13px; color: var(--ink-3); }
-        .loader-hint { font-size: 11.5px; color: var(--ink-3); opacity: .8; }
-        @media (prefers-reduced-motion: reduce) {
-            .loader-ring { animation-duration: 2s; }
-            .viewer-frame { transition: none; }
-        }
-        .status-bar { display: flex; gap: 6px; align-items: center; }
-        .status-btn {
-            border: 1.5px solid var(--line); background: #fff; color: var(--ink-2);
-            border-radius: 10px; padding: 6px 11px; font-size: 12.5px; cursor: pointer;
-        }
-        .status-btn.is-on[data-status="completed"]    { background: #dcfce7; border-color: #86efac; color: #15803d; }
-        .status-btn.is-on[data-status="studying"]     { background: #fef3c7; border-color: #fcd34d; color: #b45309; }
-        .status-btn.is-on[data-status="review_later"] { background: var(--blue-soft); border-color: #93c5fd; color: var(--blue); }
-        .timer { font-family: ui-monospace, Menlo, monospace; font-size: 13px; color: var(--ink-3); direction: ltr; }
-        @media (max-width: 720px) {
-            .viewer-bar { height: 52px; flex-basis: 52px; padding: 0 10px; gap: 6px; }
-            .viewer-title { font-size: 13px; max-width: 40vw; }
-            .status-btn { padding: 5px 8px; font-size: 11.5px; }
-            .hide-sm { display: none; }
-        }
-        <?php if ((int) $content['is_printable'] === 0): ?>
-        @media print { body { display: none !important; } }
-        <?php endif; ?>
-    </style>
+    <?php if ((int) $content['is_printable'] === 0): ?>
+        <style>@media print { body { display: none !important; } }</style>
+    <?php endif; ?>
 </head>
-<body>
+<body class="viewer-body">
+<?php
+$backUrl     = '/student/courses/' . $content['course_uuid'];
+$showTools   = $isStudent && $highlightEnabled;
+$colors      = \HeleXa\Controllers\HighlightController::COLORS;
+$colorNames  = [
+    'yellow' => 'زرد', 'green' => 'سبز', 'blue' => 'آبی',
+    'pink' => 'صورتی', 'purple' => 'بنفش',
+];
+?>
 <div class="viewer">
-    <header class="viewer-bar">
-        <a class="icon-btn" href="/student/courses/<?= e($content['course_uuid']) ?>" title="بازگشت">→</a>
-        <div style="min-width:0;">
-            <div class="viewer-title"><?= e($content['title']) ?></div>
-            <div class="viewer-course hide-sm"><?= e($content['course_title']) ?></div>
+    <header class="vbar">
+        <a class="vbar-btn" href="<?= e($backUrl) ?>" aria-label="بازگشت به دوره" title="بازگشت به دوره">
+            <?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'back']); ?>
+        </a>
+
+        <div class="vbar-titles">
+            <div class="vbar-title"><?= e($content['title']) ?></div>
+            <div class="vbar-course"><?= e($content['course_title']) ?></div>
         </div>
-        <div class="spacer" style="flex:1"></div>
-        <button class="icon-btn" type="button" data-theme-toggle aria-label="تغییر حالت روشن و شب">
-            <span class="theme-icon-sun"><?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'sun']); ?></span>
-            <span class="theme-icon-moon"><?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'moon']); ?></span>
-        </button>
-        <span class="timer" id="study-timer" title="زمان مطالعه‌ی ثبت‌شده روی سرور"><?= e($studiedClock) ?></span>
-        <?php if ($isStudent && $highlightEnabled): ?>
-            <button class="btn btn-ghost btn-sm" type="button" id="btn-area-mode"
-                    title="کشیدن کادر روی تصویر">هایلایت تصویر</button>
-            <button class="btn btn-ghost btn-sm" type="button" id="btn-highlights"
-                    title="فهرست هایلایت‌ها">هایلایت‌ها <span id="hl-count">۰</span></button>
-        <?php endif; ?>
-        <?php if ($isStudent && $offlineEnabled): ?>
-            <button class="btn btn-sm offline-btn btn-ghost"
-                    type="button"
-                    data-offline-save="<?= e($content['uuid']) ?>"
-                    data-version="<?= e($content['checksum'] ?? '') ?>"
-                    data-offline-allowed="<?= (int) ($content['offline_enabled'] ?? 1) === 1 ? '1' : '0' ?>"
-                    data-needs-network>ذخیره برای مطالعه آفلاین</button>
-        <?php endif; ?>
-        <?php if ($isStudent): ?>
-            <div class="status-bar">
-                <button class="status-btn<?= $statusValue === 'completed' ? ' is-on' : '' ?>" data-status="completed" type="button">کامل شد</button>
-                <button class="status-btn<?= $statusValue === 'studying' ? ' is-on' : '' ?>" data-status="studying" type="button">در حال مطالعه</button>
-                <button class="status-btn<?= $statusValue === 'review_later' ? ' is-on' : '' ?>" data-status="review_later" type="button">مرور بعدی</button>
+
+        <?php if ($showTools): ?>
+            <div class="vbar-tools" role="toolbar" aria-label="ابزار هایلایت">
+                <button class="vbar-btn tool-btn" type="button" data-tool="pen"
+                        aria-pressed="false" title="قلم هایلایت">
+                    <?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'pen']); ?>
+                    <i class="tool-dot" data-tool-dot data-color="<?= e($colors[0]) ?>"></i>
+                </button>
+                <button class="vbar-btn tool-btn" type="button" data-tool="eraser"
+                        aria-pressed="false" title="پاک‌کن هایلایت">
+                    <?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'eraser']); ?>
+                </button>
+
+                <span class="vbar-sep" aria-hidden="true"></span>
+
+                <button class="vbar-btn" type="button" data-undo disabled title="واگرد (Ctrl+Z)" aria-label="واگرد">
+                    <?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'undo']); ?>
+                </button>
+                <button class="vbar-btn" type="button" data-redo disabled title="از نو (Ctrl+Shift+Z)" aria-label="از نو">
+                    <?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'redo']); ?>
+                </button>
             </div>
         <?php endif; ?>
+
+        <span class="timer" id="study-timer" title="زمان مطالعه‌ی ثبت‌شده روی سرور"><?= e($studiedClock) ?></span>
+        <span data-conn-slot></span>
+
+        <div class="vmenu-wrap" data-vmenu>
+            <button class="vbar-btn" type="button" data-vmenu-trigger
+                    aria-haspopup="true" aria-expanded="false" aria-label="گزینه‌های بیشتر" title="گزینه‌های بیشتر">
+                <?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'more']); ?>
+            </button>
+
+            <div class="vmenu" data-vmenu-panel hidden>
+                <?php if ($isStudent): ?>
+                    <div class="vmenu-label">وضعیت مطالعه</div>
+                    <button class="vmenu-row<?= $statusValue === 'completed' ? ' is-on' : '' ?>" type="button" data-status="completed">
+                        <span class="row-icon"><?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'check']); ?></span>
+                        <span>کامل شد</span>
+                    </button>
+                    <button class="vmenu-row<?= $statusValue === 'studying' ? ' is-on' : '' ?>" type="button" data-status="studying">
+                        <span class="row-icon"><?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'book']); ?></span>
+                        <span>در حال مطالعه</span>
+                    </button>
+                    <button class="vmenu-row<?= $statusValue === 'review_later' ? ' is-on' : '' ?>" type="button" data-status="review_later">
+                        <span class="row-icon"><?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'clock']); ?></span>
+                        <span>مرور بعدی</span>
+                    </button>
+                    <div class="vmenu-sep"></div>
+                <?php endif; ?>
+
+                <?php if ($showTools): ?>
+                    <button class="vmenu-row" type="button" id="btn-highlights">
+                        <span class="row-icon"><?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'list']); ?></span>
+                        <span>هایلایت‌های من</span>
+                        <span class="vmenu-count" id="hl-count">۰</span>
+                    </button>
+                <?php endif; ?>
+
+                <?php if ($isStudent && $offlineEnabled): ?>
+                    <button class="vmenu-row offline-btn"
+                            type="button"
+                            data-offline-save="<?= e($content['uuid']) ?>"
+                            data-version="<?= e($content['checksum'] ?? '') ?>"
+                            data-offline-allowed="<?= (int) ($content['offline_enabled'] ?? 1) === 1 ? '1' : '0' ?>"
+                            data-needs-network>
+                        <span class="row-icon"><?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'download']); ?></span>
+                        <span data-offline-label>ذخیره برای مطالعه آفلاین</span>
+                    </button>
+                <?php endif; ?>
+
+                <button class="vmenu-row" type="button" data-theme-toggle>
+                    <span class="row-icon theme-icon-sun"><?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'sun']); ?></span>
+                    <span class="row-icon theme-icon-moon"><?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'moon']); ?></span>
+                    <span>حالت روشن / شب</span>
+                </button>
+
+                <div class="vmenu-sep"></div>
+
+                <a class="vmenu-row" href="<?= e($backUrl) ?>">
+                    <span class="row-icon"><?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'logout']); ?></span>
+                    <span>خروج از جزوه</span>
+                </a>
+            </div>
+        </div>
     </header>
+
+    <?php if ($showTools): ?>
+        <div class="vpalette" data-palette hidden>
+            <span class="vpalette-hint">متن را انتخاب کنید تا هایلایت شود</span>
+            <div class="vpalette-colors">
+                <?php foreach ($colors as $color): ?>
+                    <button class="swatch<?= $color === $colors[0] ? ' is-on' : '' ?>" type="button"
+                            data-color="<?= e($color) ?>"
+                            aria-label="<?= e($colorNames[$color] ?? $color) ?>"
+                            title="<?= e($colorNames[$color] ?? $color) ?>"></button>
+                <?php endforeach; ?>
+            </div>
+        </div>
+    <?php endif; ?>
 
     <aside class="hl-drawer" id="hl-drawer" hidden aria-label="فهرست هایلایت‌ها">
         <div class="hl-drawer-head">
             <strong>هایلایت‌های من</strong>
-            <button class="btn btn-ghost btn-sm" type="button" id="btn-hl-close">بستن</button>
+            <button class="vbar-btn" type="button" id="btn-hl-close" aria-label="بستن">
+                <?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'close']); ?>
+            </button>
         </div>
         <div class="hl-drawer-body" id="hl-list"></div>
         <div class="hl-drawer-foot" id="hl-note"></div>
@@ -141,17 +181,23 @@
             <?php endif; ?>
         </div>
     </div>
+
+    <div class="vtoast" data-toast hidden role="status" aria-live="polite"></div>
 </div>
 
 <script src="/assets/js/app.js" nonce="<?= e($cspNonce ?? '') ?>"></script>
-<script src="/assets/js/helexa-db.js"></script>
-<script src="/assets/js/helexa-core.js"></script>
-<script src="/assets/js/pwa.js"></script>
-<script src="/assets/js/offline-manager.js"></script>
+<script src="/assets/js/helexa-db.js" nonce="<?= e($cspNonce ?? '') ?>"></script>
+<script src="/assets/js/helexa-core.js" nonce="<?= e($cspNonce ?? '') ?>"></script>
+<script src="/assets/js/pwa.js" nonce="<?= e($cspNonce ?? '') ?>"></script>
+<?php if ($isStudent && $offlineEnabled): ?>
+    <script src="/assets/js/offline-manager.js" nonce="<?= e($cspNonce ?? '') ?>"></script>
+<?php endif; ?>
 <script src="/assets/js/viewer.js"
+        nonce="<?= e($cspNonce ?? '') ?>"
         data-content="<?= e($content['uuid']) ?>"
         data-heartbeat="<?= (int) $heartbeatInt ?>"
         data-studied="<?= (int) $studiedSecs ?>"
+        data-highlight="<?= $showTools ? '1' : '0' ?>"
         data-tracking="<?= $isStudent ? '1' : '0' ?>"></script>
 </body>
 </html>

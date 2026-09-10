@@ -139,14 +139,16 @@ final class HighlightController extends Controller
         $color = $request->string('color', 'yellow');
         $anchor = $request->input('anchor');
 
-        if (!in_array($kind, ['text', 'area'], true) || !in_array($color, self::COLORS, true)) {
+        // Text is the only kind there is: highlighting a region of an image was
+        // removed from the product, so nothing may create one any more.
+        if ($kind !== 'text' || !in_array($color, self::COLORS, true)) {
             return null;
         }
         if (!is_array($anchor)) {
             return null;
         }
 
-        $clean = $kind === 'text' ? $this->textAnchor($anchor) : $this->areaAnchor($anchor);
+        $clean = $this->textAnchor($anchor);
         if ($clean === null) {
             return null;
         }
@@ -198,41 +200,6 @@ final class HighlightController extends Controller
             'prefix' => mb_substr((string) ($anchor['prefix'] ?? ''), 0, 60),
             'suffix' => mb_substr((string) ($anchor['suffix'] ?? ''), 0, 60),
         ];
-    }
-
-    /**
-     * A region of an image is anchored to the Nth image in the document.
-     *
-     * Images are never wrapped or moved by highlighting, so their order is
-     * stable in a way that element paths are not. The tail of the src is kept
-     * as a fingerprint so the region is not drawn over a different picture if
-     * the lesson is re-ordered.
-     */
-    private function areaAnchor(array $anchor): ?array
-    {
-        $index = $anchor['imageIndex'] ?? null;
-        if (!is_numeric($index) || (int) $index < 0 || (int) $index > 5000) {
-            return null;
-        }
-
-        $rect = [];
-        foreach (['x', 'y', 'w', 'h'] as $key) {
-            $value = $anchor[$key] ?? null;
-            if (!is_numeric($value)) {
-                return null;
-            }
-            // Percentages of the image box, so the region survives any resize.
-            $rect[$key] = max(0.0, min(100.0, round((float) $value, 3)));
-        }
-
-        if ($rect['w'] <= 0.2 || $rect['h'] <= 0.2) {
-            return null;
-        }
-
-        return [
-            'imageIndex' => (int) $index,
-            'srcKey'     => mb_substr((string) ($anchor['srcKey'] ?? ''), 0, 64),
-        ] + $rect;
     }
 
     private function uuid(mixed $value): ?string

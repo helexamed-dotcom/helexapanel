@@ -2,7 +2,10 @@
    Bridges the sandboxed lesson frame to the server. Nothing here is a security
    control and nothing here decides how long the student studied: the browser
    only reports whether its tab is visible, and the server does the arithmetic
-   against its own clock. */
+   against its own clock.
+
+   The toolbar lives on this side and the DOM work happens inside the frame, so
+   every tool change crosses as a postMessage. */
 (function () {
     'use strict';
 
@@ -10,6 +13,7 @@
     var contentId = script.getAttribute('data-content');
     var interval  = parseInt(script.getAttribute('data-heartbeat'), 10) || 25;
     var tracking  = script.getAttribute('data-tracking') === '1';
+    var hlEnabled = script.getAttribute('data-highlight') === '1';
     var csrf      = (document.querySelector('meta[name="csrf-token"]') || {}).content || '';
     var frame     = document.getElementById('lesson');
     var timerEl   = document.getElementById('study-timer');
@@ -20,6 +24,15 @@
     var frameFocused  = true;
     var frameScroll   = 0;
 
+    var highlights = [];
+    var tool       = 'off';
+    var penColor   = 'yellow';
+
+    try {
+        var savedColor = localStorage.getItem('helexa_hl_color');
+        if (savedColor) { penColor = savedColor; }
+    } catch (e) { /* private mode: the default colour applies */ }
+
     function post(url, body) {
         return fetch(url, {
             method: 'POST',
@@ -29,13 +42,29 @@
         });
     }
 
+    function faDigits(value) {
+        return String(value).replace(/[0-9]/g, function (d) { return '۰۱۲۳۴۵۶۷۸۹'[d]; });
+    }
+
     function paint(seconds) {
         if (!timerEl) { return; }
         var h = Math.floor(seconds / 3600);
         var m = Math.floor((seconds % 3600) / 60);
         var s = seconds % 60;
         var text = [h, m, s].map(function (n) { return String(n).padStart(2, '0'); }).join(':');
-        timerEl.textContent = text.replace(/[0-9]/g, function (d) { return '۰۱۲۳۴۵۶۷۸۹'[d]; });
+        timerEl.textContent = faDigits(text);
+    }
+
+    /* ------------------------------------------------------------- toast */
+    var toastEl = document.querySelector('[data-toast]');
+    var toastTimer = null;
+
+    function toast(message) {
+        if (!toastEl) { return; }
+        toastEl.textContent = message;
+        toastEl.hidden = false;
+        if (toastTimer) { clearTimeout(toastTimer); }
+        toastTimer = setTimeout(function () { toastEl.hidden = true; }, 3200);
     }
 
     /* ------------------------------------------------------ loading overlay
@@ -53,8 +82,20 @@
         }
     }
 
+    function toFrame(message) {
+        if (frame && frame.contentWindow) {
+            frame.contentWindow.postMessage(message, '*');
+        }
+    }
+
     if (frame) {
-        frame.addEventListener('load', revealFrame);
+        frame.addEventListener('load', function () {
+            revealFrame();
+            // The frame boots in reading mode; hand it back whatever the
+            // toolbar is currently set to.
+            toFrame({ source: 'helexa-shell', type: 'color', color: penColor });
+            toFrame({ source: 'helexa-shell', type: 'tool', tool: tool });
+        });
         // If the load event never fires (blocked, cached oddly, older browser),
         // show the frame anyway rather than leaving a spinner forever.
         window.setTimeout(revealFrame, 20000);
@@ -87,7 +128,7 @@
     });
 
     /* ------------------------------------------------------- status buttons */
-    document.querySelectorAll('.status-btn').forEach(function (button) {
+    document.querySelectorAll('[data-status]').forEach(function (button) {
         button.addEventListener('click', function () {
             var status = button.getAttribute('data-status');
 
@@ -108,23 +149,26 @@
     });
 
     function markStatus(button) {
-        document.querySelectorAll('.status-btn').forEach(function (b) { b.classList.remove('is-on'); });
+        document.querySelectorAll('[data-status]').forEach(function (b) { b.classList.remove('is-on'); });
         button.classList.add('is-on');
+        closeMenu();
     }
 
     /* ----------------------------------------------------------- highlights
        The frame owns the DOM work; this side owns the network. When a request
        cannot go out, the change is queued so it reaches the server later
        instead of existing only on this screen. */
-    var highlights = [];
-    var frameReady = false;
-
     function base() {
         return '/content/' + encodeURIComponent(contentId) + '/highlights';
     }
 
     function handleHighlight(data) {
         var payload = data.payload || {};
+
+        if (data.type === 'highlight-state') {
+            setHistory(!!payload.canUndo, !!payload.canRedo);
+            return;
+        }
 
         if (data.type === 'highlight-unanchored') {
             var note = document.getElementById('hl-note');
@@ -136,6 +180,7 @@
         }
 
         if (data.type === 'highlight-create') {
+            highlights = highlights.filter(function (h) { return h.uuid !== payload.uuid; });
             highlights.push({
                 uuid: payload.uuid, kind: payload.kind, color: payload.color, quote: payload.quote
             });
@@ -169,11 +214,9 @@
     function queue(action, payload) {
         if (window.HeleXa && window.HeleXa.queueHighlight) {
             window.HeleXa.queueHighlight(contentId, action, payload);
+        } else {
+            toast('این تغییر ذخیره نشد. اتصال اینترنت را بررسی کنید.');
         }
-    }
-
-    function faDigits(value) {
-        return String(value).replace(/[0-9]/g, function (d) { return '۰۱۲۳۴۵۶۷۸۹'[d]; });
     }
 
     function paintList() {
@@ -193,19 +236,32 @@
         }
 
         highlights.slice().reverse().forEach(function (item) {
-            var row = document.createElement('button');
-            row.type = 'button';
+            var row = document.createElement('div');
             row.className = 'hl-row';
             row.setAttribute('data-color', item.color || 'yellow');
-            row.textContent = item.kind === 'area'
-                ? 'کادر روی تصویر'
-                : (item.quote || '').slice(0, 120) || 'بدون متن';
-            row.addEventListener('click', function () {
-                if (!frame || !frame.contentWindow) { return; }
-                frame.contentWindow.postMessage(
-                    { source: 'helexa-shell', type: 'scroll-to', uuid: item.uuid }, '*'
-                );
+
+            var jump = document.createElement('button');
+            jump.type = 'button';
+            jump.className = 'hl-row-text';
+            jump.textContent = (item.quote || '').slice(0, 160) || 'بدون متن';
+            jump.addEventListener('click', function () {
+                toFrame({ source: 'helexa-shell', type: 'scroll-to', uuid: item.uuid });
+                if (window.matchMedia('(max-width: 720px)').matches) { closeDrawer(); }
             });
+
+            var remove = document.createElement('button');
+            remove.type = 'button';
+            remove.className = 'hl-row-del';
+            remove.setAttribute('aria-label', 'حذف این هایلایت');
+            remove.title = 'حذف این هایلایت';
+            remove.innerHTML = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor"' +
+                ' stroke-width="1.9" stroke-linecap="round"><path d="m6.6 6.6 10.8 10.8M17.4 6.6 6.6 17.4"/></svg>';
+            remove.addEventListener('click', function () {
+                toFrame({ source: 'helexa-shell', type: 'erase', uuid: item.uuid });
+            });
+
+            row.appendChild(jump);
+            row.appendChild(remove);
             list.appendChild(row);
         });
     }
@@ -227,38 +283,137 @@
             .catch(function () { /* offline: the seeded copy in the frame still shows */ });
     }
 
-    function wireHighlightChrome() {
-        var areaButton  = document.getElementById('btn-area-mode');
+    /* ------------------------------------------------------------- toolbar */
+
+    function setTool(next) {
+        tool = next;
+        document.querySelectorAll('[data-tool]').forEach(function (button) {
+            var on = button.getAttribute('data-tool') === tool;
+            button.classList.toggle('is-on', on);
+            button.setAttribute('aria-pressed', on ? 'true' : 'false');
+        });
+
+        var palette = document.querySelector('[data-palette]');
+        if (palette) { palette.hidden = tool !== 'pen'; }
+
+        document.body.classList.toggle('is-erasing', tool === 'eraser');
+        toFrame({ source: 'helexa-shell', type: 'tool', tool: tool });
+    }
+
+    function setColor(color) {
+        penColor = color;
+        try { localStorage.setItem('helexa_hl_color', color); } catch (e) {}
+
+        document.querySelectorAll('.swatch').forEach(function (swatch) {
+            swatch.classList.toggle('is-on', swatch.getAttribute('data-color') === color);
+        });
+        var dot = document.querySelector('[data-tool-dot]');
+        if (dot) { dot.setAttribute('data-color', color); }
+
+        toFrame({ source: 'helexa-shell', type: 'color', color: color });
+    }
+
+    function setHistory(canUndo, canRedo) {
+        var undoButton = document.querySelector('[data-undo]');
+        var redoButton = document.querySelector('[data-redo]');
+        if (undoButton) { undoButton.disabled = !canUndo; }
+        if (redoButton) { redoButton.disabled = !canRedo; }
+    }
+
+    /* --------------------------------------------------------- overflow menu */
+    var menuWrap    = document.querySelector('[data-vmenu]');
+    var menuTrigger = document.querySelector('[data-vmenu-trigger]');
+    var menuPanel   = document.querySelector('[data-vmenu-panel]');
+
+    function closeMenu() {
+        if (!menuPanel || menuPanel.hidden) { return; }
+        menuPanel.hidden = true;
+        if (menuTrigger) { menuTrigger.setAttribute('aria-expanded', 'false'); }
+    }
+
+    function toggleMenu() {
+        if (!menuPanel) { return; }
+        var open = menuPanel.hidden;
+        menuPanel.hidden = !open;
+        if (menuTrigger) { menuTrigger.setAttribute('aria-expanded', open ? 'true' : 'false'); }
+    }
+
+    /* ------------------------------------------------------ highlight drawer */
+    function closeDrawer() {
+        var drawer = document.getElementById('hl-drawer');
+        if (drawer) { drawer.hidden = true; }
+    }
+
+    function wireChrome() {
+        if (menuTrigger && menuPanel) {
+            menuTrigger.addEventListener('click', function (event) {
+                event.stopPropagation();
+                toggleMenu();
+            });
+            menuPanel.addEventListener('click', function (event) { event.stopPropagation(); });
+            document.addEventListener('click', function (event) {
+                if (menuWrap && !menuWrap.contains(event.target)) { closeMenu(); }
+            });
+        }
+
+        document.addEventListener('keydown', function (event) {
+            if (event.key !== 'Escape') { return; }
+            closeMenu();
+            closeDrawer();
+        });
+
+        if (!hlEnabled) { return; }
+
+        document.querySelectorAll('[data-tool]').forEach(function (button) {
+            button.addEventListener('click', function () {
+                var wanted = button.getAttribute('data-tool');
+                // Pressing the active tool again returns to plain reading, so
+                // text can be selected without leaving a mark behind.
+                setTool(tool === wanted ? 'off' : wanted);
+            });
+        });
+
+        document.querySelectorAll('.swatch').forEach(function (swatch) {
+            swatch.addEventListener('click', function () {
+                setColor(swatch.getAttribute('data-color'));
+                if (tool !== 'pen') { setTool('pen'); }
+            });
+        });
+
+        var undoButton = document.querySelector('[data-undo]');
+        var redoButton = document.querySelector('[data-redo]');
+        if (undoButton) {
+            undoButton.addEventListener('click', function () {
+                toFrame({ source: 'helexa-shell', type: 'undo' });
+            });
+        }
+        if (redoButton) {
+            redoButton.addEventListener('click', function () {
+                toFrame({ source: 'helexa-shell', type: 'redo' });
+            });
+        }
+
         var listButton  = document.getElementById('btn-highlights');
         var drawer      = document.getElementById('hl-drawer');
         var closeButton = document.getElementById('btn-hl-close');
 
-        if (areaButton) {
-            areaButton.addEventListener('click', function () {
-                var on = areaButton.classList.toggle('is-on');
-                areaButton.textContent = on ? 'پایان هایلایت تصویر' : 'هایلایت تصویر';
-                if (frame && frame.contentWindow) {
-                    frame.contentWindow.postMessage(
-                        { source: 'helexa-shell', type: 'area-mode', on: on }, '*'
-                    );
-                }
+        if (listButton && drawer) {
+            listButton.addEventListener('click', function () {
+                drawer.hidden = !drawer.hidden;
+                closeMenu();
             });
         }
+        if (closeButton) { closeButton.addEventListener('click', closeDrawer); }
 
-        if (listButton && drawer) {
-            listButton.addEventListener('click', function () { drawer.hidden = !drawer.hidden; });
-        }
-        if (closeButton && drawer) {
-            closeButton.addEventListener('click', function () { drawer.hidden = true; });
-        }
-
-        if (listButton) { loadHighlights(); }
+        setColor(penColor);
+        setHistory(false, false);
+        loadHighlights();
     }
 
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', wireHighlightChrome);
+        document.addEventListener('DOMContentLoaded', wireChrome);
     } else {
-        wireHighlightChrome();
+        wireChrome();
     }
 
     /* ------------------------------------------------------------ heartbeat */

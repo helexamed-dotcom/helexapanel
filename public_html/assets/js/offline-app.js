@@ -193,24 +193,101 @@
         var el = document.getElementById('reader-hl-count');
         if (!el) { return; }
         var count = hlCounts[uuid] || 0;
-        el.textContent = count > 0 ? '✏️ ' + fa(String(count)) : '';
+        el.textContent = count > 0 ? fa(String(count)) + ' هایلایت' : '';
     }
+
+    /* ------------------------------------------------- the highlight toolbar
+       The frame boots in reading mode and only the toolbar can arm the pen, so
+       the offline reader carries the same one the online viewer does. Without
+       it, a downloaded lesson could be read but never marked. */
+    var tool     = 'off';
+    var penColor = 'yellow';
+
+    try {
+        var storedColor = localStorage.getItem('helexa_hl_color');
+        if (storedColor) { penColor = storedColor; }
+    } catch (e) { /* private mode: the default colour applies */ }
+
+    function toFrame(message) {
+        if (els.frame && els.frame.contentWindow) {
+            els.frame.contentWindow.postMessage(message, '*');
+        }
+    }
+
+    function setTool(next) {
+        tool = next;
+        document.querySelectorAll('[data-tool]').forEach(function (button) {
+            var on = button.getAttribute('data-tool') === tool;
+            button.classList.toggle('is-on', on);
+            button.setAttribute('aria-pressed', on ? 'true' : 'false');
+        });
+        var palette = document.querySelector('[data-palette]');
+        if (palette) { palette.hidden = tool !== 'pen'; }
+        toFrame({ source: 'helexa-shell', type: 'tool', tool: tool });
+    }
+
+    function setColor(color) {
+        penColor = color;
+        try { localStorage.setItem('helexa_hl_color', color); } catch (e) {}
+        document.querySelectorAll('.swatch').forEach(function (swatch) {
+            swatch.classList.toggle('is-on', swatch.getAttribute('data-color') === color);
+        });
+        var dot = document.querySelector('[data-tool-dot]');
+        if (dot) { dot.setAttribute('data-color', color); }
+        toFrame({ source: 'helexa-shell', type: 'color', color: color });
+    }
+
+    function setHistory(canUndo, canRedo) {
+        var undoButton = document.querySelector('[data-undo]');
+        var redoButton = document.querySelector('[data-redo]');
+        if (undoButton) { undoButton.disabled = !canUndo; }
+        if (redoButton) { redoButton.disabled = !canRedo; }
+    }
+
+    document.querySelectorAll('[data-tool]').forEach(function (button) {
+        button.addEventListener('click', function () {
+            var wanted = button.getAttribute('data-tool');
+            setTool(tool === wanted ? 'off' : wanted);
+        });
+    });
+
+    document.querySelectorAll('.swatch').forEach(function (swatch) {
+        swatch.addEventListener('click', function () {
+            setColor(swatch.getAttribute('data-color'));
+            if (tool !== 'pen') { setTool('pen'); }
+        });
+    });
+
+    var undoBtn = document.querySelector('[data-undo]');
+    var redoBtn = document.querySelector('[data-redo]');
+    if (undoBtn) { undoBtn.addEventListener('click', function () { toFrame({ source: 'helexa-shell', type: 'undo' }); }); }
+    if (redoBtn) { redoBtn.addEventListener('click', function () { toFrame({ source: 'helexa-shell', type: 'redo' }); }); }
+
+    setColor(penColor);
 
     window.addEventListener('message', function (event) {
         if (!reader.uuid || event.source !== els.frame.contentWindow) { return; }
         var data = event.data || {};
         if (!data.type || data.type.indexOf('highlight-') !== 0) { return; }
 
+        if (data.type === 'highlight-state') {
+            var state = data.payload || {};
+            setHistory(!!state.canUndo, !!state.canRedo);
+            if (typeof state.total === 'number') {
+                hlCounts[reader.uuid] = state.total;
+                paintHlCount(reader.uuid);
+            }
+            return;
+        }
+
         var scope = window.HeleXa.scope();
         if (!scope) { return; }
 
+        // The running count comes from highlight-state, which the frame sends
+        // after every change, so nothing is tallied twice here.
         if (data.type === 'highlight-create') {
-            hlCounts[reader.uuid] = (hlCounts[reader.uuid] || 0) + 1;
-            paintHlCount(reader.uuid);
             window.HeleXa.queueHighlight(reader.uuid, 'create', data.payload);
         } else if (data.type === 'highlight-delete') {
-            hlCounts[reader.uuid] = Math.max(0, (hlCounts[reader.uuid] || 1) - 1);
-            paintHlCount(reader.uuid);
             window.HeleXa.queueHighlight(reader.uuid, 'delete', data.payload);
         } else if (data.type === 'highlight-recolor') {
             window.HeleXa.queueHighlight(reader.uuid, 'recolor', data.payload);
@@ -238,8 +315,15 @@
         // Same URL as the online viewer. Online it streams from the server;
         // offline the service worker answers from the stored copy.
         paintHlCount(item.content_uuid);
+        setTool('off');
+        setHistory(false, false);
         els.frame.src = '/content/' + encodeURIComponent(item.content_uuid) + '/stream';
-        els.frame.addEventListener('load', function () { els.readerLoading.hidden = true; }, { once: true });
+        els.frame.addEventListener('load', function () {
+            els.readerLoading.hidden = true;
+            // The frame boots in reading mode; hand it the current settings.
+            toFrame({ source: 'helexa-shell', type: 'color', color: penColor });
+            toFrame({ source: 'helexa-shell', type: 'tool', tool: tool });
+        }, { once: true });
 
         reader.ticker = window.setInterval(function () {
             if (document.visibilityState !== 'visible') { return; }
