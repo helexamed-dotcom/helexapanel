@@ -190,52 +190,6 @@ final class Auth
         ];
     }
 
-    /**
-     * Verifies a username/password pair without touching anything
-     * session-, cookie- or device-related.
-     *
-     * Used by the Telegram bot's login flow, which has no HTTP session to
-     * establish and no single-device policy to enforce — it only needs the
-     * same core answer the web form gets: is this the right password for
-     * this account, and may that account sign in at all right now.
-     *
-     * @return array{ok:bool, user:?array, reason:?string}
-     */
-    public static function verifyCredentialsOnly(string $identifier, string $password): array
-    {
-        $users = new UserRepository();
-        $user  = $users->findByIdentifier($identifier);
-
-        // A dummy hash is checked even when the user does not exist, so a
-        // missing account and a wrong password take the same amount of time.
-        $hash     = is_array($user) ? (string) $user['password_hash'] : self::DUMMY_HASH;
-        $verified = password_verify($password, $hash);
-
-        if (!is_array($user) || !$verified) {
-            if (is_array($user)) {
-                $users->registerFailedLogin(
-                    (int) $user['id'],
-                    Settings::int('login_max_attempts', 5),
-                    Settings::int('login_lockout_seconds', 900)
-                );
-            }
-            return ['ok' => false, 'user' => null, 'reason' => 'INVALID_CREDENTIALS'];
-        }
-
-        if ($users->isLocked($user)) {
-            return ['ok' => false, 'user' => $user, 'reason' => 'LOCKED'];
-        }
-        if ($user['status'] !== 'active') {
-            return ['ok' => false, 'user' => $user, 'reason' => 'INACTIVE'];
-        }
-
-        if (password_needs_rehash($hash, PASSWORD_ARGON2ID, self::hashOptions())) {
-            $users->updatePassword((int) $user['id'], self::hashPassword($password));
-        }
-
-        return ['ok' => true, 'user' => $user, 'reason' => null];
-    }
-
     // ------------------------------------------------------- remember me
 
     private const REMEMBER_COOKIE = 'HLX_REMEMBER';

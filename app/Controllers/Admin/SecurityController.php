@@ -230,13 +230,6 @@ final class SecurityController extends Controller
         $router = new Router();
         require BASE_PATH . '/routes/web.php';
 
-        // Routes with their own independent verification instead of the
-        // session/CSRF pair — a third-party webhook cannot present either,
-        // so it is not a gap, it is a different (and here, equally strict)
-        // mechanism. Checked by prefix since the path itself carries a
-        // per-installation secret segment.
-        $selfSecuredPrefixes = ['/telegram/webhook/'];
-
         $public    = ['/login', '/logout', '/'];
         $rows      = [];
         $unguarded = [];
@@ -248,13 +241,6 @@ final class SecurityController extends Controller
             );
 
             $isPublic = in_array($route['path'], $public, true);
-            $isSelfSecured = false;
-            foreach ($selfSecuredPrefixes as $prefix) {
-                if (str_starts_with($route['path'], $prefix)) {
-                    $isSelfSecured = true;
-                    break;
-                }
-            }
 
             $authed      = in_array('AuthenticateMiddleware', $names, true) || in_array('GuestMiddleware', $names, true);
             $csrfCovered = in_array('CsrfMiddleware', $names, true);
@@ -263,9 +249,8 @@ final class SecurityController extends Controller
                 'method'     => $route['method'],
                 'path'       => $route['path'],
                 'middleware' => $names,
-                'ok'         => $isPublic || $isSelfSecured || ($authed && $csrfCovered),
+                'ok'         => $isPublic || ($authed && $csrfCovered),
                 'public'     => $isPublic,
-                'selfSecured'=> $isSelfSecured,
             ];
 
             $rows[] = $row;

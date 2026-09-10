@@ -61,12 +61,6 @@
         <?php endif; ?>
     </a>
 <?php endif; ?>
-<?php if (can('manage_settings')): ?>
-    <a class="nav-item<?= active_when($currentPath, '/admin/telegram') ?>" href="/admin/telegram" data-tip="ربات تلگرام">
-        <?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'message']); ?> <span class="nav-text">ربات تلگرام</span>
-    </a>
-<?php endif; ?>
-
 <div class="nav-label">امنیت</div>
 <?php if (can('view_sessions')): ?>
     <a class="nav-item<?= active_when($currentPath, '/admin/sessions') ?>" href="/admin/sessions" data-tip="نشست‌ها">

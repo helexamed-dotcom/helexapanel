@@ -19,8 +19,8 @@ use PDOException;
  *     request, a double-clicked button or a repeated job therefore produces one
  *     announcement, not three.
  *
- *  2. Channels. Today the only delivery channel is the site itself. When the
- *     Telegram bot exists it registers here as a second channel; the code that
+ *  2. Channels. Today the only delivery channel is the site itself. Anything
+ *     else (email, push) registers here as an extra channel; the code that
  *     activates a course does not change and, more importantly, a failure in a
  *     messaging channel can never roll back the activation that caused it.
  */

@@ -64,10 +64,9 @@ final class SupportController extends Controller
         $adminId   = (int) Auth::id();
         $messageId = $this->tickets->addMessage((int) $ticket['id'], 'admin', $adminId, $body, null);
 
-        // Reaches the student on the site's own notification bell and, if
-        // linked with the "پاسخ پشتیبانی" preference on, in Telegram too —
-        // through the exact same queue every other notification goes
-        // through, not a separate direct call that could fail silently.
+        // Reaches the student on the site's own notification bell, through the
+        // same queue every other notification goes through rather than a
+        // separate direct call that could fail silently.
         NotificationService::publish([
             'title'           => 'پاسخ پشتیبانی',
             'body'            => $body,

@@ -1,7 +1,7 @@
 -- =====================================================================
---  Support tickets: a student writes to support from Telegram, an admin
---  answers from the panel, the reply reaches Telegram through the same
---  queue every other notification already uses.
+--  Support tickets: a student opens a ticket, an admin answers from the
+--  panel, and the reply reaches the student through the same queue every
+--  other notification already uses.
 -- =====================================================================
 
 CREATE TABLE IF NOT EXISTS support_tickets (

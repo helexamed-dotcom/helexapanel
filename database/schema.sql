@@ -874,43 +874,6 @@ CREATE TABLE support_messages (
     CONSTRAINT fk_support_message_sender FOREIGN KEY (sender_id) REFERENCES users(id)           ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Telegram account link. telegram_user_id is never trusted for authorization
--- on its own; every other query joins through user_id, which is only set
--- once a real password has been verified through the bot's login flow.
-CREATE TABLE telegram_accounts (
-    id               BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-    user_id          BIGINT UNSIGNED NOT NULL,
-    telegram_user_id BIGINT          NOT NULL,
-    chat_id          BIGINT          NOT NULL,
-    telegram_username VARCHAR(64)    NULL,
-    first_name       VARCHAR(191)    NULL,
-    phone_shared      VARCHAR(20)    NULL,
-    notify_general    TINYINT(1)     NOT NULL DEFAULT 1,
-    notify_schedule   TINYINT(1)     NOT NULL DEFAULT 1,
-    notify_exams      TINYINT(1)     NOT NULL DEFAULT 1,
-    notify_announcements TINYINT(1)  NOT NULL DEFAULT 1,
-    notify_support    TINYINT(1)     NOT NULL DEFAULT 1,
-    linked_at        DATETIME        NOT NULL,
-    last_seen_at     DATETIME        NULL,
-    unlinked_at      DATETIME        NULL,
-    PRIMARY KEY (id),
-    UNIQUE KEY uq_telegram_user (telegram_user_id),
-    KEY idx_telegram_account_user (user_id, unlinked_at),
-    CONSTRAINT fk_telegram_account_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- The bot's stand-in for an HTTP session: each webhook call is stateless, so
--- this row is "what step is this chat in and what has it collected so far".
-CREATE TABLE telegram_states (
-    telegram_user_id BIGINT       NOT NULL,
-    step             VARCHAR(48)  NOT NULL,
-    payload          JSON         NULL,
-    updated_at       DATETIME     NOT NULL,
-    expires_at       DATETIME     NOT NULL,
-    PRIMARY KEY (telegram_user_id),
-    KEY idx_telegram_state_expiry (expires_at)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
 -- Outbound deliveries for any notification channel; channel-agnostic so a
 -- future email/push channel can reuse the same queue and worker shape.
 CREATE TABLE notification_deliveries (
@@ -1013,9 +976,4 @@ INSERT INTO settings (setting_key, setting_value, value_type, is_public, updated
     ('highlight_max_per_content','300',          'int',    0, NOW()),
     ('site_logo_path',           '',             'string', 1, NOW()),
     ('avatar_male_path',         '',             'string', 1, NOW()),
-    ('avatar_female_path',       '',             'string', 1, NOW()),
-    ('telegram_bot_enabled',     '0',            'bool',   0, NOW()),
-    ('telegram_bot_token',       '',             'string', 0, NOW()),
-    ('telegram_webhook_secret',  '',             'string', 0, NOW()),
-    ('telegram_bot_username',    '',             'string', 1, NOW()),
-    ('telegram_queue_last_drain', '0',           'int',    0, NOW());
+    ('avatar_female_path',       '',             'string', 1, NOW());

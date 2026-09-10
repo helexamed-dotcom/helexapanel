@@ -18,20 +18,8 @@ final class CsrfMiddleware implements MiddlewareInterface
 {
     private const PROTECTED_METHODS = ['POST', 'PUT', 'PATCH', 'DELETE'];
 
-    // The Telegram webhook is called by Telegram's servers, never a browser:
-    // there is no session to hold a CSRF token in the first place. It is not
-    // left unguarded — the controller behind this prefix independently checks
-    // an unguessable path segment and Telegram's own secret-token header,
-    // which is the appropriate credential for a third-party webhook, the way
-    // CSRF is the appropriate one for a form a browser submits.
-    private const BYPASS_PREFIX = '/telegram/webhook/';
-
     public function handle(Request $request, callable $next): Response
     {
-        if (str_starts_with($request->path(), self::BYPASS_PREFIX)) {
-            return $next($request);
-        }
-
         if (!in_array($request->method(), self::PROTECTED_METHODS, true)) {
             return $next($request);
         }

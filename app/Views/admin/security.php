@@ -120,8 +120,6 @@ $critical = array_values(array_filter($failed, static fn (array $c): bool => $c[
                     <td>
                         <?php if ($row['public']): ?>
                             <span class="stat-chip chip-gray">عمومی</span>
-                        <?php elseif (!empty($row['selfSecured'])): ?>
-                            <span class="stat-chip chip-blue" title="محافظت مستقل: بخش تصادفی در آدرس + هدر امضاشده، بدون نشست/CSRF">خودمحافظ</span>
                         <?php elseif ($row['ok']): ?>
                             <span class="stat-chip chip-green">محافظت‌شده</span>
                         <?php else: ?>

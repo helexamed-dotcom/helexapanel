@@ -24,7 +24,6 @@ use HeleXa\Controllers\Admin\ScheduleController;
 use HeleXa\Controllers\Admin\SecurityController;
 use HeleXa\Controllers\Admin\SessionController;
 use HeleXa\Controllers\Admin\SettingsController;
-use HeleXa\Controllers\Admin\TelegramSettingsController;
 use HeleXa\Controllers\Admin\SupportController;
 use HeleXa\Controllers\Admin\StudentController;
 use HeleXa\Controllers\Api\OfflineController as OfflineApi;
@@ -34,7 +33,6 @@ use HeleXa\Controllers\AuthController;
 use HeleXa\Controllers\ContentViewerController;
 use HeleXa\Controllers\HighlightController;
 use HeleXa\Controllers\HomeController;
-use HeleXa\Controllers\TelegramWebhookController;
 use HeleXa\Controllers\OfflineController;
 use HeleXa\Controllers\Student\AnalyticsController as StudentAnalytics;
 use HeleXa\Controllers\Student\CourseController as StudentCourses;
@@ -307,14 +305,6 @@ $router->group('/admin', [
     $router->post('/settings/brand/{slot}/reset', [SettingsController::class, 'resetBrandImage'],
         [PermissionMiddleware::class . ':manage_settings']);
 
-    /* --------------------------------------------------------- telegram */
-    $telegram = [PermissionMiddleware::class . ':manage_settings'];
-    $router->get('/telegram',                  [TelegramSettingsController::class, 'index'],   $telegram);
-    $router->post('/telegram',                 [TelegramSettingsController::class, 'update'],  $telegram);
-    $router->post('/telegram/webhook/set',     [TelegramSettingsController::class, 'setWebhook'],   $telegram);
-    $router->post('/telegram/webhook/remove',  [TelegramSettingsController::class, 'removeWebhook'], $telegram);
-    $router->post('/telegram/test',            [TelegramSettingsController::class, 'testConnection'], $telegram);
-
     /* ----------------------------------------------------------- support */
     $support = [PermissionMiddleware::class . ':manage_messages'];
     $router->get('/support',                    [SupportController::class, 'index'],      $support);
@@ -323,11 +313,3 @@ $router->group('/admin', [
     $router->post('/support/{uuid}/close',       [SupportController::class, 'close'],      $support);
     $router->get('/support/{uuid}/attachment/{message}', [SupportController::class, 'attachment'], $support);
 });
-
-/* ============================================================ telegram bot
-   Outside every group: this is called by Telegram's own servers, never a
-   browser, so it carries none of the session/CSRF middleware above. Its
-   security comes from the unguessable path segment plus Telegram's own
-   signed header, both checked inside the controller. See
-   CsrfMiddleware::BYPASS_PREFIX for the matching exception. */
-$router->post('/telegram/webhook/{secret}', [TelegramWebhookController::class, 'handle']);

@@ -92,9 +92,4 @@ if (session_status() !== PHP_SESSION_ACTIVE) {
     session_start();
 }
 
-if (HELEXA_INSTALLED) {
-    \HeleXa\Services\Telegram\TelegramNotificationChannel::register();
-    \HeleXa\Services\Telegram\TelegramQueue::maybeDrain();
-}
-
 return $request;
