@@ -100,13 +100,22 @@
              */
             ?>
             <span class="conn" data-conn-slot role="status" aria-live="polite" title="وضعیت اتصال">
-                <svg class="conn-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                     stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
-                    <path class="conn-arc conn-arc-3" d="M2.6 9.1a13.8 13.8 0 0 1 18.8 0"/>
-                    <path class="conn-arc conn-arc-2" d="M6 12.8a8.9 8.9 0 0 1 12 0"/>
-                    <path class="conn-arc conn-arc-1" d="M9.4 16.5a4 4 0 0 1 5.2 0"/>
-                    <circle class="conn-dot" cx="12" cy="20" r="1.35" fill="currentColor" stroke="none"/>
-                    <path class="conn-slash" d="m4.6 4.6 14.8 14.8"/>
+                <?php
+                /**
+                 * width and height are on the element, not only in the
+                 * stylesheet. An SVG with neither renders at its full
+                 * intrinsic size, so a stale cached stylesheet — which the
+                 * service worker will happily serve for a while after a
+                 * deploy — would blow this up to a full-size graphic.
+                 */
+                ?>
+                <svg class="conn-ic" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+                    <path class="conn-arc conn-arc-3" d="M2.5 8.5a15.9 15.9 0 0 1 19 0"/>
+                    <path class="conn-arc conn-arc-2" d="M5.5 12a11 11 0 0 1 13 0"/>
+                    <path class="conn-arc conn-arc-1" d="M8.5 15.5a6 6 0 0 1 7 0"/>
+                    <circle class="conn-dot" cx="12" cy="19" r="1.5" fill="currentColor" stroke="none"/>
+                    <path class="conn-slash" d="m4.8 4.8 14.4 14.4"/>
                 </svg>
                 <span class="conn-label"></span>
             </span>
