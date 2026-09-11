@@ -51,6 +51,11 @@ it this route behaves exactly as it always has, for the website.
 
 ### `POST /auth/request-otp` — *guest*
 
+> **The app does not call this.** The code routes below are documented because
+> the panel serves them and `core/AuthRepository` implements them, but the
+> sign-in screen offers password only. See README, "Signing in".
+
+
 ```
 phone=09123456789
 ```

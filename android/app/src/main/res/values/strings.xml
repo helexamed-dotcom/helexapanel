@@ -3,18 +3,12 @@
     <string name="app_name">هلیکسا مد</string>
 
     <!-- Sign in -->
-    <string name="sign_in_title">ورود یا ثبت‌نام</string>
-    <string name="tab_password">ورود با رمز عبور</string>
-    <string name="tab_sms">ورود با کد پیامکی</string>
+    <string name="sign_in_title">ورود به حساب</string>
+    <string name="sign_in_subtitle">با شماره موبایل یا نام کاربری خود وارد شو.</string>
+    <string name="sign_in_help">اگر رمز عبورت را فراموش کرده‌ای یا حساب نداری، با پشتیبانی تماس بگیر.</string>
     <string name="field_identifier">شماره موبایل یا نام کاربری</string>
     <string name="field_password">رمز عبور</string>
-    <string name="field_phone">شماره موبایل</string>
     <string name="action_sign_in">ورود</string>
-    <string name="action_request_code">دریافت کد</string>
-    <string name="action_verify_code">تأیید کد</string>
-    <string name="action_change_number">تغییر شماره</string>
-    <string name="action_resend">ارسال مجدد کد</string>
-    <string name="forgot_password">رمز عبورم را فراموش کرده‌ام</string>
 
     <!-- Navigation -->
     <string name="nav_home">خانه</string>

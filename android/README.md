@@ -4,6 +4,23 @@ A student client for the HeleXa Med panel. It signs in with the panel's own
 accounts, reads the panel's own data, and renders the panel's own lessons — it
 is a second face on one system, not a second system.
 
+## Signing in
+
+Username or mobile number, plus the password the admin set. That is the only
+route the app offers.
+
+The panel *also* supports a texted one-time code, and `core/` still implements
+it — `AuthRepository.requestCode()` and `verifyCode()` are written and covered
+by the test suite. The app does not surface them, because the operator's SMS
+gateway is not in a state they want students to meet. Nothing was deleted to
+achieve that: putting the route back is an edit to `LoginScreen.kt` and
+`LoginViewModel.kt` and nothing else.
+
+One consequence worth stating plainly: with the code route off, a student who
+has forgotten their password cannot reset it from the app, because that reset
+is what the code is for. The sign-in screen says so and points them at the
+panel's staff instead of offering a button that would fail.
+
 ## State of this repository
 
 Read this first; it decides what you can trust.
@@ -102,10 +119,10 @@ whose session cookie can be sent somewhere else.
 
 ## What is still to write
 
-The Compose screens themselves: dashboard, courses, course detail, schedule,
-exams, notifications, profile, and the navigation graph that joins them. The
-login screen's state machine is written and type-checked; its Composable is
-not.
+The Compose screens themselves: courses, course detail, schedule, exams,
+notifications, profile, and the navigation graph that joins them. Sign-in, the
+home screen, and the shared loading/empty/error states are written and
+type-checked.
 
 The shape they should follow is settled and documented in `ARCHITECTURE.md`:
 one `ViewModel` per screen exposing a sealed `UiState`, no screen touching the
