@@ -32,15 +32,31 @@
             <table class="data">
                 <thead>
                 <tr>
-                    <th>نام</th><th>نام کاربری</th><th>دانشگاه / رشته</th><th>ترم / گروه</th>
-                    <th>وضعیت</th><th>نشست فعال</th><th>آخرین ورود</th><th></th>
+                    <th>نام</th><th>شماره موبایل</th><th>دانشگاه / رشته</th><th>ترم / گروه</th>
+                    <th>وضعیت</th><th>نشست فعال</th><th>ثبت‌نام</th><th>آخرین ورود</th><th></th>
                 </tr>
                 </thead>
                 <tbody>
                 <?php foreach ($students as $student): ?>
                     <tr>
                         <td><?= e($student['full_name']) ?></td>
-                        <td class="mono"><?= e($student['username']) ?></td>
+                        <?php
+                        /* The number is now the identifier students actually sign in
+                           with, so it leads; the username stays underneath because
+                           admin-created accounts are still found by it. */
+                        $verified = !empty($student['phone_verified_at']);
+                        ?>
+                        <td>
+                            <?php if (!empty($student['mobile'])): ?>
+                                <span class="mono" dir="ltr"><?= e(fa((string) $student['mobile'])) ?></span>
+                                <span class="stat-chip <?= $verified ? 'chip-green' : 'chip-gray' ?>" style="margin:0 6px 0 0;">
+                                    <?= $verified ? 'تأیید شده' : 'تأیید نشده' ?>
+                                </span>
+                            <?php else: ?>
+                                <span class="leaf-meta">بدون شماره</span>
+                            <?php endif; ?>
+                            <div class="leaf-meta mono"><?= e($student['username']) ?></div>
+                        </td>
                         <td>
                             <?= e($student['university_title'] ?? '—') ?>
                             <?php if (!empty($student['major_title'])): ?>
@@ -67,6 +83,7 @@
                                 <span class="stat-chip chip-gray">—</span>
                             <?php endif; ?>
                         </td>
+                        <td><?= e(jdate($student['created_at'])) ?></td>
                         <td><?= e(jdate($student['last_login_at'])) ?></td>
                         <td class="row-actions">
                             <a class="btn btn-ghost btn-sm" href="/admin/students/<?= e($student['uuid']) ?>/edit">ویرایش</a>

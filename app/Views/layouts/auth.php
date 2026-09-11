@@ -29,5 +29,6 @@
     <?= $content ?? '' ?>
 </div>
 <script src="<?= asset('/assets/js/app.js') ?>" nonce="<?= e($cspNonce ?? '') ?>"></script>
+<script src="<?= asset('/assets/js/auth.js') ?>" nonce="<?= e($cspNonce ?? '') ?>"></script>
 </body>
 </html>

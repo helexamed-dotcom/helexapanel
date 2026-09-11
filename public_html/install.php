@@ -71,6 +71,7 @@ function connectWith(array $db): PDO
  */
 const FRESH_INSTALL_MIGRATIONS = [
     '2026_09_13_balin_island.sql',
+    '2026_09_14_phone_auth.sql',
 ];
 
 /** Splits the schema on semicolons at end of line; the file contains no procedures. */

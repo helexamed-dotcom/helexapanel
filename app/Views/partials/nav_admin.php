@@ -178,6 +178,9 @@ if ($canBalin): ?>
             <a class="nav-item<?= active_when($currentPath, '/admin/security') ?>" href="/admin/security" data-tip="بازبینی امنیت">
                 <?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'shield']); ?> <span class="nav-text">بازبینی امنیت</span>
             </a>
+            <a class="nav-item<?= active_when($currentPath, '/admin/sms') ?>" href="/admin/sms" data-tip="تنظیمات پیامک">
+                <?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'message']); ?> <span class="nav-text">تنظیمات پیامک</span>
+            </a>
             <a class="nav-item<?= active_when($currentPath, '/admin/settings') ?>" href="/admin/settings" data-tip="تنظیمات">
                 <?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'settings']); ?> <span class="nav-text">تنظیمات</span>
             </a>

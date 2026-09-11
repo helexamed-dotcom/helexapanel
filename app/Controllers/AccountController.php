@@ -178,49 +178,84 @@ final class AccountController extends Controller
         ]);
     }
 
+    /**
+     * True when the account has no password at all — it was created by a
+     * texted code and its owner has never chosen one.
+     *
+     * Everything about this form turns on the answer: with no password there
+     * is nothing to ask the student to confirm, and demanding a "current
+     * password" they never had would lock them out of ever setting one.
+     */
+    private function hasPassword(array $user): bool
+    {
+        return is_string($user['password_hash'] ?? null) && $user['password_hash'] !== '';
+    }
+
+    private function passwordPageData(array $user, array $errors = []): array
+    {
+        $creating = !$this->hasPassword($user);
+
+        return [
+            'title'     => $creating ? 'ایجاد رمز عبور' : 'تغییر رمز عبور',
+            'creating'  => $creating,
+            'minLength' => $this->passwordMinLength(),
+            'errors'    => $errors,
+        ];
+    }
+
+    private function passwordMinLength(): int
+    {
+        return Auth::isAdmin()
+            ? (int) Config::get('security.password.admin_min_length', 12)
+            : (int) Config::get('security.password.min_length', 10);
+    }
+
     public function showPasswordForm(Request $request, array $params = []): Response
     {
-        return $this->page('layouts.app', 'account.password', [
-            'title'  => 'تغییر رمز عبور',
-            'errors' => [],
-        ]);
+        // Read fresh rather than trusting the session copy: a password set in
+        // another tab a moment ago must change which form this renders.
+        $user = (new UserRepository())->findById((int) Auth::id()) ?? Auth::user();
+
+        return $this->page('layouts.app', 'account.password', $this->passwordPageData($user));
     }
 
     public function updatePassword(Request $request, array $params = []): Response
     {
-        $user    = Auth::user();
-        $current = (string) $request->input('current_password', '');
-        $new     = (string) $request->input('new_password', '');
-        $confirm = (string) $request->input('new_password_confirmation', '');
+        $users = new UserRepository();
+        $user  = $users->findById((int) Auth::id());
 
-        $minLength = Auth::isAdmin()
-            ? (int) Config::get('security.password.admin_min_length', 12)
-            : (int) Config::get('security.password.min_length', 10);
+        if ($user === null) {
+            return $this->redirect('/login');
+        }
+
+        $current  = (string) $request->input('current_password', '');
+        $new      = (string) $request->input('new_password', '');
+        $confirm  = (string) $request->input('new_password_confirmation', '');
+        $creating = !$this->hasPassword($user);
+
+        $minLength = $this->passwordMinLength();
 
         $validator = (new Validator([
             'current_password'          => $current,
             'new_password'              => $new,
             'new_password_confirmation' => $confirm,
         ]))
-            ->required('current_password', 'رمز عبور فعلی')
             ->password('new_password', 'رمز عبور جدید', $minLength)
             ->matches('new_password_confirmation', 'new_password', 'تکرار رمز عبور مطابقت ندارد.');
 
-        $users = new UserRepository();
-        $fresh = $users->findById((int) $user['id']);
+        // The current password is required only when there is one to give.
+        if (!$creating) {
+            $validator->required('current_password', 'رمز عبور فعلی');
+        }
 
-        if (!$validator->fails() && ($fresh === null || !password_verify($current, (string) $fresh['password_hash']))) {
-            return $this->page('layouts.app', 'account.password', [
-                'title'  => 'تغییر رمز عبور',
-                'errors' => ['current_password' => 'رمز عبور فعلی نادرست است.'],
-            ], 422);
+        if (!$validator->fails() && !$creating && !password_verify($current, (string) $user['password_hash'])) {
+            return $this->page('layouts.app', 'account.password',
+                $this->passwordPageData($user, ['current_password' => 'رمز عبور فعلی نادرست است.']), 422);
         }
 
         if ($validator->fails()) {
-            return $this->page('layouts.app', 'account.password', [
-                'title'  => 'تغییر رمز عبور',
-                'errors' => $validator->errors(),
-            ], 422);
+            return $this->page('layouts.app', 'account.password',
+                $this->passwordPageData($user, $validator->errors()), 422);
         }
 
         $users->updatePassword((int) $user['id'], Auth::hashPassword($new));
@@ -235,9 +270,14 @@ final class AccountController extends Controller
         );
         Auth::revokeRememberTokens((int) $user['id'], 'password_change');
 
-        ActivityLogger::log('account.password_changed', (int) $user['id'], 'user', (int) $user['id'], [], 'notice', $request);
-        $this->flash('success', 'رمز عبور با موفقیت تغییر کرد.');
+        ActivityLogger::log(
+            $creating ? 'account.password_created' : 'account.password_changed',
+            (int) $user['id'], 'user', (int) $user['id'], [], 'notice', $request
+        );
+        $this->flash('success', $creating
+            ? 'رمز عبور ساخته شد. از این پس می‌توانی با شماره موبایل و رمز عبور وارد شوی.'
+            : 'رمز عبور با موفقیت تغییر کرد.');
 
-        return $this->redirect(Auth::isAdmin() ? '/admin' : '/student');
+        return $this->redirect('/account/profile');
     }
 }

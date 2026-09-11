@@ -76,7 +76,46 @@
         </p>
 
         <h3 class="card-title" style="margin-top:22px;">امنیت حساب</h3>
-        <a class="btn btn-ghost btn-sm" href="/account/password">تغییر رمز عبور</a>
+
+        <?php
+        /**
+         * An account created by a texted code has no password until its owner
+         * chooses one, so the button has to say which of the two things it
+         * does. Offering "change password" to someone who has none would send
+         * them to a form asking for a current password they never had.
+         */
+        $hasPassword = is_string($profile['password_hash'] ?? null) && $profile['password_hash'] !== '';
+        $verified    = !empty($profile['phone_verified_at']);
+        ?>
+
+        <table class="data" style="min-width:auto;">
+            <tr>
+                <th>شماره موبایل</th>
+                <td class="mono" dir="ltr"><?= e(fa((string) ($profile['mobile'] ?? ''))) ?: '—' ?></td>
+            </tr>
+            <tr>
+                <th>وضعیت شماره</th>
+                <td>
+                    <span class="stat-chip <?= $verified ? 'chip-green' : 'chip-gray' ?>" style="margin:0;">
+                        <?= $verified ? 'تأیید شده' : 'تأیید نشده' ?>
+                    </span>
+                </td>
+            </tr>
+            <tr>
+                <th>رمز عبور</th>
+                <td><?= $hasPassword ? 'تنظیم شده است' : 'هنوز تنظیم نشده است' ?></td>
+            </tr>
+        </table>
+
+        <a class="btn btn-ghost btn-sm" style="margin-top:12px;" href="/account/password">
+            <?= $hasPassword ? 'تغییر رمز عبور' : 'ایجاد رمز عبور' ?>
+        </a>
+
+        <?php if (!$hasPassword): ?>
+            <p style="color:var(--ink-3); font-size:12px; margin-top:10px;">
+                تا وقتی رمز عبوری نساخته‌ای، فقط با کد پیامکی می‌توانی وارد شوی.
+            </p>
+        <?php endif; ?>
 
         <div style="margin-top:14px;">
             <div class="stat-label">دستگاه‌های فعال</div>

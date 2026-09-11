@@ -33,6 +33,7 @@ use HeleXa\Controllers\Admin\ScheduleController;
 use HeleXa\Controllers\Admin\SecurityController;
 use HeleXa\Controllers\Admin\SessionController;
 use HeleXa\Controllers\Admin\SettingsController;
+use HeleXa\Controllers\Admin\SmsController;
 use HeleXa\Controllers\Admin\SupportController;
 use HeleXa\Controllers\Admin\StudentController;
 use HeleXa\Controllers\Api\OfflineController as OfflineApi;
@@ -69,6 +70,25 @@ $router->get('/', [HomeController::class, 'index']);
 $router->get('/login',  [AuthController::class, 'showLogin'], [GuestMiddleware::class]);
 $router->post('/login', [AuthController::class, 'login'],
     [GuestMiddleware::class, ThrottleMiddleware::class . ':login,30,300']);
+
+/* ------------------------------------------------- sign-in by texted code
+   Every send endpoint costs real money per call, so the route-level throttle
+   is deliberately tighter than the login form's. It is a blunt ceiling on top
+   of the per-number and per-address limits the OTP service enforces itself:
+   this one stops a flood before it reaches the database at all. */
+$router->post('/auth/request-otp', [AuthController::class, 'requestOtp'],
+    [GuestMiddleware::class, ThrottleMiddleware::class . ':otp_request,10,600']);
+$router->post('/auth/verify-otp',  [AuthController::class, 'verifyOtp'],
+    [GuestMiddleware::class, ThrottleMiddleware::class . ':otp_verify,30,600']);
+
+/* ------------------------------------------------------ forgotten password */
+$router->get('/forgot-password',     [AuthController::class, 'showForgotPassword'], [GuestMiddleware::class]);
+$router->post('/auth/forgot-password', [AuthController::class, 'forgotPassword'],
+    [GuestMiddleware::class, ThrottleMiddleware::class . ':otp_request,10,600']);
+$router->post('/auth/verify-reset',    [AuthController::class, 'verifyResetOtp'],
+    [GuestMiddleware::class, ThrottleMiddleware::class . ':otp_verify,30,600']);
+$router->post('/auth/reset-password',  [AuthController::class, 'resetPassword'],
+    [GuestMiddleware::class, ThrottleMiddleware::class . ':password_reset,10,600']);
 
 /* ------------------------------------------------------- authenticated */
 $router->post('/logout', [AuthController::class, 'logout'], [AuthenticateMiddleware::class]);
@@ -343,6 +363,17 @@ $router->group('/admin', [
         [PermissionMiddleware::class . ':manage_settings', ThrottleMiddleware::class . ':brand_upload,20,300']);
     $router->post('/settings/brand/{slot}/reset', [SettingsController::class, 'resetBrandImage'],
         [PermissionMiddleware::class . ':manage_settings']);
+
+    /* ------------------------------------------------- SMS gateway & OTP
+       Behind the same permission as the other settings. The test endpoint is
+       throttled separately because, unlike saving a form, each call spends
+       real credit on the operator's SMS account. */
+    $router->get('/sms',       [SmsController::class, 'index'],
+        [PermissionMiddleware::class . ':manage_settings']);
+    $router->post('/sms',      [SmsController::class, 'update'],
+        [PermissionMiddleware::class . ':manage_settings']);
+    $router->post('/sms/test', [SmsController::class, 'test'],
+        [PermissionMiddleware::class . ':manage_settings', ThrottleMiddleware::class . ':sms_test,10,600']);
 
     /* -------------------------------------------------- 🏝️ جزیره بالین */
     // Each capability carries its own permission, so an admin can be given

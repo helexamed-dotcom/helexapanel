@@ -59,9 +59,14 @@ final class Auth
 
         $user = $users->findByIdentifier($identifier);
 
-        // Always run a verification so response time does not reveal account existence.
-        $hash     = is_array($user) ? (string) $user['password_hash'] : self::DUMMY_HASH;
-        $verified = password_verify($password, $hash);
+        // Always run a verification so response time does not reveal account
+        // existence. An account with no password set — one that has only ever
+        // signed in with a texted code — falls back to the dummy hash too, so
+        // it fails here exactly like a wrong password rather than being
+        // compared against NULL.
+        $hasPassword = is_array($user) && is_string($user['password_hash']) && $user['password_hash'] !== '';
+        $hash        = $hasPassword ? (string) $user['password_hash'] : self::DUMMY_HASH;
+        $verified    = password_verify($password, $hash) && $hasPassword;
 
         if (!is_array($user) || !$verified) {
             if (is_array($user)) {
@@ -90,7 +95,7 @@ final class Auth
         }
 
         // Rehash transparently if the cost parameters have been raised since signup.
-        if (password_needs_rehash($hash, PASSWORD_ARGON2ID, self::hashOptions())) {
+        if ($hasPassword && password_needs_rehash($hash, PASSWORD_ARGON2ID, self::hashOptions())) {
             $users->updatePassword((int) $user['id'], self::hashPassword($password));
         }
 
@@ -111,6 +116,54 @@ final class Auth
         $users->registerSuccessfulLogin((int) $user['id'], $ip);
         $limiter->record($identifier, (int) $user['id'], $ip, $ua, true, null);
         ActivityLogger::log('auth.login', (int) $user['id'], 'user', (int) $user['id'],
+            ['role' => $user['role_slug']], 'info', $request);
+
+        return ['ok' => true, 'code' => 'OK', 'message' => '', 'user' => $user];
+    }
+
+    /**
+     * Signs in someone whose identity was proved without a password — today,
+     * by a code texted to their number.
+     *
+     * Everything the password path enforces after the credential check runs
+     * here too: lockout, account status and the single-device policy. Only
+     * the proof of identity differs, and a second way in must not also be a
+     * way around the rules.
+     *
+     * @return array{ok:bool, code:string, message:string, user:?array}
+     */
+    public static function loginVerified(Request $request, array $user, bool $remember = false): array
+    {
+        $users    = new UserRepository();
+        $sessions = new SessionRepository();
+
+        $sessions->sweepStale(
+            Settings::int('session_idle_timeout', 1800),
+            Settings::int('session_absolute_timeout', 7200)
+        );
+
+        if ($users->isLocked($user)) {
+            return self::failure('LOCKED', 'حساب شما موقتاً قفل شده است. لطفاً بعداً تلاش کنید.');
+        }
+        if ($user['status'] !== 'active') {
+            return self::failure('INACTIVE', 'حساب کاربری شما فعال نیست. با پشتیبانی تماس بگیرید.');
+        }
+
+        $deviceHash = DeviceDetector::fingerprint($request->userAgent(), $request->acceptLanguage());
+
+        $single = self::enforceSingleDevice($user, $deviceHash, $sessions, $request);
+        if ($single !== null) {
+            return $single;
+        }
+
+        self::establishSession($user, $deviceHash, $request, $sessions);
+
+        if ($remember && Settings::bool('remember_me_enabled', true)) {
+            self::issueRememberToken($user, $deviceHash, $request);
+        }
+
+        $users->registerSuccessfulLogin((int) $user['id'], $request->ip());
+        ActivityLogger::log('auth.login_otp', (int) $user['id'], 'user', (int) $user['id'],
             ['role' => $user['role_slug']], 'info', $request);
 
         return ['ok' => true, 'code' => 'OK', 'message' => '', 'user' => $user];

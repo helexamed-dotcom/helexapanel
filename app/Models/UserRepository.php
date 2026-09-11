@@ -5,9 +5,26 @@ namespace HeleXa\Models;
 
 final class UserRepository extends BaseRepository
 {
-    private const COLUMNS = 'u.id, u.uuid, u.role_id, u.username, u.mobile, u.email, u.password_hash,
-        u.must_change_password, u.full_name, u.gender, u.avatar_path, u.major, u.university_id, u.major_id,
-        u.term_id, u.group_id, u.status, u.failed_attempts, u.locked_until, u.totp_enabled,
+    private const COLUMNS = 'u.id, u.uuid, u.role_id, u.username, u.mobile, u.phone_verified_at, u.email,
+        u.password_hash, u.must_change_password, u.full_name, u.gender, u.avatar_path, u.major,
+        u.university_id, u.major_id, u.term_id, u.group_id, u.status, u.registration_source,
+        u.failed_attempts, u.locked_until, u.totp_enabled,
+        u.last_login_at, u.created_at, r.slug AS role_slug,
+        univ.title AS university_title, mj.title AS major_title';
+
+    /**
+     * The same columns minus the password hash, plus a flag saying whether
+     * one exists.
+     *
+     * Admin screens list hundreds of accounts and none of them needs the
+     * hash; not selecting it is stronger than remembering never to print it,
+     * because a future template cannot leak what was never loaded.
+     */
+    private const LIST_COLUMNS = 'u.id, u.uuid, u.role_id, u.username, u.mobile, u.phone_verified_at, u.email,
+        (u.password_hash IS NOT NULL AND u.password_hash <> \'\') AS has_password,
+        u.must_change_password, u.full_name, u.gender, u.avatar_path, u.major,
+        u.university_id, u.major_id, u.term_id, u.group_id, u.status, u.registration_source,
+        u.failed_attempts, u.locked_until, u.totp_enabled,
         u.last_login_at, u.created_at, r.slug AS role_slug,
         univ.title AS university_title, mj.title AS major_title';
 
@@ -49,6 +66,50 @@ final class UserRepository extends BaseRepository
         );
     }
 
+    /**
+     * Sign-in by phone number.
+     *
+     * Deliberately not findByIdentifier(): that one also matches a username,
+     * and a username that happens to look like a phone number must never
+     * satisfy a flow whose whole premise is that the caller holds the SIM.
+     */
+    public function findByMobile(string $mobile): ?array
+    {
+        if ($mobile === '') {
+            return null;
+        }
+        return $this->selectOne(
+            'SELECT ' . self::COLUMNS . '
+             FROM users u ' . self::JOINS . '
+             WHERE u.mobile = :mobile AND u.deleted_at IS NULL LIMIT 1',
+            ['mobile' => $mobile]
+        );
+    }
+
+    public function markPhoneVerified(int $id): void
+    {
+        $this->execute(
+            'UPDATE users SET phone_verified_at = :now, updated_at = :updated_at WHERE id = :id',
+            ['now' => $this->now(), 'updated_at' => $this->now(), 'id' => $id]
+        );
+    }
+
+    /**
+     * Clears the password entirely, leaving the account reachable only by a
+     * texted code. Distinct from updatePassword(): writing NULL through that
+     * method would be a silent way to make every password check pass if one
+     * ever forgot to test for NULL first.
+     */
+    public function clearPassword(int $id): void
+    {
+        $this->execute(
+            'UPDATE users SET password_hash = NULL, password_changed_at = :now,
+                    must_change_password = 0, updated_at = :updated_at
+             WHERE id = :id',
+            ['now' => $this->now(), 'updated_at' => $this->now(), 'id' => $id]
+        );
+    }
+
     public function usernameExists(string $username, ?int $exceptId = null): bool
     {
         $sql    = 'SELECT 1 FROM users WHERE username = :u';
@@ -64,20 +125,23 @@ final class UserRepository extends BaseRepository
     {
         return $this->insert(
             'INSERT INTO users
-                (uuid, role_id, username, mobile, email, password_hash, password_changed_at,
+                (uuid, role_id, username, mobile, phone_verified_at, email, password_hash, password_changed_at,
                  must_change_password, full_name, gender, major, university_id, major_id,
-                 term_id, group_id, status, created_by, created_at)
+                 term_id, group_id, status, registration_source, created_by, created_at)
              VALUES
-                (:uuid, :role_id, :username, :mobile, :email, :password_hash, :password_changed_at,
+                (:uuid, :role_id, :username, :mobile, :phone_verified_at, :email, :password_hash, :password_changed_at,
                  :must_change_password, :full_name, :gender, :major, :university_id, :major_id,
-                 :term_id, :group_id, :status, :created_by, :created_at)',
+                 :term_id, :group_id, :status, :registration_source, :created_by, :created_at)',
             [
                 'uuid'                 => $data['uuid'],
                 'role_id'              => $data['role_id'],
                 'username'             => $data['username'],
                 'mobile'               => $data['mobile'] ?? null,
+                'phone_verified_at'    => $data['phone_verified_at'] ?? null,
                 'email'                => $data['email'] ?? null,
-                'password_hash'        => $data['password_hash'],
+                // Null is a real value here: an account created by a texted
+                // code has no password until its owner chooses one.
+                'password_hash'        => $data['password_hash'] ?? null,
                 'password_changed_at'  => $this->now(),
                 'must_change_password' => (int) ($data['must_change_password'] ?? 0),
                 'full_name'            => $data['full_name'],
@@ -88,6 +152,7 @@ final class UserRepository extends BaseRepository
                 'term_id'              => $data['term_id'] ?? null,
                 'group_id'             => $data['group_id'] ?? null,
                 'status'               => $data['status'] ?? 'active',
+                'registration_source'  => $data['registration_source'] ?? 'admin',
                 'created_by'           => $data['created_by'] ?? null,
                 'created_at'           => $this->now(),
             ]
@@ -150,7 +215,7 @@ final class UserRepository extends BaseRepository
         $direction = ($filters['direction'] ?? 'desc') === 'asc' ? 'ASC' : 'DESC';
 
         $rows = $this->select(
-            'SELECT ' . self::COLUMNS . ',
+            'SELECT ' . self::LIST_COLUMNS . ',
                     t.title AS term_title, g.title AS group_title,
                     (SELECT COUNT(*) FROM sessions s WHERE s.user_id = u.id AND s.is_active = 1) AS active_sessions
              FROM users u

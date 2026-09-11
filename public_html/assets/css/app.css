@@ -2216,3 +2216,136 @@ a.balin-node-card:hover { transform: translateX(-3px); border-color: var(--blue)
 @media (prefers-reduced-motion: reduce) {
     .balin-scene > .is-entering { animation: none; }
 }
+
+/* ===================================================== sign-in: two ways
+   The card now holds two routes in, so it needs a way to choose between them
+   and a place for the code conversation to happen. Everything below is scoped
+   to the auth card and adds no rule that could reach the rest of the panel. */
+
+.auth-tabs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px;
+    padding: 4px;
+    margin-bottom: 22px;
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+}
+
+.auth-tab {
+    padding: 9px 10px;
+    border: 0;
+    border-radius: var(--radius-xs);
+    background: transparent;
+    color: var(--ink-3);
+    font-size: 13.5px;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background .15s, color .15s, box-shadow .15s;
+}
+.auth-tab:hover    { color: var(--ink-2); }
+.auth-tab.is-active {
+    background: var(--surface);
+    color: var(--ink);
+    box-shadow: 0 1px 3px rgba(13, 21, 38, .08);
+}
+
+.auth-panel[hidden] { display: none; }
+
+/* ------------------------------------------------------- code entry */
+
+/* Six digits, spaced and centred, so a transposed pair is visible at a
+   glance. The wide tracking is why the placeholder is dashes rather than
+   a sentence: a sentence at this spacing overflows the field. */
+.otp-code-input {
+    text-align: center;
+    letter-spacing: .55em;
+    text-indent: .55em;   /* re-centres: tracking adds a gap after the last digit */
+    font-size: 21px;
+    font-weight: 600;
+    padding-block: 13px;
+}
+
+.otp-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-top: 8px;
+    font-size: 12.5px;
+    color: var(--ink-3);
+}
+.otp-target { min-width: 0; overflow-wrap: anywhere; }
+
+.otp-resend {
+    margin-top: 14px;
+    text-align: center;
+    font-size: 12.5px;
+    color: var(--ink-3);
+    min-height: 20px;   /* reserves the row so the card does not jump when the
+                           countdown is replaced by the resend button */
+}
+
+/* A button that reads as a link. Kept a <button> because it performs an
+   action rather than going anywhere, and a link that goes nowhere is a
+   thing screen readers announce wrongly. */
+.link-btn {
+    border: 0;
+    background: none;
+    padding: 0;
+    color: var(--blue);
+    font-family: inherit;
+    font-size: inherit;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+}
+.link-btn:hover { text-decoration: underline; }
+.link-btn[hidden] { display: none; }
+
+/* ------------------------------------------------------ status line */
+
+.otp-alert {
+    padding: 10px 13px;
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    margin-bottom: 16px;
+    border: 1px solid transparent;
+}
+.otp-alert[hidden]    { display: none; }
+.otp-alert.is-info    { background: var(--blue-soft);  color: #1d4ed8; border-color: #c7d9ff; }
+.otp-alert.is-success { background: #f0fdf4;           color: #14532d; border-color: #bbf7d0; }
+.otp-alert.is-error   { background: #fef2f2;           color: #991b1b; border-color: #fbd5d5; }
+
+/* ------------------------------------------------------- card trim */
+
+.auth-alt  { margin: 16px 0 0; text-align: center; font-size: 13px; }
+.auth-alt a { color: var(--blue); font-weight: 600; text-decoration: none; }
+.auth-alt a:hover { text-decoration: underline; }
+
+.auth-hint { margin: -4px 0 16px; font-size: 12px; line-height: 1.9; color: var(--ink-3); }
+.auth-foot { margin: 22px 0 0; text-align: center; font-size: 12.5px; }
+
+.btn.is-busy { opacity: .65; cursor: progress; }
+
+/* ------------------------------------------------------------- dark */
+
+:root[data-theme="dark"] .auth-tabs      { background: #0f1620; border-color: #1e2a3a; }
+:root[data-theme="dark"] .auth-tab.is-active {
+    background: #18212e;
+    color: var(--ink);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, .4);
+}
+:root[data-theme="dark"] .otp-alert.is-info    { background: #14203a; color: #93b4ff; border-color: #23375c; }
+:root[data-theme="dark"] .otp-alert.is-success { background: #10251c; color: #86efac; border-color: #1d4433; }
+:root[data-theme="dark"] .otp-alert.is-error   { background: #2a1618; color: #fca5a5; border-color: #4a2226; }
+
+/* ------------------------------------------------------------ phone */
+
+@media (max-width: 420px) {
+    .auth-tab       { font-size: 12.5px; padding: 9px 6px; }
+    .otp-code-input { font-size: 19px; letter-spacing: .4em; text-indent: .4em; }
+    .otp-meta       { flex-wrap: wrap; }
+}

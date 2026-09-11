@@ -1,4 +1,9 @@
 config/config.php
+
+# Written by install.php on the machine it ran on; it is per-installation
+# state, not source, and committing it would make a fresh clone claim to be
+# already installed.
+storage/installed.lock
 storage/sessions/sess_*
 storage/logs/*.log
 storage/cache/*
