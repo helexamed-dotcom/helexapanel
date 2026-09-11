@@ -7,6 +7,7 @@ import ir.helexapanel.core.net.ApiError
 import ir.helexapanel.core.net.ApiResult
 import ir.helexapanel.core.util.PersianDigits
 import ir.helexapanel.core.util.PhoneNumber
+import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.runBlocking
 import okhttp3.OkHttpClient
 import java.util.concurrent.TimeUnit
@@ -201,6 +202,7 @@ fun main() {
     }
 
     checkPalette()
+    checkDispatch(base)
     checkAuth(base, http)
     checkModels(base, http)
 
@@ -233,6 +235,59 @@ private fun fetchCsrf(base: String, http: OkHttpClient, store: InMemorySessionSt
  * readable on the background it actually sits on. Both are things a screenshot
  * hides and a number does not.
  */
+/**
+ * Proves the client leaves the caller's thread before it blocks.
+ *
+ * This is here because its absence shipped. OkHttp's `execute()` blocks, and
+ * every caller is a `viewModelScope` coroutine, which on Android runs on the
+ * main thread. Android answers a blocking socket call there with
+ * `NetworkOnMainThreadException` — a `RuntimeException`, so the client's
+ * `IOException` handlers never saw it, and the app died at its first request.
+ *
+ * A plain JVM has no main thread and no such policy, so nothing in this suite
+ * could notice. The stand-in below supplies what the JVM lacks: a single
+ * thread the caller is pinned to, which the request must not run on.
+ */
+fun checkDispatch(base: String) {
+    T.group("Blocking work never runs on the caller's thread")
+
+    val ranOn = java.util.concurrent.atomic.AtomicReference<String>()
+
+    val probe = OkHttpClient.Builder()
+        .connectTimeout(10, TimeUnit.SECONDS)
+        .readTimeout(15, TimeUnit.SECONDS)
+        .followRedirects(false)
+        // Records the thread the exchange actually happens on. An interceptor
+        // runs inside execute(), which is the thread Android would object to.
+        .addInterceptor { chain ->
+            ranOn.set(Thread.currentThread().name)
+            chain.proceed(chain.request())
+        }
+        .build()
+
+    val api = ApiClient(base, InMemorySessionStore(), probe)
+
+    val mainLike = java.util.concurrent.Executors
+        .newSingleThreadExecutor { r -> Thread(r, "stand-in-main") }
+        .asCoroutineDispatcher()
+
+    var caller = ""
+    runBlocking(mainLike) {
+        caller = Thread.currentThread().name
+        // Refused, and that is fine — what is under test is which thread the
+        // refusal was fetched on, not the refusal.
+        api.get("/api/session/state")
+    }
+    mainLike.close()
+
+    T.same("the caller is pinned to one thread", "stand-in-main", caller)
+    T.ok(
+        "the request ran somewhere else",
+        ranOn.get() != null && ranOn.get() != caller,
+        "ran on ${ranOn.get()}"
+    )
+}
+
 fun checkPalette() {
     T.group("Palette matches the website's stylesheet")
 

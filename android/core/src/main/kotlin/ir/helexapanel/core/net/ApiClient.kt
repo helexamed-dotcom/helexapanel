@@ -2,6 +2,9 @@ package ir.helexapanel.core.net
 
 import ir.helexapanel.core.auth.DeviceIdentity
 import ir.helexapanel.core.auth.SessionStore
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -53,7 +56,7 @@ class ApiClient(
      * backend the website depends on for a problem the app can solve by
      * reading a page it is allowed to read anyway.
      */
-    suspend fun getHtml(path: String): ApiResult<String> = try {
+    suspend fun getHtml(path: String): ApiResult<String> = io {
         http.newCall(
             request(path)
                 // A page, not an API reply: asking for JSON here would get the
@@ -72,12 +75,6 @@ class ApiClient(
                 ApiResult.Failure(ApiError.Server(response.code))
             }
         }
-    } catch (e: UnknownHostException) {
-        ApiResult.Failure(ApiError.Offline())
-    } catch (e: SocketTimeoutException) {
-        ApiResult.Failure(ApiError.Timeout())
-    } catch (e: IOException) {
-        ApiResult.Failure(ApiError.Offline())
     }
 
     suspend fun post(path: String, fields: Map<String, String> = emptyMap()): ApiResult<JsonObject> {
@@ -135,15 +132,48 @@ class ApiClient(
         return url
     }
 
-    private suspend fun call(request: Request): ApiResult<JsonObject> = try {
+    private suspend fun call(request: Request): ApiResult<JsonObject> = io {
         http.newCall(request).execute().use(::interpret)
-    } catch (e: UnknownHostException) {
-        ApiResult.Failure(ApiError.Offline())
-    } catch (e: SocketTimeoutException) {
-        ApiResult.Failure(ApiError.Timeout())
-    } catch (e: IOException) {
-        ApiResult.Failure(ApiError.Offline())
     }
+
+    /**
+     * Runs one blocking exchange off the caller's thread, and lets nothing
+     * escape as an exception.
+     *
+     * Both halves of that matter, and the app shipped without either.
+     *
+     * OkHttp's `execute()` blocks. Every caller here is a `viewModelScope`
+     * coroutine, which on Android runs on `Dispatchers.Main.immediate` — so
+     * without this, every request ran on the main thread and Android threw
+     * `NetworkOnMainThreadException` at the first one. That is a
+     * `RuntimeException`, so the `IOException` handlers below never saw it: it
+     * went straight to the default handler and killed the process the moment
+     * the login screen asked for a CSRF token.
+     *
+     * The JVM has no such policy, which is exactly why the suite could not
+     * catch this. `checkDispatch()` now asserts the hop instead.
+     *
+     * The final `Throwable` catch is the second half. A client is allowed to
+     * fail a request; it is not allowed to take the app down with it. A
+     * cancellation is not a failure and is rethrown, or a screen closing
+     * mid-request would be reported to the student as an error.
+     */
+    private suspend fun <T> io(block: () -> ApiResult<T>): ApiResult<T> =
+        withContext(Dispatchers.IO) {
+            try {
+                block()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: UnknownHostException) {
+                ApiResult.Failure(ApiError.Offline())
+            } catch (e: SocketTimeoutException) {
+                ApiResult.Failure(ApiError.Timeout())
+            } catch (e: IOException) {
+                ApiResult.Failure(ApiError.Offline())
+            } catch (e: Throwable) {
+                ApiResult.Failure(ApiError.Unreadable())
+            }
+        }
 
     private fun interpret(response: Response): ApiResult<JsonObject> {
         harvestCookies(response)

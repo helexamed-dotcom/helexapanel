@@ -10,7 +10,7 @@ Username or mobile number, plus the password the admin set. That is the only
 route the app offers.
 
 The panel *also* supports a texted one-time code, and `core/` still implements
-it — `AuthRepository.requestCode()` and `verifyCode()` are written and covered
+it — `AuthRepository.requestCode()` and `submitCode()` are written and covered
 by the test suite. The app does not surface them, because the operator's SMS
 gateway is not in a state they want students to meet. Nothing was deleted to
 achieve that: putting the route back is an edit to `LoginScreen.kt` and
@@ -119,10 +119,10 @@ whose session cookie can be sent somewhere else.
 
 ## What is still to write
 
-The Compose screens themselves: courses, course detail, schedule, exams,
-notifications, profile, and the navigation graph that joins them. Sign-in, the
-home screen, and the shared loading/empty/error states are written and
-type-checked.
+Schedule, exams, notifications, profile, and a bottom navigation bar joining
+them. Sign-in, the home screen, course detail, and the shared
+loading/empty/error states are written, type-checked, and reachable in the
+app.
 
 The shape they should follow is settled and documented in `ARCHITECTURE.md`:
 one `ViewModel` per screen exposing a sealed `UiState`, no screen touching the
