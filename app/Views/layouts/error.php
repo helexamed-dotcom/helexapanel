@@ -15,7 +15,7 @@
             } catch (e) {}
         })();
     </script>
-    <link rel="stylesheet" href="/assets/css/app.css">
+    <link rel="stylesheet" href="<?= asset('/assets/css/app.css') ?>">
 </head>
 <body>
 <div class="error-wrap"><?= $content ?? '' ?></div>

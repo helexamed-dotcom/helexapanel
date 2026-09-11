@@ -20,14 +20,14 @@
             } catch (e) {}
         })();
     </script>
-    <link rel="stylesheet" href="/assets/css/app.css">
-    <link rel="stylesheet" href="/assets/css/pwa.css">
+    <link rel="stylesheet" href="<?= asset('/assets/css/app.css') ?>">
+    <link rel="stylesheet" href="<?= asset('/assets/css/pwa.css') ?>">
     <meta name="theme-color" content="#00694F">
 </head>
 <body>
 <div class="auth-wrap">
     <?= $content ?? '' ?>
 </div>
-<script src="/assets/js/app.js" nonce="<?= e($cspNonce ?? '') ?>"></script>
+<script src="<?= asset('/assets/js/app.js') ?>" nonce="<?= e($cspNonce ?? '') ?>"></script>
 </body>
 </html>

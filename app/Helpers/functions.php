@@ -47,3 +47,33 @@ if (!function_exists('active_when')) {
         return str_starts_with($currentPath, $prefix) ? ' is-active' : '';
     }
 }
+
+if (!function_exists('asset')) {
+    /**
+     * A stylesheet or script URL stamped with the file's own modification
+     * time.
+     *
+     * The service worker caches /assets/ stale-while-revalidate, so a
+     * returning student is served the copy they already have. Server-rendered
+     * HTML is never cached, which is the dangerous half: new markup arrives
+     * against old CSS and JS, and the result is a header whose bell does
+     * nothing, or a case that ignores its own reveal script. Remembering to
+     * bump the worker's version by hand is what keeps failing, so the cache
+     * key is derived from the file instead — change the file and the URL
+     * changes with it, which no one has to remember.
+     */
+    function asset(string $path): string
+    {
+        static $stamps = [];
+
+        if (!array_key_exists($path, $stamps)) {
+            $file = PUBLIC_PATH . $path;
+            $time = is_file($file) ? filemtime($file) : false;
+            // A missing file is still worth linking: the page should render
+            // and 404 that one asset rather than fail to build a URL.
+            $stamps[$path] = $time === false ? null : substr(dechex($time), -6);
+        }
+
+        return $stamps[$path] === null ? $path : $path . '?v=' . $stamps[$path];
+    }
+}

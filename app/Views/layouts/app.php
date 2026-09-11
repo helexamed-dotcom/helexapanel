@@ -13,8 +13,8 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="HeleXa Med">
     <meta name="mobile-web-app-capable" content="yes">
-    <link rel="stylesheet" href="/assets/css/app.css">
-    <link rel="stylesheet" href="/assets/css/pwa.css">
+    <link rel="stylesheet" href="<?= asset('/assets/css/app.css') ?>">
+    <link rel="stylesheet" href="<?= asset('/assets/css/pwa.css') ?>">
     <meta name="theme-color" content="#ffffff" id="theme-color-meta">
     <script nonce="<?= e($cspNonce ?? '') ?>">
         // Runs before the stylesheet paints, so a dark-mode user never sees a
@@ -244,16 +244,16 @@
     ]); ?>
 <?php endif; ?>
 
-<script src="/assets/js/helexa-db.js" nonce="<?= e($cspNonce ?? '') ?>"></script>
-<script src="/assets/js/helexa-core.js" nonce="<?= e($cspNonce ?? '') ?>"></script>
-<script src="/assets/js/pwa.js" nonce="<?= e($cspNonce ?? '') ?>"></script>
-<script src="/assets/js/app.js" nonce="<?= e($cspNonce ?? '') ?>"></script>
+<script src="<?= asset('/assets/js/helexa-db.js') ?>" nonce="<?= e($cspNonce ?? '') ?>"></script>
+<script src="<?= asset('/assets/js/helexa-core.js') ?>" nonce="<?= e($cspNonce ?? '') ?>"></script>
+<script src="<?= asset('/assets/js/pwa.js') ?>" nonce="<?= e($cspNonce ?? '') ?>"></script>
+<script src="<?= asset('/assets/js/app.js') ?>" nonce="<?= e($cspNonce ?? '') ?>"></script>
 <?php if (!empty($offlineEnabled)): ?>
-    <script src="/assets/js/offline-manager.js" nonce="<?= e($cspNonce ?? '') ?>"></script>
+    <script src="<?= asset('/assets/js/offline-manager.js') ?>" nonce="<?= e($cspNonce ?? '') ?>"></script>
 <?php endif; ?>
 <?php /* Only the pages that actually play a clinical case carry this. */ ?>
 <?php if (!empty($balinScript)): ?>
-    <script src="/assets/js/balin.js" nonce="<?= e($cspNonce ?? '') ?>"></script>
+    <script src="<?= asset('/assets/js/balin.js') ?>" nonce="<?= e($cspNonce ?? '') ?>"></script>
 <?php endif; ?>
 </body>
 </html>

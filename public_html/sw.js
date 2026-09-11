@@ -232,10 +232,38 @@ function staleWhileRevalidate(request, cacheName) {
     return caches.open(cacheName).then(function (cache) {
         return cache.match(request).then(function (cached) {
             var network = fetch(request).then(function (response) {
-                if (isUsableFor(request, response)) { cache.put(request, response.clone()); }
+                if (isUsableFor(request, response)) {
+                    cache.put(request, response.clone());
+                    dropSupersededVersions(cache, request);
+                }
                 return response;
-            }).catch(function () { return cached; });
+            }).catch(function () {
+                // No network. The stamped URL was never precached under that
+                // exact name, so fall back to whatever copy of this same file
+                // is stored — that is what keeps the offline shell dressed.
+                return cached || cache.match(request, { ignoreSearch: true });
+            });
             return cached || network;
+        });
+    });
+}
+
+/**
+ * Assets arrive stamped with the file's modification time, so every edit is a
+ * new URL and therefore a new cache entry. That is what makes a deploy land
+ * without anyone bumping a version by hand — but the copies it replaces would
+ * otherwise sit in the cache forever. Once a new stamp is stored, the older
+ * stamps of the same file go.
+ */
+function dropSupersededVersions(cache, request) {
+    var kept = new URL(request.url);
+
+    cache.keys().then(function (keys) {
+        keys.forEach(function (key) {
+            var url = new URL(key.url);
+            if (url.pathname === kept.pathname && url.search !== kept.search) {
+                cache.delete(key);
+            }
         });
     });
 }

@@ -18,8 +18,8 @@
             } catch (e) {}
         })();
     </script>
-    <link rel="stylesheet" href="/assets/css/app.css">
-    <link rel="stylesheet" href="/assets/css/pwa.css">
+    <link rel="stylesheet" href="<?= asset('/assets/css/app.css') ?>">
+    <link rel="stylesheet" href="<?= asset('/assets/css/pwa.css') ?>">
 </head>
 <body class="offline-body">
 <a class="skip-link" href="#offline-main">پرش به محتوای اصلی</a>
@@ -148,9 +148,9 @@
     </main>
 </div>
 
-<script src="/assets/js/helexa-db.js"></script>
-<script src="/assets/js/helexa-core.js"></script>
-<script src="/assets/js/pwa.js"></script>
-<script src="/assets/js/offline-app.js"></script>
+<script src="<?= asset('/assets/js/helexa-db.js') ?>"></script>
+<script src="<?= asset('/assets/js/helexa-core.js') ?>"></script>
+<script src="<?= asset('/assets/js/pwa.js') ?>"></script>
+<script src="<?= asset('/assets/js/offline-app.js') ?>"></script>
 </body>
 </html>
