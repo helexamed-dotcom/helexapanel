@@ -63,6 +63,10 @@ final class AuthController extends Controller
             ->required('password', 'رمز عبور');
 
         if ($validator->fails()) {
+            if ($request->isAjax()) {
+                return $this->json(['ok' => false, 'message' => implode(' ', $validator->errors())], 422);
+            }
+
             return $this->page('layouts.auth', 'auth.login',
                 $this->loginViewData($validator->errors(), [
                     'identifier' => $identifier,
@@ -80,11 +84,39 @@ final class AuthController extends Controller
         $result = Auth::attempt($request, $lookup, $password, $request->bool('remember'));
 
         if (!$result['ok']) {
+            if ($request->isAjax()) {
+                // The code travels too, because one of these — being signed in
+                // on another device — is not a retryable failure but a decision
+                // the person has to make, and a client cannot tell that from
+                // the wording alone.
+                return $this->json([
+                    'ok'      => false,
+                    'code'    => $result['code'],
+                    'message' => $result['message'],
+                ], $result['code'] === 'SINGLE_DEVICE' ? 403 : 401);
+            }
+
             return $this->page('layouts.auth', 'auth.login',
                 $this->loginViewData(['identifier' => $result['message']], [
                     'identifier' => $identifier,
                     'remember'   => $request->bool('remember'),
                 ]), 401);
+        }
+
+        /**
+         * A browser is redirected; a client that asked for JSON is told where
+         * it would have been sent.
+         *
+         * The website never sends X-Requested-With on this form, so its
+         * behaviour is untouched — this is an additional answer to the same
+         * question, not a changed one. It matches the shape verifyOtp already
+         * returns, so a client has one contract for both ways of signing in.
+         */
+        if ($request->isAjax()) {
+            return $this->json([
+                'ok'       => true,
+                'redirect' => $this->destinationFor($result['user']),
+            ]);
         }
 
         return $this->afterLogin($result['user']);
