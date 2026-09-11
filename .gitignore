@@ -2,3 +2,7 @@ config/config.php
 storage/sessions/sess_*
 storage/logs/*.log
 storage/cache/*
+
+# Release archives are built from a commit, so committing one back would
+# duplicate the whole tree and be stale the moment anything changes.
+*.zip
