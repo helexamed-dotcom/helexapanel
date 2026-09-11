@@ -175,5 +175,9 @@
 <?php if (!empty($offlineEnabled)): ?>
     <script src="/assets/js/offline-manager.js" nonce="<?= e($cspNonce ?? '') ?>"></script>
 <?php endif; ?>
+<?php /* Only the pages that actually play a clinical case carry this. */ ?>
+<?php if (!empty($balinScript)): ?>
+    <script src="/assets/js/balin.js" nonce="<?= e($cspNonce ?? '') ?>"></script>
+<?php endif; ?>
 </body>
 </html>

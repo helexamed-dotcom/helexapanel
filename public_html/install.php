@@ -61,6 +61,18 @@ function connectWith(array $db): PDO
     );
 }
 
+/**
+ * Migrations a fresh install needs on top of schema.sql.
+ *
+ * schema.sql is the base tables; anything added after it lives in its own
+ * migration and is listed here rather than being copied into schema.sql,
+ * so the two can never drift apart. Only migrations that are safe to run
+ * against a brand-new database belong in this list.
+ */
+const FRESH_INSTALL_MIGRATIONS = [
+    '2026_09_13_balin_island.sql',
+];
+
 /** Splits the schema on semicolons at end of line; the file contains no procedures. */
 function runSchema(PDO $pdo, string $sqlFile): void
 {
@@ -152,6 +164,9 @@ if ($request->method() === 'POST') {
                 try {
                     $pdo = connectWith($state['db']);
                     runSchema($pdo, DATABASE_PATH . '/schema.sql');
+                    foreach (FRESH_INSTALL_MIGRATIONS as $migration) {
+                        runSchema($pdo, DATABASE_PATH . '/migrations/' . $migration);
+                    }
                     $notice = 'جدول‌ها با موفقیت ساخته شدند.';
                     $step   = 4;
                 } catch (Throwable $e) {

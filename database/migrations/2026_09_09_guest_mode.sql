@@ -5,6 +5,11 @@
 --  when an admin ticks it, and only while the global switch is on.
 -- =====================================================================
 
+-- The client character set must be declared before any Persian literal
+-- below. Without it a CLI whose default is latin1 stores the UTF-8 bytes
+-- a second time over, and every seeded string arrives double-encoded.
+SET NAMES utf8mb4;
+
 ALTER TABLE course_contents
     ADD COLUMN guest_visible TINYINT(1) NOT NULL DEFAULT 0 AFTER offline_enabled,
     ADD KEY idx_contents_guest (guest_visible, status);

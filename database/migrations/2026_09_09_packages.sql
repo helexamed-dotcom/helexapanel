@@ -2,6 +2,11 @@
 --  Packages, activations and the central notification path
 -- =====================================================================
 
+-- The client character set must be declared before any Persian literal
+-- below. Without it a CLI whose default is latin1 stores the UTF-8 bytes
+-- a second time over, and every seeded string arrives double-encoded.
+SET NAMES utf8mb4;
+
 CREATE TABLE IF NOT EXISTS packages (
     id                     INT UNSIGNED NOT NULL AUTO_INCREMENT,
     uuid                   CHAR(36)     NOT NULL,

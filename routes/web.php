@@ -10,6 +10,15 @@ declare(strict_types=1);
 
 use HeleXa\Controllers\AccountController;
 use HeleXa\Controllers\Admin\AcademicController;
+use HeleXa\Controllers\Admin\Balin\AccessController as BalinAccessController;
+use HeleXa\Controllers\Admin\Balin\AnalyticsController as BalinAnalyticsController;
+use HeleXa\Controllers\Admin\Balin\CatalogController as BalinCatalogController;
+use HeleXa\Controllers\Admin\Balin\CheckpointController as BalinCheckpointController;
+use HeleXa\Controllers\Admin\Balin\CompetitionController as BalinCompetitionController;
+use HeleXa\Controllers\Admin\Balin\DashboardController as BalinDashboard;
+use HeleXa\Controllers\Admin\Balin\LessonController as BalinLessonController;
+use HeleXa\Controllers\Admin\Balin\QuestionController as BalinQuestionController;
+use HeleXa\Controllers\Admin\Balin\StageController as BalinStageController;
 use HeleXa\Controllers\Admin\CalendarController;
 use HeleXa\Controllers\Admin\ContentController;
 use HeleXa\Controllers\Admin\CourseController;
@@ -38,8 +47,12 @@ use HeleXa\Controllers\Student\AnalyticsController as StudentAnalytics;
 use HeleXa\Controllers\Student\CourseController as StudentCourses;
 use HeleXa\Controllers\Student\DashboardController as StudentDashboard;
 use HeleXa\Controllers\Student\InboxController;
+use HeleXa\Controllers\Student\BalinController;
+use HeleXa\Controllers\Student\BalinExamController;
+use HeleXa\Controllers\Student\BalinProfileController;
 use HeleXa\Controllers\Student\PlannerController;
 use HeleXa\Middleware\AuthenticateMiddleware;
+use HeleXa\Middleware\BalinAccessMiddleware;
 use HeleXa\Middleware\CsrfMiddleware;
 use HeleXa\Middleware\ForcePasswordChangeMiddleware;
 use HeleXa\Middleware\GuestMiddleware;
@@ -91,6 +104,32 @@ $router->group('/student', [
     $router->post('/notifications/{id}/read',   [InboxController::class, 'readNotification']);
     $router->get('/messages',                   [InboxController::class, 'messages']);
     $router->get('/messages/{id}',              [InboxController::class, 'showMessage']);
+
+    /* ------------------------------------------------- 🏝️ جزیره بالین */
+    // BalinAccessMiddleware answers the two publication questions once, for
+    // every route below, so none of them can be reached before the island is
+    // published and this student has been given access. While it is closed
+    // the same middleware renders the Coming Soon page in place of content.
+    $balin = [BalinAccessMiddleware::class];
+
+    $router->get('/balin',                        [BalinController::class, 'index'],      $balin);
+    $router->get('/balin/lesson/{uuid}',          [BalinController::class, 'lesson'],     $balin);
+    $router->get('/balin/stage/{uuid}',           [BalinController::class, 'stage'],      $balin);
+    $router->post('/balin/stage/{uuid}/answer',   [BalinController::class, 'answer'],
+        array_merge($balin, [ThrottleMiddleware::class . ':balin_answer,20,60']));
+    $router->post('/balin/stage/{uuid}/complete', [BalinController::class, 'complete'],   $balin);
+
+    $router->get('/balin/exam/{uuid}',            [BalinExamController::class, 'show'],    $balin);
+    $router->post('/balin/exam/{uuid}/start',     [BalinExamController::class, 'start'],
+        array_merge($balin, [ThrottleMiddleware::class . ':balin_exam_start,10,60']));
+    $router->get('/balin/exam/{uuid}/attempt',    [BalinExamController::class, 'attempt'], $balin);
+    $router->post('/balin/exam/{uuid}/submit',    [BalinExamController::class, 'submit'],
+        array_merge($balin, [ThrottleMiddleware::class . ':balin_exam_submit,20,60']));
+    $router->get('/balin/exam/{uuid}/result',     [BalinExamController::class, 'result'],  $balin);
+
+    $router->get('/balin/profile',     [BalinProfileController::class, 'profile'],     $balin);
+    $router->get('/balin/leaderboard', [BalinProfileController::class, 'leaderboard'], $balin);
+    $router->get('/balin/media/{uuid}',[BalinProfileController::class, 'media'],       $balin);
 });
 
 /* ---------------------------------------------------- PWA / offline */
@@ -304,6 +343,119 @@ $router->group('/admin', [
         [PermissionMiddleware::class . ':manage_settings', ThrottleMiddleware::class . ':brand_upload,20,300']);
     $router->post('/settings/brand/{slot}/reset', [SettingsController::class, 'resetBrandImage'],
         [PermissionMiddleware::class . ':manage_settings']);
+
+    /* -------------------------------------------------- 🏝️ جزیره بالین */
+    // Each capability carries its own permission, so an admin can be given
+    // the ability to write cases without also being able to publish them or
+    // read individual students' answers.
+    $balinView    = [PermissionMiddleware::class . ':balin.view'];
+    $balinEdit    = [PermissionMiddleware::class . ':balin.edit'];
+    $balinCreate  = [PermissionMiddleware::class . ':balin.create'];
+    $balinDelete  = [PermissionMiddleware::class . ':balin.delete'];
+    $balinPublish = [PermissionMiddleware::class . ':balin.publish'];
+    $balinStats   = [PermissionMiddleware::class . ':balin.view_statistics'];
+
+    $router->get('/balin',                  [BalinDashboard::class, 'index'],         $balinView);
+    $router->post('/balin/status',          [BalinDashboard::class, 'setStatus'],     $balinPublish);
+    $router->post('/balin/settings',        [BalinDashboard::class, 'saveSettings'],
+        [PermissionMiddleware::class . ':balin.manage_settings']);
+    $router->post('/balin/leaderboard/rebuild', [BalinDashboard::class, 'rebuildBoards'], $balinView);
+
+    /* lessons and stages */
+    $router->get('/balin/lessons',                 [BalinLessonController::class, 'index'],      $balinView);
+    $router->get('/balin/lessons/create',          [BalinLessonController::class, 'create'],     $balinCreate);
+    $router->post('/balin/lessons',                [BalinLessonController::class, 'store'],      $balinCreate);
+    $router->get('/balin/lessons/{uuid}',          [BalinLessonController::class, 'show'],       $balinView);
+    $router->get('/balin/lessons/{uuid}/edit',     [BalinLessonController::class, 'edit'],       $balinEdit);
+    $router->post('/balin/lessons/{uuid}',         [BalinLessonController::class, 'update'],     $balinEdit);
+    $router->post('/balin/lessons/{uuid}/status',  [BalinLessonController::class, 'setStatus'],  $balinPublish);
+    $router->post('/balin/lessons/{uuid}/delete',  [BalinLessonController::class, 'destroy'],    $balinDelete);
+    $router->post('/balin/lessons/{uuid}/stages',  [BalinLessonController::class, 'storeStage'], $balinCreate);
+    $router->post('/balin/stages/{uuid}/move',     [BalinLessonController::class, 'moveStage'],  $balinEdit);
+
+    /* stage builder */
+    $router->get('/balin/stages/{uuid}',                   [BalinStageController::class, 'show'],       $balinView);
+    $router->post('/balin/stages/{uuid}',                  [BalinStageController::class, 'update'],     $balinEdit);
+    $router->post('/balin/stages/{uuid}/status',           [BalinStageController::class, 'setStatus'],  $balinPublish);
+    $router->post('/balin/stages/{uuid}/delete',           [BalinStageController::class, 'destroy'],    $balinDelete);
+    $router->post('/balin/stages/{uuid}/rebalance',        [BalinStageController::class, 'rebalance'],  $balinEdit);
+    $router->post('/balin/stages/{uuid}/blocks',           [BalinStageController::class, 'storeBlock'], $balinCreate);
+    $router->post('/balin/blocks/{block}',                 [BalinStageController::class, 'updateBlock'],    $balinEdit);
+    $router->post('/balin/blocks/{block}/move',            [BalinStageController::class, 'moveBlock'],      $balinEdit);
+    $router->post('/balin/blocks/{block}/duplicate',       [BalinStageController::class, 'duplicateBlock'], $balinCreate);
+    $router->post('/balin/blocks/{block}/delete',          [BalinStageController::class, 'destroyBlock'],   $balinDelete);
+
+    /* questions */
+    $balinQuestions = [PermissionMiddleware::class . ':balin.manage_questions'];
+    $router->get('/balin/lessons/{uuid}/questions/create', [BalinQuestionController::class, 'create'],  $balinQuestions);
+    $router->post('/balin/lessons/{uuid}/questions',       [BalinQuestionController::class, 'store'],   $balinQuestions);
+    $router->get('/balin/questions/{uuid}/edit',           [BalinQuestionController::class, 'edit'],    $balinQuestions);
+    $router->post('/balin/questions/{uuid}',               [BalinQuestionController::class, 'update'],  $balinQuestions);
+    $router->post('/balin/questions/{uuid}/delete',        [BalinQuestionController::class, 'destroy'], $balinQuestions);
+
+    /* checkpoint exams */
+    $balinExams = [PermissionMiddleware::class . ':balin.manage_checkpoint_exams'];
+    $router->get('/balin/lessons/{uuid}/exams/create', [BalinCheckpointController::class, 'create'], $balinExams);
+    $router->post('/balin/lessons/{uuid}/exams',       [BalinCheckpointController::class, 'store'],  $balinExams);
+    $router->get('/balin/exams/{uuid}',                [BalinCheckpointController::class, 'show'],   $balinExams);
+    $router->post('/balin/exams/{uuid}',               [BalinCheckpointController::class, 'update'], $balinExams);
+    $router->post('/balin/exams/{uuid}/status',        [BalinCheckpointController::class, 'setStatus'], $balinPublish);
+    $router->post('/balin/exams/{uuid}/delete',        [BalinCheckpointController::class, 'destroy'],   $balinDelete);
+    $router->post('/balin/exams/{uuid}/questions/attach', [BalinCheckpointController::class, 'attachQuestion'], $balinExams);
+    $router->post('/balin/exams/{uuid}/questions/detach', [BalinCheckpointController::class, 'detachQuestion'], $balinExams);
+    $router->post('/balin/exams/{uuid}/attempts/reset',   [BalinCheckpointController::class, 'resetAttempts'],  $balinExams);
+
+    /* characters, skills, tiers, media */
+    $balinCharacters = [PermissionMiddleware::class . ':balin.manage_characters'];
+    $router->get('/balin/characters',                [BalinCatalogController::class, 'characters'],        $balinCharacters);
+    $router->post('/balin/characters',               [BalinCatalogController::class, 'storeCharacter'],    $balinCharacters);
+    $router->post('/balin/characters/{uuid}',        [BalinCatalogController::class, 'updateCharacter'],   $balinCharacters);
+    $router->post('/balin/characters/{uuid}/delete', [BalinCatalogController::class, 'destroyCharacter'],  $balinCharacters);
+
+    $balinTracks = [PermissionMiddleware::class . ':balin.manage_skill_tracks'];
+    $router->get('/balin/skill-tracks',             [BalinCatalogController::class, 'skillTracks'],       $balinTracks);
+    $router->post('/balin/skill-tracks',            [BalinCatalogController::class, 'storeSkillTrack'],   $balinTracks);
+    $router->post('/balin/skill-tracks/{id}',       [BalinCatalogController::class, 'updateSkillTrack'],  $balinTracks);
+    $router->post('/balin/skill-tracks/{id}/delete',[BalinCatalogController::class, 'destroySkillTrack'], $balinTracks);
+
+    $balinTiers = [PermissionMiddleware::class . ':balin.manage_rank_titles'];
+    $router->get('/balin/rank-tiers',              [BalinCatalogController::class, 'rankTiers'],       $balinTiers);
+    $router->post('/balin/rank-tiers',             [BalinCatalogController::class, 'storeRankTier'],   $balinTiers);
+    $router->post('/balin/rank-tiers/{id}',        [BalinCatalogController::class, 'updateRankTier'],  $balinTiers);
+    $router->post('/balin/rank-tiers/{id}/delete', [BalinCatalogController::class, 'destroyRankTier'], $balinTiers);
+
+    $router->get('/balin/media',                 [BalinCatalogController::class, 'media'],        $balinView);
+    $router->post('/balin/media',                [BalinCatalogController::class, 'uploadMedia'],
+        array_merge($balinCreate, [ThrottleMiddleware::class . ':balin_media,30,300']));
+    $router->post('/balin/media/{uuid}',         [BalinCatalogController::class, 'updateMedia'],  $balinEdit);
+    $router->post('/balin/media/{uuid}/delete',  [BalinCatalogController::class, 'destroyMedia'], $balinDelete);
+
+    /* student access */
+    $balinStudents = [PermissionMiddleware::class . ':balin.manage_students'];
+    $router->get('/balin/access',            [BalinAccessController::class, 'index'],    $balinStudents);
+    // Declared before the {uuid} route: the router takes the first pattern
+    // that matches, and "grant-all" would otherwise be read as a student id.
+    $router->post('/balin/access/grant-all', [BalinAccessController::class, 'grantAll'], $balinStudents);
+    $router->post('/balin/access/{uuid}',    [BalinAccessController::class, 'toggle'],   $balinStudents);
+
+    /* competitions and rewards */
+    $balinCompetition = [PermissionMiddleware::class . ':balin.manage_competition'];
+    $router->get('/balin/competitions',                 [BalinCompetitionController::class, 'index'],     $balinCompetition);
+    $router->post('/balin/competitions',                [BalinCompetitionController::class, 'store'],     $balinCompetition);
+    $router->get('/balin/competitions/{uuid}',          [BalinCompetitionController::class, 'show'],      $balinCompetition);
+    $router->post('/balin/competitions/{uuid}',         [BalinCompetitionController::class, 'update'],    $balinCompetition);
+    $router->post('/balin/competitions/{uuid}/status',  [BalinCompetitionController::class, 'setStatus'], $balinCompetition);
+    $router->post('/balin/competitions/{uuid}/delete',  [BalinCompetitionController::class, 'destroy'],   $balinCompetition);
+    $router->post('/balin/competitions/{uuid}/rewards',        [BalinCompetitionController::class, 'storeReward'],
+        [PermissionMiddleware::class . ':balin.manage_rewards']);
+    $router->post('/balin/competitions/{uuid}/rewards/assign', [BalinCompetitionController::class, 'assignReward'],
+        [PermissionMiddleware::class . ':balin.manage_rewards']);
+    $router->post('/balin/competitions/{uuid}/rewards/delete', [BalinCompetitionController::class, 'destroyReward'],
+        [PermissionMiddleware::class . ':balin.manage_rewards']);
+
+    /* analytics — individual records need their own permission */
+    $router->get('/balin/analytics',                [BalinAnalyticsController::class, 'index'],   $balinStats);
+    $router->get('/balin/analytics/student/{uuid}', [BalinAnalyticsController::class, 'student'], $balinStats);
 
     /* ----------------------------------------------------------- support */
     $support = [PermissionMiddleware::class . ':manage_messages'];

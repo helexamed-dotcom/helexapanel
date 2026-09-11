@@ -17,6 +17,18 @@
     <a class="nav-item<?= active_when($currentPath, '/offline') ?>" href="/offline" data-tip="محتوای آفلاین من">
         <?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'download']); ?> <span class="nav-text">محتوای آفلاین من</span>
     </a>
+    <?php
+    /**
+     * The island is in the menu from the moment it exists, even while it is
+     * unpublished — clicking it explains what is coming. Only the `disabled`
+     * state removes the entry; the server decides what the page then shows.
+     */
+    if (\HeleXa\Services\Balin\Access::menuVisible()): ?>
+        <a class="nav-item<?= active_when($currentPath, '/student/balin') ?>" href="/student/balin" data-tip="جزیره بالین">
+            <?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'island']); ?>
+            <span class="nav-text">جزیره بالین</span>
+        </a>
+    <?php endif; ?>
 </div>
 
 <div class="nav-group">

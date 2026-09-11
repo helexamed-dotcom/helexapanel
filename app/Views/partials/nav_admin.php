@@ -14,6 +14,8 @@ $canCalendar = can('manage_calendar');
 $canMessages = can('manage_messages');
 $canSettings = can('manage_settings');
 
+$canBalin    = can('balin.view');
+
 $hasLearning = $canStudents || can('manage_courses') || can('manage_packages') || can('manage_content');
 $hasPlanning = $canSchedule || $canExams || $canCalendar;
 $hasComms    = can('manage_notifications') || $canMessages;
@@ -52,6 +54,57 @@ $hasSecurity = can('view_sessions') || can('view_logs') || can('manage_admins') 
         <?php if ($canStudents): ?>
             <a class="nav-item<?= active_when($currentPath, '/admin/academic') ?>" href="/admin/academic" data-tip="ساختار آموزشی">
                 <?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'school']); ?> <span class="nav-text">ساختار آموزشی</span>
+            </a>
+        <?php endif; ?>
+    </div>
+<?php endif; ?>
+
+<?php
+/**
+ * Balin is a module in its own right, not a page — it has its own content
+ * tree, its own exams and its own competition — so it gets a group rather
+ * than one more entry under teaching.
+ */
+if ($canBalin): ?>
+    <div class="nav-group">
+        <div class="nav-label">جزیره بالین</div>
+        <a class="nav-item<?= active_when($currentPath, '/admin/balin') ?>" href="/admin/balin" data-tip="مرور جزیره">
+            <?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'island']); ?> <span class="nav-text">مرور جزیره</span>
+        </a>
+        <a class="nav-item<?= active_when($currentPath, '/admin/balin/lessons') ?>" href="/admin/balin/lessons" data-tip="درس‌های بالینی">
+            <?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'stethoscope']); ?> <span class="nav-text">درس‌های بالینی</span>
+        </a>
+        <?php if (can('balin.manage_skill_tracks')): ?>
+            <a class="nav-item<?= active_when($currentPath, '/admin/balin/skill-tracks') ?>" href="/admin/balin/skill-tracks" data-tip="مهارت‌های بالینی">
+                <?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'route']); ?> <span class="nav-text">مهارت‌های بالینی</span>
+            </a>
+        <?php endif; ?>
+        <?php if (can('balin.manage_characters')): ?>
+            <a class="nav-item<?= active_when($currentPath, '/admin/balin/characters') ?>" href="/admin/balin/characters" data-tip="شخصیت‌ها">
+                <?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'users']); ?> <span class="nav-text">شخصیت‌ها</span>
+            </a>
+        <?php endif; ?>
+        <a class="nav-item<?= active_when($currentPath, '/admin/balin/media') ?>" href="/admin/balin/media" data-tip="کتابخانه رسانه">
+            <?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'folder']); ?> <span class="nav-text">کتابخانه رسانه</span>
+        </a>
+        <?php if (can('balin.manage_students')): ?>
+            <a class="nav-item<?= active_when($currentPath, '/admin/balin/access') ?>" href="/admin/balin/access" data-tip="دسترسی دانشجویان">
+                <?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'key']); ?> <span class="nav-text">دسترسی دانشجویان</span>
+            </a>
+        <?php endif; ?>
+        <?php if (can('balin.manage_competition')): ?>
+            <a class="nav-item<?= active_when($currentPath, '/admin/balin/competitions') ?>" href="/admin/balin/competitions" data-tip="رقابت هفتگی">
+                <?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'trophy']); ?> <span class="nav-text">رقابت هفتگی</span>
+            </a>
+        <?php endif; ?>
+        <?php if (can('balin.manage_rank_titles')): ?>
+            <a class="nav-item<?= active_when($currentPath, '/admin/balin/rank-tiers') ?>" href="/admin/balin/rank-tiers" data-tip="عنوان سطح‌ها">
+                <?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'sparkle']); ?> <span class="nav-text">عنوان سطح‌ها</span>
+            </a>
+        <?php endif; ?>
+        <?php if (can('balin.view_statistics')): ?>
+            <a class="nav-item<?= active_when($currentPath, '/admin/balin/analytics') ?>" href="/admin/balin/analytics" data-tip="آمار بالین">
+                <?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'chart']); ?> <span class="nav-text">آمار بالین</span>
             </a>
         <?php endif; ?>
     </div>
