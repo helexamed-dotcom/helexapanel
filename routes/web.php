@@ -36,6 +36,7 @@ use HeleXa\Controllers\Admin\SettingsController;
 use HeleXa\Controllers\Admin\SmsController;
 use HeleXa\Controllers\Admin\SupportController;
 use HeleXa\Controllers\Admin\StudentController;
+use HeleXa\Controllers\Api\MobileController as MobileApi;
 use HeleXa\Controllers\Api\OfflineController as OfflineApi;
 use HeleXa\Controllers\Api\SessionController as SessionApi;
 use HeleXa\Controllers\Api\SyncController;
@@ -159,6 +160,28 @@ $router->get('/offline', [OfflineController::class, 'index'], [AuthenticateMiddl
 
 // Internal JSON API. Session-authenticated like every other route; there is
 // no separate token scheme and no second way in.
+/* ----------------------------------------------------- the Android app
+   Read-only JSON for the mobile client, behind exactly the guards the
+   student pages use. It is a second way to read the same data, never a
+   second set of rules: no lesson body is served here, because the viewer
+   is what issues a per-open token and handing HTML out around it would
+   make content cacheable on the device. */
+$router->group('/api/mobile', [
+    AuthenticateMiddleware::class,
+    RoleMiddleware::class . ':student',
+    ForcePasswordChangeMiddleware::class,
+], function (\HeleXa\Core\Router $router): void {
+    $router->get('/me',            [MobileApi::class, 'me']);
+    $router->get('/dashboard',     [MobileApi::class, 'dashboard']);
+    $router->get('/courses',       [MobileApi::class, 'courses']);
+    $router->get('/courses/{uuid}',[MobileApi::class, 'course']);
+    $router->get('/schedule',      [MobileApi::class, 'schedule']);
+    $router->get('/exams',         [MobileApi::class, 'exams']);
+    $router->get('/calendar',      [MobileApi::class, 'calendar']);
+    $router->get('/notifications', [MobileApi::class, 'notifications']);
+    $router->post('/notifications/{id}/read', [MobileApi::class, 'readNotification']);
+});
+
 $router->group('/api', [AuthenticateMiddleware::class], function (\HeleXa\Core\Router $router): void {
     $router->get('/session/state', [SessionApi::class, 'state'],
         [ThrottleMiddleware::class . ':session_state,240,60']);
