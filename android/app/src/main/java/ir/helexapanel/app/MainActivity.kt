@@ -217,6 +217,7 @@ private fun SignedIn(
             HomeScreen(
                 model = model,
                 onCourseClick = { openCourse = it },
+                onSignOut = ::signOut,
                 modifier = content
             )
         } else {

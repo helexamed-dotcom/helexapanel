@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
@@ -27,6 +28,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import ir.helexapanel.app.ui.components.EmptyState
@@ -34,6 +36,7 @@ import ir.helexapanel.app.ui.components.ErrorState
 import ir.helexapanel.app.ui.components.LoadingSkeleton
 import ir.helexapanel.app.ui.components.UiState
 import ir.helexapanel.core.model.Course
+import ir.helexapanel.core.net.ApiError
 import ir.helexapanel.core.model.Exam
 import ir.helexapanel.core.model.ScheduleItem
 import ir.helexapanel.core.util.PersianDigits
@@ -50,6 +53,7 @@ import ir.helexapanel.core.util.PersianDigits
 fun HomeScreen(
     model: HomeViewModel,
     onCourseClick: (Course) -> Unit,
+    onSignOut: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val state by model.state.collectAsStateWithLifecycle()
@@ -57,11 +61,24 @@ fun HomeScreen(
     when (val current = state) {
         is UiState.Loading -> LoadingSkeleton(modifier = modifier)
 
-        is UiState.Failed -> ErrorState(
-            error = current.error,
-            onRetry = model::load,
-            modifier = modifier
-        )
+        /**
+         * A refusal is not a failure to retry.
+         *
+         * The panel serves this app's data to students only. An admin or
+         * teacher signs in perfectly well and is then refused by every screen,
+         * which arrives here as 403. Offering "try again" would invite them to
+         * press it forever, so this says what happened and offers the only
+         * move that helps: sign out and use a student account.
+         */
+        is UiState.Failed -> if (current.error is ApiError.Forbidden) {
+            WrongAccount(onSignOut = onSignOut, modifier = modifier)
+        } else {
+            ErrorState(
+                error = current.error,
+                onRetry = model::load,
+                modifier = modifier
+            )
+        }
 
         is UiState.Ready -> {
             val data = current.value
@@ -202,6 +219,43 @@ private fun CourseRow(course: Course, onClick: () -> Unit) {
                     maxLines = 2
                 )
             }
+        }
+    }
+}
+
+/**
+ * The account is fine; it is the wrong kind for this app.
+ *
+ * Deliberately a whole screen rather than a red line: there is no menu behind
+ * it and nothing to go back to, so a bare error message would leave the person
+ * staring at an empty app with no idea what to do.
+ */
+@Composable
+private fun WrongAccount(onSignOut: () -> Unit, modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .padding(32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Text(
+            text = "این حساب دانشجو نیست",
+            style = MaterialTheme.typography.titleLarge,
+            textAlign = TextAlign.Center
+        )
+
+        Spacer(Modifier.height(8.dp))
+
+        Text(
+            text = "این اپ فقط برای دانشجویان است. برای مدیریت سامانه از وب‌سایت استفاده کن.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center
+        )
+
+        Button(onClick = onSignOut, modifier = Modifier.padding(top = 24.dp)) {
+            Text("خروج و ورود با حساب دیگر")
         }
     }
 }

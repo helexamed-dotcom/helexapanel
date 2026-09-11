@@ -37,6 +37,13 @@ final class SessionRepository extends BaseRepository
 
     public function findActiveByPhpSessionId(string $phpSessionId): ?array
     {
+        // No id means no session. Without this, '' would match any row that
+        // still carries the empty string and hand one person another's
+        // session.
+        if ($phpSessionId === '') {
+            return null;
+        }
+
         return $this->selectOne(
             'SELECT * FROM sessions WHERE php_session_id = :sid AND is_active = 1 LIMIT 1',
             ['sid' => $phpSessionId]

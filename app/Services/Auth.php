@@ -5,6 +5,7 @@ namespace HeleXa\Services;
 
 use HeleXa\Core\Config;
 use HeleXa\Core\Csrf;
+use HeleXa\Core\Logger;
 use HeleXa\Core\Request;
 use HeleXa\Core\Str;
 use HeleXa\Models\PermissionRepository;
@@ -220,9 +221,29 @@ final class Auth
 
         $rawToken = Str::token(32);
 
+        /**
+         * An empty session id is a broken PHP session, not a session id.
+         *
+         * session_id() returns '' when the session could not be started or
+         * regenerated — an unwritable save path is the usual cause on shared
+         * hosting. Writing that '' into a uniquely-indexed column poisoned the
+         * whole table: the first such row inserted fine, and every later login
+         * anywhere on the site then died with "Duplicate entry '' for key
+         * uq_sessions_php_sid".
+         *
+         * NULL is the honest value, and a unique index tolerates any number of
+         * them. The session simply will not validate afterwards, so the person
+         * is asked to sign in again instead of meeting a 500.
+         */
+        $phpSessionId = session_id();
+        if ($phpSessionId === '' || $phpSessionId === false) {
+            $phpSessionId = null;
+            Logger::error('Session started without an id; check that storage/sessions is writable.');
+        }
+
         $sessionDbId = $sessions->create([
             'user_id'          => (int) $user['id'],
-            'php_session_id'   => session_id(),
+            'php_session_id'   => $phpSessionId,
             'token_hash'       => Str::hash($rawToken),
             'device_hash'      => $deviceHash,
             'ip_address'       => $request->ip(),

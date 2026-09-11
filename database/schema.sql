@@ -206,7 +206,10 @@ CREATE TABLE user_permissions (
 CREATE TABLE sessions (
     id                  BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     user_id             BIGINT UNSIGNED NOT NULL,
-    php_session_id      VARCHAR(128) NOT NULL,      -- PHP session identifier
+    -- Nullable on purpose. A unique index permits many NULLs but only one
+    -- empty string, so storing '' for "no session id" meant the first such
+    -- row poisoned the table and every later login died on a duplicate key.
+    php_session_id      VARCHAR(128) NULL,         -- PHP session identifier
     token_hash          CHAR(64)     NOT NULL,      -- SHA-256 of the rotating session token
     device_hash         CHAR(64)     NOT NULL,      -- stable fingerprint (UA + platform + accept-lang)
     ip_address          VARCHAR(45)  NOT NULL,      -- IPv4/IPv6 text form
