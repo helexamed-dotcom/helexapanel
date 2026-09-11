@@ -1,0 +1,20 @@
+# Build output
+build/
+.gradle/
+local.properties
+
+# Signing material must never be committed. A keystore in version control is
+# a keystore that belongs to everyone who has ever cloned the repository.
+*.jks
+*.keystore
+keystore.properties
+signing.properties
+
+# Secrets
+.env
+*.secrets
+
+# IDE
+.idea/
+*.iml
+.DS_Store

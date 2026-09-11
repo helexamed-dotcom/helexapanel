@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Nothing leaves this app unencrypted.
+
+  cleartextTrafficPermitted="false" is also set in the manifest; it is repeated
+  here because the two are read by different parts of the platform and a build
+  that sets only one has a gap on some API levels.
+
+  No certificate pins. Pinning a panel whose certificate is renewed by its host
+  would brick every installed copy on renewal day, with no way to push a fix
+  faster than the store review — worse for students than the attack it
+  prevents. The system trust store plus a refusal to proceed on any SSL error
+  is the right trade here.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

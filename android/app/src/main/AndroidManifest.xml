@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!--
+      One permission, and it is the only one the app can function without a
+      lie. There is no camera, no storage, no location, no contacts: the app
+      reads a website over the network and draws it. Anything else in this list
+      would be a permission prompt a student is right to refuse.
+    -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <application
+        android:name=".HeleXaApplication"
+        android:allowBackup="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="false"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:label="@string/app_name"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.HeleXa.Splash"
+        android:usesCleartextTraffic="false"
+        android:networkSecurityConfig="@xml/network_security_config"
+        tools:targetApi="34">
+
+        <!--
+          allowBackup and dataExtractionRules together keep the session out of
+          cloud backup and off adb. The store holds a live credential; a copy
+          of it sitting in someone's Google account is a copy nobody can
+          revoke.
+        -->
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:windowSoftInputMode="adjustResize"
+            android:configChanges="uiMode|orientation|screenSize|screenLayout|keyboardHidden">
+
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+            <!--
+              Deep links into the panel's own domain. Verified against the site
+              so another app cannot claim them, and every destination they
+              reach still checks authentication and authorization on arrival —
+              a link is a request to go somewhere, never permission to be
+              there.
+            -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="helexapanel.ir" />
+            </intent-filter>
+        </activity>
+
+        <!--
+          The content viewer is its own task-excluded activity so a lesson can
+          never appear in the recents preview, and it is not exported: nothing
+          outside the app may ask it to render anything.
+        -->
+        <activity
+            android:name=".content.ContentViewerActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:noHistory="false"
+            android:windowSoftInputMode="adjustResize"
+            android:configChanges="uiMode|orientation|screenSize|screenLayout|keyboardHidden" />
+
+    </application>
+</manifest>

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The session file is excluded from both cloud backup and device-to-device
+  transfer.
+
+  It holds a live credential encrypted under a key that lives in *this*
+  device's keystore. Copying it elsewhere produces a file nobody can read —
+  and if the encryption were ever weakened, a copy of a live session in
+  someone's Google account would be a credential nobody can revoke.
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="sharedpref" path="helexa_session.xml" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="sharedpref" path="helexa_session.xml" />
+    </device-transfer>
+</data-extraction-rules>

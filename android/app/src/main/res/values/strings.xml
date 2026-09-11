@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">هلیکسا مد</string>
+
+    <!-- Sign in -->
+    <string name="sign_in_title">ورود یا ثبت‌نام</string>
+    <string name="tab_password">ورود با رمز عبور</string>
+    <string name="tab_sms">ورود با کد پیامکی</string>
+    <string name="field_identifier">شماره موبایل یا نام کاربری</string>
+    <string name="field_password">رمز عبور</string>
+    <string name="field_phone">شماره موبایل</string>
+    <string name="action_sign_in">ورود</string>
+    <string name="action_request_code">دریافت کد</string>
+    <string name="action_verify_code">تأیید کد</string>
+    <string name="action_change_number">تغییر شماره</string>
+    <string name="action_resend">ارسال مجدد کد</string>
+    <string name="forgot_password">رمز عبورم را فراموش کرده‌ام</string>
+
+    <!-- Navigation -->
+    <string name="nav_home">خانه</string>
+    <string name="nav_courses">دوره‌ها</string>
+    <string name="nav_schedule">برنامه</string>
+    <string name="nav_notifications">اعلان‌ها</string>
+    <string name="nav_profile">پروفایل</string>
+
+    <!-- States -->
+    <string name="state_loading">در حال بارگذاری…</string>
+    <string name="state_offline">اینترنت در دسترس نیست</string>
+    <string name="state_retry">تلاش دوباره</string>
+    <string name="state_empty_courses">هنوز دوره‌ای برای تو فعال نشده است.</string>
+    <string name="state_empty_notifications">اعلان تازه‌ای نداری.</string>
+    <string name="state_empty_schedule">برای این روز کلاسی ثبت نشده است.</string>
+    <string name="state_empty_exams">امتحانی ثبت نشده است.</string>
+
+    <!-- Sign out -->
+    <string name="action_sign_out">خروج از حساب</string>
+    <string name="sign_out_confirm_title">خروج از حساب</string>
+    <string name="sign_out_confirm_body">برای ورود دوباره به شماره موبایل یا رمز عبور نیاز داری.</string>
+    <string name="action_cancel">انصراف</string>
+
+    <!-- Content descriptions, for screen readers -->
+    <string name="cd_back">بازگشت</string>
+    <string name="cd_avatar">تصویر پروفایل</string>
+</resources>

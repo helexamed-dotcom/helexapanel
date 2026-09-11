@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Only the handful of colours the platform needs before Compose is running.
+  Everything else lives in the Compose theme, which reads its values from the
+  core module's Palette so the app and the website cannot drift apart.
+-->
+<resources>
+    <color name="splash_background">#F4F6FB</color>
+    <color name="ic_launcher_background">#2F6BFF</color>
+</resources>
