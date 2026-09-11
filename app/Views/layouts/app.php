@@ -90,7 +90,74 @@
             </button>
             <h1><?= e($title ?? '') ?></h1>
             <div class="spacer"></div>
-            <span data-conn-slot></span>
+
+            <?php
+            /**
+             * Connection state, as a signal-strength glyph rather than a word.
+             * The markup is rendered here and the script only swaps a class, so
+             * the icon is present on first paint instead of appearing a moment
+             * later once JavaScript has run.
+             */
+            ?>
+            <span class="conn" data-conn-slot role="status" aria-live="polite" title="وضعیت اتصال">
+                <svg class="conn-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                     stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
+                    <path class="conn-arc conn-arc-3" d="M2.6 9.1a13.8 13.8 0 0 1 18.8 0"/>
+                    <path class="conn-arc conn-arc-2" d="M6 12.8a8.9 8.9 0 0 1 12 0"/>
+                    <path class="conn-arc conn-arc-1" d="M9.4 16.5a4 4 0 0 1 5.2 0"/>
+                    <circle class="conn-dot" cx="12" cy="20" r="1.35" fill="currentColor" stroke="none"/>
+                    <path class="conn-slash" d="m4.6 4.6 14.8 14.8"/>
+                </svg>
+                <span class="conn-label"></span>
+            </span>
+
+            <?php
+            /**
+             * Notifications and messages. Students get their own two counters;
+             * an admin gets the one number they can actually act on, which is
+             * open support tickets.
+             */
+            $bellItems = $isAdminArea
+                ? [
+                    ['/admin/support', 'تیکت‌های باز پشتیبانی', 'support',
+                        (int) ($unreadCounts['support_open'] ?? 0)],
+                ]
+                : [
+                    ['/student/notifications', 'اطلاعیه‌ها', 'bell',
+                        (int) ($unreadCounts['notifications'] ?? 0)],
+                    ['/student/messages', 'پیام‌های من', 'message',
+                        (int) ($unreadCounts['messages'] ?? 0)],
+                ];
+            $bellTotal = array_sum(array_column($bellItems, 3));
+            ?>
+            <?php if ($bellItems !== []): ?>
+                <div class="bell-menu" data-bell-menu>
+                    <button class="icon-btn bell-trigger" type="button" data-bell-trigger
+                            aria-haspopup="true" aria-expanded="false"
+                            aria-label="اعلان‌ها<?= $bellTotal > 0 ? '، ' . fa((string) $bellTotal) . ' مورد خوانده‌نشده' : '' ?>">
+                        <?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'bell']); ?>
+                        <?php if ($bellTotal > 0): ?>
+                            <span class="bell-badge"><?= e(fa((string) min($bellTotal, 99))) ?></span>
+                        <?php endif; ?>
+                    </button>
+
+                    <div class="drop-panel bell-panel" data-bell-panel hidden>
+                        <div class="drop-panel-label">اعلان‌ها</div>
+                        <?php foreach ($bellItems as [$href, $label, $icon, $count]): ?>
+                            <a class="drop-panel-row" href="<?= e($href) ?>">
+                                <span class="row-icon"><?php \HeleXa\Core\View::partial('partials.icon', ['name' => $icon]); ?></span>
+                                <span class="drop-panel-text"><?= e($label) ?></span>
+                                <?php if ($count > 0): ?>
+                                    <span class="drop-panel-count"><?= e(fa((string) min($count, 99))) ?></span>
+                                <?php endif; ?>
+                            </a>
+                        <?php endforeach; ?>
+                        <?php if ($bellTotal === 0): ?>
+                            <div class="drop-panel-empty">چیز خوانده‌نشده‌ای نداری.</div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            <?php endif; ?>
 
             <div class="user-menu" data-user-menu>
                 <button class="avatar user-trigger" type="button" data-user-menu-trigger
@@ -99,7 +166,7 @@
                     <?php \HeleXa\Core\View::partial('partials.avatar', ['person' => $currentUser ?? []]); ?>
                 </button>
 
-                <div class="user-panel" data-user-panel hidden>
+                <div class="drop-panel user-panel" data-user-panel hidden>
                     <div class="user-panel-head">
                         <div class="user-panel-avatar">
                             <?php \HeleXa\Core\View::partial('partials.avatar', ['person' => $currentUser ?? []]); ?>
@@ -110,7 +177,7 @@
                         </div>
                     </div>
 
-                    <div class="user-panel-label">تنظیمات</div>
+                    <div class="drop-panel-label">تنظیمات</div>
 
                     <button type="button" class="user-panel-row" data-theme-toggle>
                         <span class="row-icon theme-icon-sun"><?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'sun']); ?></span>

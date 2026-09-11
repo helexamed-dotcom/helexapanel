@@ -76,9 +76,15 @@ if (session_status() !== PHP_SESSION_ACTIVE) {
     ini_set('session.use_only_cookies', '1');
     ini_set('session.use_trans_sid', '0');
     ini_set('session.cookie_httponly', '1');
-    ini_set('session.sid_length', '48');
-    ini_set('session.sid_bits_per_character', '5');
     ini_set('session.gc_maxlifetime', '7200');
+
+    // Session id length and alphabet were tunable up to PHP 8.3. From 8.4 the
+    // engine fixes both at a strong default and deprecates the settings, so
+    // touching them there only writes a notice to the log on every request.
+    if (PHP_VERSION_ID < 80400) {
+        ini_set('session.sid_length', '48');
+        ini_set('session.sid_bits_per_character', '5');
+    }
 
     session_name((string) Config::get('app.security.session_name', 'HLX_SID'));
     session_set_cookie_params([

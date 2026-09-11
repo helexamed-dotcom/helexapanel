@@ -1,4 +1,13 @@
 <?php
+/**
+ * A course's contents, as a folder tree.
+ *
+ * Each item is a card laid out down the page rather than a single row: on a
+ * phone a title, a status chip and two buttons cannot share one line without
+ * colliding, and the title is the part that gets crushed. Stacked, every
+ * piece gets the width it needs and the study button is the obvious thing to
+ * press.
+ */
 $children = [];
 foreach ($sections as $section) {
     $children[$section['parent_id'] === null ? 0 : (int) $section['parent_id']][] = $section;
@@ -11,45 +20,86 @@ $statusMeta = [
     'unread'       => ['chip-gray',  'مطالعه نشده'],
 ];
 
-$renderContents = function (array $list) use ($statuses, $statusMeta, $offlineEnabled, $csrf_token): void {
+/** Each kind of material gets the icon that says what it is. */
+$typeMeta = [
+    'full_notes'     => ['book',    'جزوه کامل'],
+    'summary_notes'  => ['list',    'خلاصه'],
+    'question_bank'  => ['exam',    'بانک سؤال'],
+    'chat_learn'     => ['message', 'آموزش گفت‌وگویی'],
+    'mind_map'       => ['layers',  'نقشه ذهنی'],
+    'custom'         => ['folder',  'محتوا'],
+];
+
+$renderContents = function (array $list) use ($statuses, $statusMeta, $typeMeta, $offlineEnabled, $csrf_token): void {
     foreach ($list as $item) {
         $status = $statuses[(int) $item['id']]['status'] ?? 'unread';
-        [$chip, $label] = $statusMeta[$status] ?? $statusMeta['unread']; ?>
-        <div class="tree-leaf">
-            <a class="leaf-link-inline" href="/content/<?= e($item['uuid']) ?>">
-                <span class="leaf-icon">📄</span>
-                <span style="min-width:0;">
-                    <span class="leaf-title"><?= e($item['title']) ?></span>
-                    <?php if ($item['description']): ?>
-                        <span class="leaf-meta"><?= e($item['description']) ?></span>
-                    <?php endif; ?>
+        [$chip, $label] = $statusMeta[$status] ?? $statusMeta['unread'];
+        [$icon, $typeLabel] = $typeMeta[$item['content_type'] ?? 'custom'] ?? $typeMeta['custom'];
+        $minutes = (int) ($item['estimated_minutes'] ?? 0);
+        ?>
+        <article class="leaf-card is-<?= e($status) ?>">
+            <div class="leaf-card-head">
+                <span class="leaf-card-icon" aria-hidden="true">
+                    <?php \HeleXa\Core\View::partial('partials.icon', ['name' => $icon]); ?>
                 </span>
-            </a>
-            <span class="stat-chip <?= e($chip) ?>"><?= e($label) ?></span>
-            <?php if (!empty($offlineEnabled)): ?>
-                <button class="btn btn-sm offline-btn btn-ghost"
-                        type="button"
-                        data-offline-save="<?= e($item['uuid']) ?>"
-                        data-version="<?= e($item['checksum'] ?? '') ?>"
-                        data-offline-allowed="<?= (int) ($item['offline_enabled'] ?? 1) === 1 ? '1' : '0' ?>"
-                        data-needs-network>ذخیره برای مطالعه آفلاین</button>
-            <?php endif; ?>
-        </div>
+                <div class="leaf-card-titles">
+                    <h4 class="leaf-card-title"><?= e($item['title']) ?></h4>
+                    <?php if ($item['description']): ?>
+                        <p class="leaf-card-desc"><?= e($item['description']) ?></p>
+                    <?php endif; ?>
+                </div>
+            </div>
+
+            <div class="leaf-card-meta">
+                <span class="stat-chip <?= e($chip) ?>"><?= e($label) ?></span>
+                <span class="leaf-card-type"><?= e($typeLabel) ?></span>
+                <?php if ($minutes > 0): ?>
+                    <span class="leaf-card-time">~<?= e(fa((string) $minutes)) ?> دقیقه</span>
+                <?php endif; ?>
+            </div>
+
+            <div class="leaf-card-actions">
+                <a class="btn btn-primary btn-sm leaf-card-study" href="/content/<?= e($item['uuid']) ?>">
+                    <?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'book', 'size' => 16]); ?>
+                    <span>مطالعه</span>
+                </a>
+                <?php if (!empty($offlineEnabled)): ?>
+                    <button class="btn btn-ghost btn-sm offline-btn"
+                            type="button"
+                            data-offline-save="<?= e($item['uuid']) ?>"
+                            data-version="<?= e($item['checksum'] ?? '') ?>"
+                            data-offline-allowed="<?= (int) ($item['offline_enabled'] ?? 1) === 1 ? '1' : '0' ?>"
+                            data-needs-network>
+                        <?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'download', 'size' => 16]); ?>
+                        <span>ذخیره آفلاین</span>
+                    </button>
+                <?php endif; ?>
+            </div>
+        </article>
     <?php }
 };
 
 $renderSection = function (array $section) use (&$renderSection, $children, $bySection, $renderContents): void {
-    $id = (int) $section['id']; ?>
-    <div class="tree-node">
-        <div class="tree-head">
-            <span class="leaf-icon">📁</span>
-            <div class="leaf-title" style="flex:1;"><?= e($section['title']) ?></div>
-        </div>
+    $id    = (int) $section['id'];
+    $items = $bySection[(string) $id] ?? [];
+    $subs  = $children[$id] ?? [];
+    ?>
+    <details class="tree-node" open>
+        <summary class="tree-head">
+            <span class="tree-head-icon" aria-hidden="true">
+                <?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'folder']); ?>
+            </span>
+            <span class="tree-head-title"><?= e($section['title']) ?></span>
+            <span class="tree-head-count"><?= e(fa((string) count($items))) ?></span>
+        </summary>
         <div class="tree-body">
-            <?php $renderContents($bySection[(string) $id] ?? []); ?>
-            <?php foreach ($children[$id] ?? [] as $child) { $renderSection($child); } ?>
+            <?php $renderContents($items); ?>
+            <?php foreach ($subs as $child) { $renderSection($child); } ?>
+            <?php if ($items === [] && $subs === []): ?>
+                <div class="empty">این پوشه هنوز خالی است.</div>
+            <?php endif; ?>
         </div>
-    </div>
+    </details>
 <?php };
 ?>
 

@@ -78,13 +78,24 @@ final class BalinAnswerRepository extends BaseRepository
         return $this->find($userId, $questionId) !== null;
     }
 
-    /** @return array<int, array<string,mixed>> keyed by question id */
+    /**
+     * Answers for the questions this stage presents, keyed by question id.
+     *
+     * Joined through the blocks rather than through balin_questions.stage_id:
+     * a question can be placed in a stage by a block while its own stage_id
+     * is null, and matching on the column would then show an answered
+     * question as unanswered.
+     *
+     * @return array<int, array<string,mixed>> keyed by question id
+     */
     public function forStage(int $userId, int $stageId): array
     {
         $rows = $this->select(
-            'SELECT a.* FROM balin_answers a
-             JOIN balin_questions q ON q.id = a.question_id
-             WHERE a.user_id = :user AND q.stage_id = :stage',
+            "SELECT a.* FROM balin_answers a
+             JOIN balin_blocks b ON b.question_id = a.question_id
+                                AND b.stage_id = :stage
+                                AND b.block_type = 'question'
+             WHERE a.user_id = :user",
             ['user' => $userId, 'stage' => $stageId]
         );
 

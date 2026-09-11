@@ -18,42 +18,95 @@
         return fetch(url, options);
     };
 
-    /* -------------------------------------------------------- user menu
-       One dropdown replaces what used to be four separate topbar controls
-       (theme toggle, password gear, avatar link, logout button). Click to
-       open, click outside or Escape to close, and it never fights with the
-       mobile drawer or the sidebar rail for the same keypress. */
-    var userMenu    = document.querySelector('[data-user-menu]');
-    var userTrigger = document.querySelector('[data-user-menu-trigger]');
-    var userPanel   = document.querySelector('[data-user-panel]');
+    /* ------------------------------------------------- topbar dropdowns
+       The profile menu and the notification bell behave identically: click to
+       open, click outside or Escape to close, and only one open at a time.
 
-    function closeUserMenu() {
-        if (!userPanel || userPanel.hidden) { return; }
-        userPanel.hidden = true;
-        if (userTrigger) { userTrigger.setAttribute('aria-expanded', 'false'); }
+       On a phone each becomes a bottom sheet, and that needs one piece of
+       care. The topbar carries a backdrop-filter, and a filtered element is
+       the containing block for any position:fixed inside it — so a sheet left
+       in the header would measure "bottom: 12px" against a 66px bar and land
+       back at the top of the screen, covering the very header it came from.
+       Opening therefore moves the panel to <body> first, and closing puts it
+       back where the markup had it. */
+    var SHEET_WIDTH = 620;
+    var openDrop    = null;
+
+    function isSheet() {
+        return window.matchMedia('(max-width: ' + SHEET_WIDTH + 'px)').matches;
     }
 
-    function openUserMenu() {
-        if (!userPanel) { return; }
-        userPanel.hidden = false;
-        if (userTrigger) { userTrigger.setAttribute('aria-expanded', 'true'); }
-    }
+    function makeDropdown(rootSelector, triggerSelector, panelSelector) {
+        var root    = document.querySelector(rootSelector);
+        var trigger = document.querySelector(triggerSelector);
+        var panel   = document.querySelector(panelSelector);
 
-    if (userTrigger && userPanel) {
-        userTrigger.addEventListener('click', function (event) {
+        if (!root || !trigger || !panel) { return null; }
+
+        // Remembered so the panel can go home again; querying for it later
+        // would find the wrong place once it has been moved once.
+        var home = panel.parentNode;
+        var drop = {};
+
+        drop.close = function () {
+            if (panel.hidden) { return; }
+            panel.hidden = true;
+            trigger.setAttribute('aria-expanded', 'false');
+
+            if (panel.parentNode !== home) { home.appendChild(panel); }
+            panel.classList.remove('is-sheet');
+            document.documentElement.classList.remove('sheet-open');
+            if (openDrop === drop) { openDrop = null; }
+        };
+
+        drop.open = function () {
+            if (openDrop && openDrop !== drop) { openDrop.close(); }
+
+            if (isSheet()) {
+                document.body.appendChild(panel);
+                panel.classList.add('is-sheet');
+                document.documentElement.classList.add('sheet-open');
+            }
+
+            panel.hidden = false;
+            trigger.setAttribute('aria-expanded', 'true');
+            openDrop = drop;
+        };
+
+        drop.contains = function (node) {
+            return root.contains(node) || panel.contains(node);
+        };
+
+        trigger.addEventListener('click', function (event) {
             event.stopPropagation();
-            if (userPanel.hidden) { openUserMenu(); } else { closeUserMenu(); }
+            if (panel.hidden) { drop.open(); } else { drop.close(); }
         });
 
-        // A click anywhere inside the panel (e.g. the theme toggle) must not
-        // bubble up and immediately close the very menu it is part of.
-        userPanel.addEventListener('click', function (event) { event.stopPropagation(); });
+        // A click inside the panel (the theme toggle, say) must not bubble out
+        // and immediately close the menu it belongs to.
+        panel.addEventListener('click', function (event) { event.stopPropagation(); });
 
+        return drop;
+    }
+
+    var drops = [
+        makeDropdown('[data-user-menu]', '[data-user-menu-trigger]', '[data-user-panel]'),
+        makeDropdown('[data-bell-menu]', '[data-bell-trigger]', '[data-bell-panel]')
+    ].filter(Boolean);
+
+    if (drops.length) {
         document.addEventListener('click', function (event) {
-            if (userMenu && !userMenu.contains(event.target)) { closeUserMenu(); }
+            drops.forEach(function (drop) {
+                if (!drop.contains(event.target)) { drop.close(); }
+            });
         });
         document.addEventListener('keydown', function (event) {
-            if (event.key === 'Escape') { closeUserMenu(); }
+            if (event.key === 'Escape') { drops.forEach(function (d) { d.close(); }); }
+        });
+        // A sheet is sized to the viewport it opened in; rotating the phone or
+        // crossing the breakpoint would leave it anchored to nothing.
+        window.addEventListener('resize', function () {
+            if (openDrop) { openDrop.close(); }
         });
     }
 

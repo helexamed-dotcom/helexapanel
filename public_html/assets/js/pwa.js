@@ -5,31 +5,35 @@
 (function () {
     'use strict';
 
-    var LABELS = {
-        checking:     ['conn-checking', 'در حال بررسی…'],
-        online:       ['conn-online',   'آنلاین'],
-        syncing:      ['conn-syncing',  'در حال همگام‌سازی'],
-        reconnecting: ['conn-syncing',  'در حال اتصال مجدد'],
-        offline:      ['conn-offline',  'آفلاین']
+    /**
+     * Connection state as signal strength.
+     *
+     * Only a class and a label change; the glyph itself is in the page markup
+     * so it is on screen from the first paint rather than popping in once this
+     * script runs. The label is for screen readers — sighted users get the
+     * icon, which says the same thing without a word of Persian to translate.
+     */
+    var STATES = {
+        checking:     ['is-checking', 'در حال بررسی اتصال'],
+        online:       ['is-online',   'آنلاین'],
+        syncing:      ['is-weak',     'در حال همگام‌سازی'],
+        reconnecting: ['is-weak',     'اتصال ضعیف'],
+        offline:      ['is-offline',  'آفلاین']
     };
-
-    /* --------------------------------------------------- status pill */
 
     function mountPill() {
         var host = document.querySelector('[data-conn-slot]');
         if (!host) { return; }
 
-        var pill = document.createElement('span');
-        pill.className = 'conn-pill';
-        pill.setAttribute('role', 'status');
-        pill.setAttribute('aria-live', 'polite');
-        pill.innerHTML = '<i class="conn-dot"></i><span class="conn-text"></span>';
-        host.appendChild(pill);
+        var label = host.querySelector('.conn-label');
 
         window.HeleXa.onChange(function (state) {
-            var label = LABELS[state.connection] || LABELS.checking;
-            pill.className = 'conn-pill ' + label[0];
-            pill.querySelector('.conn-text').textContent = label[1];
+            var next = STATES[state.connection] || STATES.checking;
+
+            host.className = 'conn ' + next[0];
+            host.setAttribute('title', next[1]);
+            if (label) { label.textContent = next[1]; }
+
             document.body.classList.toggle('is-offline', state.connection === 'offline');
         });
     }

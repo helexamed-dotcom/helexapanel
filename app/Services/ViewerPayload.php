@@ -642,16 +642,26 @@ mark.hlx.is-flash{ animation:hlx-flash 1.1s ease; }
   }
 
   /* ---------------------------------------------------- selection capture
-     Only the gesture-end events trigger a capture, never selectionchange:
-     that one fires continuously while the selection is being dragged and
-     would highlight half a word mid-drag.
 
-     On a touch screen the capture is delayed, and a new touch cancels the
-     pending one. That is what lets a student long-press to select a word and
-     then drag the handles to widen it: each handle drag postpones the
-     capture, and the highlight lands only once they stop adjusting. */
-  var pending  = null;
-  var TOUCH_SETTLE = 350;
+     Two ways to mark a passage, because a mouse and a finger want different
+     things.
+
+     With a mouse, select-and-release is one fluid gesture, so releasing the
+     button applies the tool straight away.
+
+     With a finger it is not. A long-press selects a single word and the
+     student then drags the handles to reach the end of the sentence — so
+     applying on touch-end would mark that first word and clear the handles
+     before they had started. Touch therefore never auto-applies. The
+     selection is remembered as it is adjusted, and the toolbar button is
+     what commits it, which is the order the gesture actually happens in.
+
+     The remembered selection is kept as absolute offsets rather than a live
+     Range, so it survives the selection being collapsed by tapping a button
+     outside the frame. */
+
+  var lastSelection = null;
+  var pending       = null;
 
   function cancelCapture() {
     if (pending) { clearTimeout(pending); pending = null; }
@@ -662,29 +672,93 @@ mark.hlx.is-flash{ animation:hlx-flash 1.1s ease; }
     pending = setTimeout(function () { pending = null; capture(); }, delay);
   }
 
-  function capture() {
-    if (tool === 'off' || !HL.enabled) { return; }
-
+  /** Reads the live selection into offsets, or null when there is none. */
+  function readSelection() {
     var selection = window.getSelection();
-    if (!selection || selection.isCollapsed || selection.rangeCount === 0) { return; }
+    if (!selection || selection.isCollapsed || selection.rangeCount === 0) { return null; }
 
     var range = selection.getRangeAt(0);
     var text  = range.toString();
-    if (!text.trim() || text.length > 20000) { return; }
+    if (!text.trim() || text.length > 20000) { return null; }
 
     var start = absoluteOffset(range.startContainer, range.startOffset, false);
     var end   = absoluteOffset(range.endContainer, range.endOffset, true);
-    if (start < 0 || end <= start) { return; }
+    if (start < 0 || end <= start) { return null; }
 
-    if (tool === 'eraser') {
-      eraseWithin(start, end);
+    return { start: start, end: end, text: text };
+  }
+
+  function clearSelection() {
+    var selection = window.getSelection();
+    if (selection && selection.removeAllRanges) { selection.removeAllRanges(); }
+    lastSelection = null;
+    reportSelection();
+  }
+
+  /** Applies a tool to a range of offsets. */
+  function applyTo(which, range) {
+    if (!range) { return false; }
+
+    if (which === 'eraser') {
+      eraseWithin(range.start, range.end);
     } else {
-      createFromOffsets(start, end, penColor);
+      createFromOffsets(range.start, range.end, penColor);
     }
+    return true;
+  }
 
-    // Collapsing the selection clears the touch handles, so the next gesture
-    // starts clean instead of re-triggering on the same words.
-    if (selection.removeAllRanges) { selection.removeAllRanges(); }
+  /** The mouse path: the tool is already armed, so releasing applies it. */
+  function capture() {
+    if (tool === 'off' || !HL.enabled) { return; }
+
+    if (applyTo(tool, readSelection())) {
+      // Collapsing clears the handles, so the next gesture starts clean
+      // instead of re-triggering on the same words.
+      clearSelection();
+    }
+  }
+
+  /**
+     Commits whatever is selected now, or was selected a moment ago before
+     the student reached for the toolbar. Returns whether anything was done,
+     so the parent can fall back to simply arming the tool.
+   */
+  function applySelection(which) {
+    if (!HL.enabled) { return false; }
+
+    var range = readSelection() || lastSelection;
+    if (!range) { return false; }
+
+    cancelCapture();
+    var done = applyTo(which, range);
+    clearSelection();
+    return done;
+  }
+
+  /* The toolbar needs to know whether there is something to commit, so the
+     pen can offer itself as "highlight this" rather than a mode switch. */
+  var selectionTimer = null;
+
+  function reportSelection() {
+    try {
+      parent.postMessage({
+        source: 'helexa-viewer',
+        type: 'selection',
+        has: !!lastSelection,
+        length: lastSelection ? lastSelection.text.length : 0
+      }, CFG.origin);
+    } catch (e) {}
+  }
+
+  function rememberSelection() {
+    var range = readSelection();
+    // Only a real selection updates the memory. A collapse is usually the
+    // student tapping a toolbar button, and forgetting at that moment would
+    // throw away the very thing they are about to act on.
+    if (range) {
+      lastSelection = range;
+      reportSelection();
+    }
   }
 
   function wireHighlights() {
@@ -693,14 +767,24 @@ mark.hlx.is-flash{ animation:hlx-flash 1.1s ease; }
     restore(HL.items);
     reportState();
 
+    // Mouse: select-and-release is one gesture, so release commits it.
+    // Guarded to a fine pointer so a tablet with a stylus does not inherit
+    // the behaviour that makes touch selection impossible.
     document.addEventListener('mouseup', function (event) {
+      if (coarsePointer()) { return; }
       if (event.target && event.target.closest && event.target.closest('mark.hlx') && tool === 'eraser') { return; }
       scheduleCapture(10);
     });
 
-    document.addEventListener('touchstart', function () { cancelCapture(); }, { passive: true });
-    document.addEventListener('touchend',   function () { scheduleCapture(TOUCH_SETTLE); }, { passive: true });
+    // Touch: nothing is committed by the gesture itself. The selection is
+    // only remembered, so the handles can be dragged for as long as it takes.
+    document.addEventListener('touchstart', cancelCapture, { passive: true });
     document.addEventListener('touchcancel', cancelCapture, { passive: true });
+
+    document.addEventListener('selectionchange', function () {
+      if (selectionTimer) { clearTimeout(selectionTimer); }
+      selectionTimer = setTimeout(rememberSelection, 120);
+    });
 
     // A single tap on a highlight erases it — the gesture that was impossible
     // before, because it needed the exact same text to be re-selected first.
@@ -745,6 +829,21 @@ mark.hlx.is-flash{ animation:hlx-flash 1.1s ease; }
     if (data.source !== 'helexa-shell') { return; }
 
     if (data.type === 'tool') { setTool(data.tool); return; }
+
+    // "Apply to what is selected." Sent when the student selected a passage
+    // first and then reached for the toolbar, which is the natural order on
+    // a touch screen. Reports back so the parent knows whether to fall back
+    // to arming the tool instead.
+    if (data.type === 'apply') {
+      var applied = applySelection(data.tool);
+      try {
+        parent.postMessage({
+          source: 'helexa-viewer', type: 'applied',
+          tool: data.tool, applied: applied
+        }, CFG.origin);
+      } catch (e) {}
+      return;
+    }
 
     if (data.type === 'color') {
       if (COLORS.indexOf(data.color) !== -1) { penColor = data.color; }

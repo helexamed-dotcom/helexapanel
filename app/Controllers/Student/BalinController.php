@@ -118,11 +118,23 @@ final class BalinController extends Controller
         $questions = new BalinQuestionRepository();
         $question  = $questions->findById($questionId);
 
-        if ($question === null || (int) $question['stage_id'] !== (int) $stage['id']) {
-            return $this->json(['ok' => false, 'error' => 'QUESTION_NOT_IN_STAGE'], 422);
+        // Membership comes from the block that presents the question, not from
+        // the question's own stage_id: a question written into the bank and
+        // then placed in a stage legitimately has no stage_id of its own.
+        if ($question === null
+            || !(new \HeleXa\Models\Balin\BalinBlockRepository())->hasQuestion((int) $stage['id'], $questionId)) {
+            return $this->json([
+                'ok'      => false,
+                'error'   => 'QUESTION_NOT_IN_STAGE',
+                'message' => 'این سؤال بخشی از این مرحله نیست.',
+            ], 422);
         }
         if ($optionId <= 0) {
-            return $this->json(['ok' => false, 'error' => 'NO_OPTION'], 422);
+            return $this->json([
+                'ok'      => false,
+                'error'   => 'NO_OPTION',
+                'message' => 'یک گزینه را انتخاب کن.',
+            ], 422);
         }
 
         $result = (new AnswerService())->submit(

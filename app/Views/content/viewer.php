@@ -58,6 +58,16 @@ $colorNames  = [
                     <?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'eraser']); ?>
                 </button>
 
+
+                <?php
+                /**
+                 * Appears only while a passage is selected. It is the whole
+                 * explanation of the select-then-press gesture, shown exactly
+                 * when it is useful and never otherwise.
+                 */
+                ?>
+                <span class="vbar-hint" data-selection-hint hidden>برای هایلایت، قلم را بزن</span>
+
                 <span class="vbar-sep" aria-hidden="true"></span>
 
                 <button class="vbar-btn" type="button" data-undo disabled title="واگرد (Ctrl+Z)" aria-label="واگرد">

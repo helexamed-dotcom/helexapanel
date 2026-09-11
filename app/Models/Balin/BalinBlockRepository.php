@@ -166,6 +166,26 @@ final class BalinBlockRepository extends BaseRepository
         }
     }
 
+    /**
+     * Whether this stage actually presents this question.
+     *
+     * The block is what places a question in a stage, not the question's own
+     * stage_id — that column is only a convenience for the author's filters,
+     * and is legitimately null for a question written straight into the bank
+     * and then dropped into a stage. Asking the blocks is therefore the only
+     * answer that matches what the student is looking at.
+     */
+    public function hasQuestion(int $stageId, int $questionId): bool
+    {
+        return $this->selectOne(
+            "SELECT 1 FROM balin_blocks
+             WHERE stage_id = :stage AND question_id = :question
+               AND block_type = 'question' AND status = 'published'
+             LIMIT 1",
+            ['stage' => $stageId, 'question' => $questionId]
+        ) !== null;
+    }
+
     public function countRequired(int $stageId): int
     {
         return (int) ($this->selectOne(

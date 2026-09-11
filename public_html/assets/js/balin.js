@@ -1,14 +1,19 @@
 /**
  * 🏝️ جزیره بالین — the clinical case player.
  *
+ * Two jobs. It reveals the scene a block at a time, so a case reads as a
+ * conversation being had rather than a wall of text already over; and it
+ * submits answers.
+ *
  * Answering is a round trip on purpose. The correct option is never in the
  * page for an unanswered question, so the only way to learn it is to commit
  * to a choice first. What comes back is the verdict, the right answer and
  * the explanation — which is the teaching moment, and the reason a wrong
  * answer is not a dead end.
  *
- * Everything degrades: with no JavaScript the page still reads as a case,
- * and the buttons simply do nothing rather than lying about having worked.
+ * Everything degrades: with no JavaScript the whole scene is rendered and
+ * readable, and the buttons simply do nothing rather than lying about
+ * having worked.
  */
 (function () {
     'use strict';
@@ -20,6 +25,98 @@
 
     var stageUuid = root.getAttribute('data-stage');
     var csrf      = root.getAttribute('data-csrf');
+    var isReplay  = root.getAttribute('data-replay') === '1';
+
+    var scene   = root.querySelector('[data-scene]');
+    var advance = root.querySelector('[data-advance]');
+    var label   = root.querySelector('[data-advance-label]');
+
+    /* --------------------------------------------------- stepped reveal */
+
+    var steps   = scene ? Array.prototype.slice.call(scene.children) : [];
+    var shown   = 0;   // how many blocks are currently visible
+
+    /** A block the student must deal with before the scene may continue. */
+    function isOpenQuestion(el) {
+        return !!el
+            && el.classList.contains('balin-question')
+            && !el.classList.contains('is-answered');
+    }
+
+    function lastAnsweredIndex() {
+        var last = -1;
+        steps.forEach(function (el, index) {
+            if (el.classList.contains('balin-question') && el.classList.contains('is-answered')) {
+                last = index;
+            }
+        });
+        return last;
+    }
+
+    function revealThrough(index) {
+        for (var i = 0; i <= index && i < steps.length; i++) {
+            steps[i].hidden = false;
+        }
+        shown = Math.min(index + 1, steps.length);
+        syncAdvance();
+    }
+
+    /**
+     * The button is only offered when there is something to advance to and
+     * nothing is waiting on the student. An unanswered question hides it,
+     * so the only way forward is to answer.
+     */
+    function syncAdvance() {
+        if (!advance) {
+            return;
+        }
+
+        var finished = shown >= steps.length;
+        var waiting  = isOpenQuestion(steps[shown - 1]);
+
+        advance.hidden = finished || waiting;
+        if (label) {
+            label.textContent = shown === 0 ? 'شروع گفت‌وگو' : 'ادامه گفت‌وگو';
+        }
+    }
+
+    function next() {
+        if (shown >= steps.length) {
+            return;
+        }
+
+        var el = steps[shown];
+        el.hidden = false;
+        el.classList.add('is-entering');
+        shown++;
+
+        syncAdvance();
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    function startStepping() {
+        // A finished stage is being re-read, and a scene with nothing to
+        // reveal has nothing to step through.
+        if (isReplay || steps.length === 0) {
+            return;
+        }
+
+        steps.forEach(function (el) { el.hidden = true; });
+
+        // Coming back to a half-finished stage picks up where it was left,
+        // rather than making the student click through what they already read.
+        revealThrough(lastAnsweredIndex());
+    }
+
+    if (advance) {
+        advance.addEventListener('click', function (event) {
+            if (event.target.closest('.js-balin-next')) {
+                next();
+            }
+        });
+    }
+
+    startStepping();
 
     /* ------------------------------------------------------------- hints */
 
@@ -83,21 +180,54 @@
             credentials: 'same-origin'
         })
             .then(function (response) {
-                if (!response.ok) {
-                    throw new Error('HTTP ' + response.status);
-                }
-                return response.json();
+                // A refusal from the server is not a broken connection, and
+                // saying so sends the student to check their wifi over a
+                // problem only the page can explain. Read the body either way.
+                return response.json()
+                    .catch(function () { return null; })
+                    .then(function (payload) {
+                        return { ok: response.ok, status: response.status, payload: payload };
+                    });
             })
             .then(function (result) {
                 option.classList.remove('is-pending');
-                render(question, option, result);
+
+                if (!result.ok || !result.payload || result.payload.ok === false) {
+                    recover(question, option);
+                    showError(question, messageFor(result));
+                    return;
+                }
+
+                render(question, option, result.payload);
             })
             .catch(function () {
-                option.classList.remove('is-chosen', 'is-pending');
-                setDisabled(question, false);
-                question.dataset.busy = '';
-                showError(question, 'ثبت پاسخ ناموفق بود. اتصالت را بررسی کن و دوباره تلاش کن.');
+                // Only a genuine transport failure reaches here.
+                recover(question, option);
+                showError(question, 'ارتباط با سرور برقرار نشد. اتصالت را بررسی کن و دوباره تلاش کن.');
             });
+    }
+
+    /** Turns a failed response into something a student can act on. */
+    function messageFor(result) {
+        if (result.payload && result.payload.message) {
+            return result.payload.message;
+        }
+        if (result.status === 419) {
+            return 'اعتبار صفحه تمام شده. صفحه را تازه کن و دوباره تلاش کن.';
+        }
+        if (result.status === 429) {
+            return 'کمی سریع پیش رفتی. چند لحظه صبر کن و دوباره تلاش کن.';
+        }
+        if (result.status === 403) {
+            return 'این مرحله برای تو باز نیست.';
+        }
+        return 'ثبت پاسخ ناموفق بود (خطای ' + result.status + ').';
+    }
+
+    function recover(question, option) {
+        option.classList.remove('is-chosen');
+        setDisabled(question, false);
+        question.dataset.busy = '';
     }
 
     function render(question, option, result) {
@@ -140,6 +270,8 @@
         }
 
         updateFinishButton(result.requirements_met);
+        // The question is settled, so the conversation may go on.
+        syncAdvance();
     }
 
     /** Marks the chosen option and, when it was wrong, the one that was right. */

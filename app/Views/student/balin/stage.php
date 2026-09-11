@@ -15,7 +15,8 @@
  */
 $mediaUrl = static fn (string $uuid): string => '/student/balin/media/' . $uuid;
 ?>
-<div class="balin balin-stage" data-stage="<?= e($stage['uuid']) ?>" data-csrf="<?= e($csrf_token) ?>">
+<div class="balin balin-stage" data-stage="<?= e($stage['uuid']) ?>" data-csrf="<?= e($csrf_token) ?>"
+     data-replay="<?= $replay ? '1' : '0' ?>">
     <nav class="balin-crumb" aria-label="مسیر">
         <a href="/student/balin">جزیره بالین</a>
         <span aria-hidden="true">›</span>
@@ -34,7 +35,14 @@ $mediaUrl = static fn (string $uuid): string => '/student/balin/media/' . $uuid;
         <?php endif; ?>
     </header>
 
-    <div class="balin-scene">
+    <?php
+    /**
+     * Every block is rendered. With JavaScript the scene is revealed one
+     * block at a time from a button, which is what makes it read as a
+     * conversation; without it the whole scene is simply there to read.
+     */
+    ?>
+    <div class="balin-scene" data-scene>
         <?php foreach ($blocks as $block):
             $type = $block['block_type'];
             $side = $block['side_override'] ?: ($block['character_side'] ?: 'left');
@@ -194,6 +202,13 @@ $mediaUrl = static fn (string $uuid): string => '/student/balin/media/' . $uuid;
         <?php endif; ?>
 
         <?php endforeach; ?>
+    </div>
+
+    <?php /* Written by the script; without JavaScript the scene is already whole. */ ?>
+    <div class="balin-advance" data-advance hidden>
+        <button type="button" class="btn btn-primary js-balin-next">
+            <span data-advance-label>ادامه گفت‌وگو</span>
+        </button>
     </div>
 
     <footer class="balin-stage-foot">

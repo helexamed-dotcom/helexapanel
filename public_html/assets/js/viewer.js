@@ -123,6 +123,19 @@
             return;
         }
 
+        // The frame tells us when there is a passage waiting to be marked, so
+        // the pen can present itself as "highlight this" rather than as a mode.
+        if (data.type === 'selection') {
+            setSelectionReady(!!data.has);
+            return;
+        }
+
+        if (data.type === 'applied') {
+            if (data.applied) { toast(data.tool === 'eraser' ? 'هایلایت برداشته شد.' : 'هایلایت شد.'); }
+            setSelectionReady(false);
+            return;
+        }
+
         if (typeof data.visible === 'boolean') { frameVisible = data.visible; }
         if (typeof data.scroll === 'number' && isFinite(data.scroll)) { frameScroll = data.scroll; }
     });
@@ -285,6 +298,26 @@
 
     /* ------------------------------------------------------------- toolbar */
 
+    var selectionReady = false;
+
+    /**
+     * Marks the toolbar as holding a passage that is waiting to be acted on.
+     * The pen and the eraser both light up, because either is a sensible
+     * thing to do to a selection, and a short hint says what a press will do.
+     */
+    function setSelectionReady(ready) {
+        if (selectionReady === ready) { return; }
+        selectionReady = ready;
+
+        document.body.classList.toggle('has-selection', ready);
+        document.querySelectorAll('[data-tool]').forEach(function (button) {
+            button.classList.toggle('is-ready', ready);
+        });
+
+        var hint = document.querySelector('[data-selection-hint]');
+        if (hint) { hint.hidden = !ready; }
+    }
+
     function setTool(next) {
         tool = next;
         document.querySelectorAll('[data-tool]').forEach(function (button) {
@@ -367,6 +400,17 @@
         document.querySelectorAll('[data-tool]').forEach(function (button) {
             button.addEventListener('click', function () {
                 var wanted = button.getAttribute('data-tool');
+
+                // With a passage already selected, the button marks it. That
+                // is the order the gesture happens in on a phone: select with
+                // the handles, then reach for the tool. The frame answers with
+                // "applied", and only if it had nothing does this fall through
+                // to arming the tool.
+                if (selectionReady) {
+                    toFrame({ source: 'helexa-shell', type: 'apply', tool: wanted });
+                    return;
+                }
+
                 // Pressing the active tool again returns to plain reading, so
                 // text can be selected without leaving a mark behind.
                 setTool(tool === wanted ? 'off' : wanted);
