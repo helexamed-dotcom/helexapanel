@@ -13,16 +13,23 @@ Read this first; it decides what you can trust.
 | `core/` — phone rules, models, errors, session, HTTP, auth flows, palette | **Compiled, 106 checks pass** against a running panel |
 | PHP mobile API (`/api/mobile/*`) | **39 checks pass** against a real MariaDB with real sessions |
 | PHP JSON login branch | **Tested**, including proof the website's form is unchanged |
-| `LoginViewModel` | **Type-checked** against the real core API (androidx stubbed) |
+| Compose screens (login, home, shared states) | **Type-checked** against real Compose — see below |
 | Android manifest, resources, fonts, Gradle, R8 | **Validated** — XML well-formed, every resource reference resolves, fonts carry all Persian glyphs |
 | `app/` — Compose screens, viewer, secure store | **Written, not compiled** |
 | APK build, on-device QA, APK inspection | **Not done** |
 
-The last two rows are not an oversight. The environment this was built in has
-a Kotlin compiler and Maven Central, but no Android SDK and no access to
-Google's Maven repository, so anything depending on `androidx` cannot be
-compiled here. Everything that could be verified without it was moved into
-`core/` and verified; the Android layer is deliberately thin for that reason.
+The environment this was built in has a Kotlin compiler and Maven Central, but
+no Android SDK and no access to Google's Maven repository.
+
+Most of that gap turned out to be closable. Compose Multiplatform publishes the
+same API, under the same `androidx.compose.*` package names, to Maven Central —
+so the UI can be type-checked against it even with Google's repository
+unreachable. `tools/typecheck-ui.sh` does exactly that, and it has already
+caught real errors that would have failed a build.
+
+What it does **not** do is produce an APK, run anything on a device, or catch a
+difference between Compose Multiplatform and androidx. Those need the real SDK,
+which is what CI is for.
 
 **Before shipping: open this in Android Studio, build it, and fix whatever the
 compiler finds in `app/`.** Expect small things — an import, a nullable, an API
@@ -40,6 +47,20 @@ app/     the Android shell: Compose screens, the content viewer, storage.
 The split is not ceremony. It is what let 82 checks run against a real server
 in an environment that cannot build an APK, and it is what will let them keep
 running in CI without an emulator.
+
+## Checking the UI without an SDK
+
+```bash
+./tools/typecheck-ui.sh
+```
+
+Compiles every Compose file against Compose Multiplatform, with the three
+Android-only references (`R`, `ViewModel`, `collectAsStateWithLifecycle`)
+stubbed in `tools/stubs/`. Nothing in that directory reaches the app: only this
+script sees it, and it writes to `build/typecheck`.
+
+It needs the jars fetched to `/tmp` (or `HELEXA_LIBS`). Not a substitute for
+`./gradlew :app:assembleDebug` — it is what to run when that is not available.
 
 ## Running the core tests
 

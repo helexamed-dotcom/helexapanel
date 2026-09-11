@@ -1,3 +1,12 @@
+/**
+ * SegmentedButton and SingleChoiceSegmentedButtonRow are stable in Compose
+ * Multiplatform but still marked experimental in androidx's Material3, which
+ * is what the Android build compiles against. Opting in here keeps the same
+ * source compiling on both; if the annotation ever becomes unnecessary the
+ * compiler says so with a warning rather than an error.
+ */
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+
 package ir.helexapanel.app.ui.login
 
 import androidx.compose.foundation.layout.Arrangement
