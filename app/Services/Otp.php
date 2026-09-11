@@ -67,30 +67,73 @@ final class Otp
         // two live codes would double an attacker's guessing budget.
         $repository->consumeLive($phone, $purpose);
 
-        $code = self::generateCode();
-        $ttl  = self::ttlSeconds();
+        $ttl = self::ttlSeconds();
 
-        $id = $repository->create([
-            'phone'        => $phone,
-            'purpose'      => $purpose,
-            'code_hash'    => self::hash($code),
-            'max_attempts' => self::maxAttempts(),
-            'expires_at'   => date('Y-m-d H:i:s', time() + $ttl),
-            'ip_address'   => $request->ip(),
-            'user_agent'   => $request->userAgent(),
-        ]);
+        /**
+         * Who writes the six digits depends on the provider, and that is the
+         * only thing that depends on it.
+         *
+         * MeliPayamak's one-time-code service mints the code, sends it and
+         * hands it back; the panel's own sender line needs a code to put in a
+         * message it writes. Either way the code ends up hashed in the same
+         * row, with the same lifetime, the same attempt ceiling and the same
+         * verification path — the gateway never becomes the thing that decides
+         * whether a code is correct.
+         */
+        if (SmsSettings::providerMintsCode()) {
+            $sent = SmsGateway::sendConsoleOtp($phone);
+            $code = $sent['otp'] ?? null;
 
-        $result = SmsGateway::send($phone, self::renderMessage($code));
+            if (!$sent['ok'] || $code === null) {
+                // The attempt is recorded even though nothing was delivered.
+                // This provider is asked for a code before there is anything
+                // to store, so an early return would write no row at all — and
+                // a row is what the cooldown and the hourly ceilings are
+                // counted from. Without it, a caller whose sends keep failing
+                // could retry without limit, against a gateway that charges
+                // per attempt.
+                self::recordSpentAttempt($repository, $phone, $purpose, $request);
 
-        if (!$result['ok']) {
-            // The code is retired rather than left live: the student never saw
-            // it, and leaving it valid would also leave the cooldown running
-            // against a text that does not exist.
-            $repository->markConsumed($id);
-            ActivityLogger::log('auth.otp_send_failed', null, 'otp', $id,
-                ['phone' => Phone::mask($phone), 'reason' => $result['code']], 'warning', $request);
+                ActivityLogger::log('auth.otp_send_failed', null, 'otp', null,
+                    ['phone' => Phone::mask($phone), 'reason' => $sent['code']], 'warning', $request);
 
-            return self::failure('SEND_FAILED', self::deliveryMessage($result['code']));
+                return self::failure('SEND_FAILED', self::deliveryMessage($sent['code']));
+            }
+
+            $id = $repository->create([
+                'phone'        => $phone,
+                'purpose'      => $purpose,
+                'code_hash'    => self::hash($code),
+                'max_attempts' => self::maxAttempts(),
+                'expires_at'   => date('Y-m-d H:i:s', time() + $ttl),
+                'ip_address'   => $request->ip(),
+                'user_agent'   => $request->userAgent(),
+            ]);
+        } else {
+            $code = self::generateCode();
+
+            $id = $repository->create([
+                'phone'        => $phone,
+                'purpose'      => $purpose,
+                'code_hash'    => self::hash($code),
+                'max_attempts' => self::maxAttempts(),
+                'expires_at'   => date('Y-m-d H:i:s', time() + $ttl),
+                'ip_address'   => $request->ip(),
+                'user_agent'   => $request->userAgent(),
+            ]);
+
+            $result = SmsGateway::send($phone, self::renderMessage($code));
+
+            if (!$result['ok']) {
+                // The code is retired rather than left live: the student never
+                // saw it, and leaving it valid would also leave the cooldown
+                // running against a text that does not exist.
+                $repository->markConsumed($id);
+                ActivityLogger::log('auth.otp_send_failed', null, 'otp', $id,
+                    ['phone' => Phone::mask($phone), 'reason' => $result['code']], 'warning', $request);
+
+                return self::failure('SEND_FAILED', self::deliveryMessage($result['code']));
+            }
         }
 
         ActivityLogger::log('auth.otp_sent', null, 'otp', $id,
@@ -102,6 +145,12 @@ final class Otp
             'message'     => 'کد تأیید پیامک شد.',
             'retry_after' => $cooldown,
             'expires_in'  => $ttl,
+            // How many digits to expect. The panel's own codes are six;
+            // MeliPayamak's are whatever the account is configured for, and
+            // its documented sample is ten. The page sizes its input from
+            // this rather than assuming, so a change at the gateway does not
+            // leave students unable to type their last four digits.
+            'code_length' => strlen($code),
         ];
     }
 
@@ -116,7 +165,13 @@ final class Otp
      */
     private static function deliveryMessage(string $gatewayCode): string
     {
-        $configuration = ['SMS_DISABLED', 'SMS_NOT_CONFIGURED', 'CRYPTO_UNAVAILABLE', 'CURL_MISSING'];
+        $configuration = [
+            'SMS_DISABLED', 'SMS_NOT_CONFIGURED', 'CRYPTO_UNAVAILABLE', 'CURL_MISSING',
+            // A reply with no code in it means the account or the key is not
+            // set up for this service — the operator's problem, not a glitch
+            // the student should be invited to retry into.
+            'NO_CODE_IN_REPLY', 'UNRECOGNISED',
+        ];
 
         return in_array($gatewayCode, $configuration, true)
             ? 'ارسال پیامک در حال حاضر در دسترس نیست. با پشتیبانی تماس بگیر.'
@@ -203,20 +258,7 @@ final class Otp
             return $guard;
         }
 
-        $repository = new OtpRepository();
-        $id = $repository->create([
-            'phone'        => $phone,
-            'purpose'      => $purpose,
-            // A code that is retired before it can be read. The value is
-            // random rather than fixed so the stored rows of reserved and
-            // real attempts are not distinguishable either.
-            'code_hash'    => self::hash(self::generateCode()),
-            'max_attempts' => self::maxAttempts(),
-            'expires_at'   => date('Y-m-d H:i:s', time() + self::ttlSeconds()),
-            'ip_address'   => $request->ip(),
-            'user_agent'   => $request->userAgent(),
-        ]);
-        $repository->markConsumed($id);
+        self::recordSpentAttempt(new OtpRepository(), $phone, $purpose, $request);
 
         return [
             'ok'          => true,
@@ -224,7 +266,56 @@ final class Otp
             'message'     => 'کد تأیید پیامک شد.',
             'retry_after' => self::resendSeconds(),
             'expires_in'  => self::ttlSeconds(),
+            // Matches what a real send for a registered number would report,
+            // so the reserved path cannot be told apart by the field either.
+            'code_length' => self::providerCodeLength(),
         ];
+    }
+
+    /**
+     * Writes an attempt that can never be used, and retires it immediately.
+     *
+     * Two callers need this: the reserved path, which must charge an unknown
+     * number the same budget a real send would, and a send that failed before
+     * there was a code to store. Both must leave a row, because the cooldown
+     * and the hourly ceilings are counted from rows — a request that writes
+     * nothing is a request that never happened as far as every limit is
+     * concerned.
+     *
+     * The hash is of a freshly generated code that is never sent anywhere, so
+     * the row is indistinguishable from a real one on inspection and there is
+     * nothing to guess at even if it were reachable.
+     */
+    private static function recordSpentAttempt(
+        OtpRepository $repository,
+        string $phone,
+        string $purpose,
+        Request $request
+    ): void {
+        $id = $repository->create([
+            'phone'        => $phone,
+            'purpose'      => $purpose,
+            'code_hash'    => self::hash(self::generateCode()),
+            'max_attempts' => self::maxAttempts(),
+            'expires_at'   => date('Y-m-d H:i:s', time() + self::ttlSeconds()),
+            'ip_address'   => $request->ip(),
+            'user_agent'   => $request->userAgent(),
+        ]);
+        $repository->markConsumed($id);
+    }
+
+    /**
+     * The digit count a code is expected to have.
+     *
+     * Only meaningful before one exists — the reserved path, which never mints
+     * a code but must answer as though it had. MeliPayamak's length is set in
+     * its own panel and is not knowable from here, so the documented sample
+     * length is used; a wrong guess here costs nothing, because the real
+     * length is reported from the real code on every genuine send.
+     */
+    private static function providerCodeLength(): int
+    {
+        return SmsSettings::providerMintsCode() ? 10 : 6;
     }
 
     /* ----------------------------------------------------------- verifying */
@@ -361,7 +452,7 @@ final class Otp
     }
 
     /**
-     * Codes never start with a zero.
+     * Codes this panel mints never start with a zero.
      *
      * A leading zero survives the round trip only if every layer treats the
      * code as a string; one numeric cast anywhere turns "012345" into 12345
@@ -398,6 +489,7 @@ final class Otp
             'message'     => $message,
             'retry_after' => $retryAfter,
             'expires_in'  => 0,
+            'code_length' => 0,
         ];
     }
 

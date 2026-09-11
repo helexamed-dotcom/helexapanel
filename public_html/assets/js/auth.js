@@ -89,6 +89,25 @@
         var timer  = null;
         var busy   = false;
 
+        // How many digits the code has. The server reports this per send,
+        // because it is not a constant: codes this panel mints are six digits,
+        // and codes the SMS provider mints are whatever that account is set
+        // to. Assuming six would silently truncate a longer one and leave the
+        // student unable to finish typing.
+        var codeLength = parseInt(codeInput && codeInput.getAttribute('maxlength'), 10) || 6;
+
+        function setCodeLength(length) {
+            codeLength = (length >= 4 && length <= 12) ? length : codeLength;
+            if (codeInput) {
+                codeInput.setAttribute('maxlength', String(codeLength));
+                codeInput.setAttribute('placeholder', new Array(codeLength + 1).join('-'));
+            }
+            var label = form.querySelector('[data-otp-code-label]');
+            if (label) {
+                label.textContent = 'کد ' + fa(codeLength) + ' رقمی پیامک‌شده';
+            }
+        }
+
         /* ------------------------------------------------------ display */
 
         function say(text, kind) {
@@ -215,6 +234,7 @@
                 }
 
                 phone = typed;
+                setCodeLength(parseInt(result.data.code_length, 10));
                 if (target) { target.textContent = 'کد به ' + fa(phone) + ' فرستاده شد'; }
                 if (codeInput) { codeInput.value = ''; }
 
@@ -230,8 +250,8 @@
         function verifyCode() {
             var code = toLatin(codeInput ? codeInput.value : '').replace(/\D/g, '');
 
-            if (code.length !== 6) {
-                say('کد باید ۶ رقم باشد.', 'error');
+            if (code.length !== codeLength) {
+                say('کد باید ' + fa(codeLength) + ' رقم باشد.', 'error');
                 return;
             }
 
@@ -335,9 +355,11 @@
         // pasted "کد: 123456" still lands as 123456 rather than failing.
         if (codeInput) {
             codeInput.addEventListener('input', function () {
-                var cleaned = toLatin(codeInput.value).replace(/\D/g, '').slice(0, 6);
+                var cleaned = toLatin(codeInput.value).replace(/\D/g, '').slice(0, codeLength);
                 if (cleaned !== codeInput.value) { codeInput.value = cleaned; }
-                if (cleaned.length === 6 && !busy) { verifyCode(); }
+                // Submitting the moment the last digit lands saves a tap, and
+                // is safe because a wrong code is just an error, not a lockout.
+                if (cleaned.length === codeLength && !busy) { verifyCode(); }
             });
         }
 

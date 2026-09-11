@@ -357,6 +357,21 @@ ageCodes($PHONE, 120);
 A::same('past the cooldown the request is allowed through', 'SEND_FAILED',
     Otp::issue($request, $PHONE, Otp::PURPOSE_LOGIN)['code']);
 
+// A failed send must still be counted. This is the flaw that reopened the
+// membership oracle once: the provider that mints the code has nothing to
+// store until the gateway answers, so an early return on failure wrote no
+// row — and a request that writes no row is one the cooldown and the hourly
+// ceilings never see, leaving a caller free to hammer a gateway that charges
+// per attempt.
+clearCodes($PHONE);
+Otp::issue($request, $PHONE, Otp::PURPOSE_LOGIN);
+A::ok('a failed send still leaves a row behind',
+    $otpRepo->countSince($PHONE, date('Y-m-d H:i:s', time() - 60)) === 1);
+A::same('so the next request meets the cooldown', 'COOLDOWN',
+    Otp::issue($request, $PHONE, Otp::PURPOSE_LOGIN)['code']);
+A::same('and the row it left is not usable as a code', null,
+    currentCode($PHONE, Otp::PURPOSE_LOGIN));
+
 // The per-number hourly ceiling.
 clearCodes($PHONE);
 for ($i = 0; $i < 5; $i++) {
@@ -566,7 +581,94 @@ $settings->set('otp_enabled', '1', 'bool', null);
 Settings::flush();
 A::same('isEnabled follows the gateway too', SmsSettings::isOperational(), Otp::isEnabled());
 
-/* ================================================== 13. no hash leaks */
+/* =========================== 13. the MeliPayamak one-time-code reply */
+
+A::group('Reading the SMS provider\'s one-time-code reply');
+
+/**
+ * MeliPayamak documents exactly this shape:
+ *
+ *     {"code": "3741437414", "status": "شرح خطا در صورت بروز"}
+ *
+ * The parser is private, so it is exercised the way the application reaches
+ * it. These cases pin the two things that actually matter: a readable code is
+ * accepted whatever its length, and anything else fails rather than being
+ * optimistically treated as sent.
+ */
+$readReply = static function (string $body): array {
+    $method = new \ReflectionMethod(\HeleXa\Services\SmsGateway::class, 'interpretOtp');
+    $method->setAccessible(true);
+    return $method->invoke(null, $body);
+};
+
+$documented = $readReply('{"code":"3741437414","status":""}');
+A::same('the documented reply is accepted', true, $documented['ok']);
+A::same('and the minted code is read out', '3741437414', $documented['otp']);
+A::same('a successful reply carries no raw body', null, $documented['raw']);
+
+$sixDigit = $readReply('{"code":"481902","status":""}');
+A::same('a six-digit code is accepted too', '481902', $sixDigit['otp']);
+
+$withStatus = $readReply('{"code":"1234567890","status":"ارسال موفق"}');
+A::same('a status alongside a code does not spoil it', true, $withStatus['ok']);
+
+$failed = $readReply('{"code":"","status":"اعتبار کافی نیست"}');
+A::same('a reply with no code fails', false, $failed['ok']);
+A::same('and is named as such', 'NO_CODE_IN_REPLY', $failed['code']);
+A::ok('the gateway\'s own words reach the operator',
+    str_contains($failed['message'], 'اعتبار کافی نیست'));
+A::ok('the raw body is kept for the admin test page', $failed['raw'] !== null);
+
+$errorNumber = $readReply('{"code":"11","status":"ارسال نشد"}');
+A::same('a short error number is not mistaken for a code', false, $errorNumber['ok']);
+
+$garbage = $readReply('<html>503 Service Unavailable</html>');
+A::same('a non-JSON reply fails', false, $garbage['ok']);
+A::same('and is named as unreadable', 'UNRECOGNISED', $garbage['code']);
+
+$empty = $readReply('');
+A::same('an empty reply fails rather than passing', false, $empty['ok']);
+
+// The one that would be worst to get wrong: a reply that looks successful but
+// has no code. Treating it as sent would park the student at a code box that
+// can never accept anything, with no error anywhere.
+$cheerful = $readReply('{"status":"OK"}');
+A::same('a cheerful reply with no code is still a failure', false, $cheerful['ok']);
+
+/* ------------------------------------------ provider configuration */
+
+A::group('Provider switching');
+
+$settings->set('sms_provider', 'console_otp', 'string', null);
+Settings::flush();
+A::same('the one-time-code provider is recognised',
+    \HeleXa\Services\SmsSettings::PROVIDER_CONSOLE_OTP, SmsSettings::provider());
+A::same('and it mints the code itself', true, SmsSettings::providerMintsCode());
+
+// It needs only a key — demanding a sender line would make a perfectly good
+// configuration look broken.
+SmsSettings::saveCredentials('', 'only-a-key', '', null);
+A::same('a key alone is enough for it', true, SmsSettings::isConfigured());
+
+$settings->set('sms_provider', 'smart_sms', 'string', null);
+Settings::flush();
+A::same('the sender-line provider is recognised',
+    \HeleXa\Services\SmsSettings::PROVIDER_SMART_SMS, SmsSettings::provider());
+A::same('and it does not mint the code', false, SmsSettings::providerMintsCode());
+A::same('a key alone is not enough for it', false, SmsSettings::isConfigured());
+
+SmsSettings::saveCredentials('someone', 'only-a-key', '50004000', null);
+A::same('with a username and sender it is configured', true, SmsSettings::isConfigured());
+
+$settings->set('sms_provider', 'nonsense', 'string', null);
+Settings::flush();
+A::same('an unknown provider falls back to the safe default',
+    \HeleXa\Services\SmsSettings::PROVIDER_CONSOLE_OTP, SmsSettings::provider());
+
+$settings->set('sms_provider', 'console_otp', 'string', null);
+Settings::flush();
+
+/* ================================================== 14. no hash leaks */
 
 A::group('Admin list queries');
 
@@ -580,7 +682,7 @@ if ($listed !== []) {
     A::same('this account has a password', 1, (int) $listed[0]['has_password']);
 }
 
-/* ===================================================== 14. clean-up */
+/* ===================================================== 15. clean-up */
 
 A::group('Clean-up');
 
@@ -601,6 +703,7 @@ foreach ([
     'sms_enabled' => ['0', 'bool'], 'sms_username' => ['', 'string'],
     'sms_from' => ['', 'string'], 'sms_api_key_enc' => ['', 'string'],
     'otp_enabled' => ['1', 'bool'], 'otp_registration_enabled' => ['1', 'bool'],
+    'sms_provider' => ['console_otp', 'string'],
 ] as $key => [$value, $type]) {
     $settings->set($key, $value, $type, null);
 }

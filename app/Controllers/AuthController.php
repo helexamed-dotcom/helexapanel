@@ -234,6 +234,7 @@ final class AuthController extends Controller
                                . 'اگر تا یک دقیقه پیامکی دریافت نکردی، دوباره تلاش کن یا با پشتیبانی تماس بگیر.',
                 'retry_after' => $result['retry_after'] > 0 ? $result['retry_after'] : Otp::resendSeconds(),
                 'expires_in'  => $result['expires_in'] > 0 ? $result['expires_in'] : Otp::ttlSeconds(),
+                'code_length' => $result['code_length'],
             ]);
         }
 
@@ -346,6 +347,9 @@ final class AuthController extends Controller
             'message'     => $result['message'],
             'retry_after' => $result['retry_after'],
             'expires_in'  => $result['expires_in'],
+            // The page sizes its code box from this. It reveals a length, not
+            // a value, and the student is holding the text anyway.
+            'code_length' => $result['code_length'],
         ]);
     }
 

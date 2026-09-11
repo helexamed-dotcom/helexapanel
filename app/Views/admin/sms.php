@@ -50,15 +50,51 @@ $hasKey = !empty($sms['has_api_key']);
             <span>فعال بودن ارسال پیامک</span>
         </label>
 
+        <?php
+        /**
+         * Two ways into the same account, and they need different things. The
+         * simpler one is offered first because most panels can use it
+         * immediately: it needs no sender line.
+         */
+        $mints = !empty($sms['mints']);
+        ?>
+        <div class="field" style="max-width:460px;">
+            <label class="label" for="sms_provider">روش ارسال</label>
+            <select class="input" id="sms_provider" name="sms_provider">
+                <option value="console_otp" <?= $mints ? 'selected' : '' ?>>
+                    کد یکبارمصرف ملی پیامک — فقط کلید API لازم دارد
+                </option>
+                <option value="smart_sms" <?= $mints ? '' : 'selected' ?>>
+                    ارسال با خط اختصاصی — نام کاربری، کلید و شماره فرستنده لازم دارد
+                </option>
+            </select>
+            <div style="color:var(--ink-3); font-size:11.5px; margin-top:6px; line-height:2;">
+                <?php if ($mints): ?>
+                    در این روش، <strong>کد را ملی پیامک می‌سازد و می‌فرستد</strong> و متن پیامک هم
+                    از سمت ملی پیامک تعیین می‌شود. شما فقط کلید API را وارد می‌کنید.
+                    بررسی درستی کد همچنان روی سرور خودتان انجام می‌شود.
+                <?php else: ?>
+                    در این روش، <strong>کد را سرور خودتان می‌سازد</strong> و با متن دلخواه شما
+                    از روی خط اختصاصی فرستاده می‌شود.
+                <?php endif; ?>
+            </div>
+        </div>
+
         <div class="form-grid">
             <div class="field">
-                <label class="label" for="sms_username">نام کاربری ملی پیامک</label>
+                <label class="label" for="sms_username">
+                    نام کاربری ملی پیامک
+                    <?php if ($mints): ?><span style="color:var(--ink-3); font-weight:400;">(در این روش لازم نیست)</span><?php endif; ?>
+                </label>
                 <input class="input" type="text" id="sms_username" name="sms_username" dir="ltr"
                        autocomplete="off" value="<?= e($sms['username'] ?? '') ?>">
             </div>
 
             <div class="field">
-                <label class="label" for="sms_from">شماره فرستنده</label>
+                <label class="label" for="sms_from">
+                    شماره فرستنده
+                    <?php if ($mints): ?><span style="color:var(--ink-3); font-weight:400;">(در این روش لازم نیست)</span><?php endif; ?>
+                </label>
                 <input class="input" type="text" id="sms_from" name="sms_from" dir="ltr"
                        autocomplete="off" placeholder="50002..." value="<?= e($sms['from'] ?? '') ?>">
             </div>
@@ -129,9 +165,13 @@ $hasKey = !empty($sms['has_api_key']);
             <label class="label" for="otp_message_template">متن پیامک کد</label>
             <input class="input" type="text" id="otp_message_template" name="otp_message_template"
                    maxlength="400" value="<?= e($otp['template'] ?? '') ?>">
-            <div style="color:var(--ink-3); font-size:11.5px; margin-top:4px;">
+            <div style="color:var(--ink-3); font-size:11.5px; margin-top:4px; line-height:2;">
                 عبارت <span class="mono" dir="ltr">{code}</span> هنگام ارسال با کد واقعی جایگزین می‌شود.
                 اگر آن را ننویسی، به انتهای متن اضافه می‌شود.
+                <?php if ($mints): ?>
+                    <br><strong>توجه:</strong> با روش «کد یکبارمصرف ملی پیامک» این متن استفاده نمی‌شود،
+                    چون متن را خود ملی پیامک تعیین می‌کند. اگر روش را به «خط اختصاصی» تغییر بدهی، دوباره اعمال می‌شود.
+                <?php endif; ?>
             </div>
         </div>
 

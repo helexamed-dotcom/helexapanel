@@ -55,6 +55,8 @@ final class SmsController extends Controller
             'title' => 'تنظیمات پیامک',
             'sms'   => [
                 'enabled'  => SmsSettings::enabled(),
+                'provider' => SmsSettings::provider(),
+                'mints'    => SmsSettings::providerMintsCode(),
                 'username' => SmsSettings::username(),
                 'from'     => SmsSettings::from(),
                 // Masked, always. The real key is never put into a template.
@@ -101,6 +103,7 @@ final class SmsController extends Controller
             return $this->redirect('/admin/sms');
         }
 
+        SmsSettings::setProvider($request->string('sms_provider'), Auth::id());
         SmsSettings::saveCredentials($username, $apiKey, $from, Auth::id());
         SmsSettings::setEnabled($request->bool('sms_enabled'), Auth::id());
 
@@ -110,6 +113,7 @@ final class SmsController extends Controller
 
         // The key itself is never logged, only the fact that it changed.
         ActivityLogger::log('settings.sms_updated', Auth::id(), 'settings', null, [
+            'provider'     => SmsSettings::provider(),
             'username_set' => $username !== '',
             'from_set'     => $from !== '',
             'api_key'      => $apiKey === null ? 'unchanged' : ($apiKey === '' ? 'cleared' : 'replaced'),
@@ -177,10 +181,15 @@ final class SmsController extends Controller
         }
 
         try {
-            $result = SmsGateway::send(
-                $phone,
-                'پیامک آزمایشی ' . (string) Config::get('app.app.name', 'HeleXa Med')
-            );
+            // The test uses whichever provider is configured, because a test
+            // that exercised the other one would prove nothing about the path
+            // students will actually take.
+            $result = SmsSettings::providerMintsCode()
+                ? SmsGateway::sendConsoleOtp($phone)
+                : SmsGateway::send(
+                    $phone,
+                    'پیامک آزمایشی ' . (string) Config::get('app.app.name', 'HeleXa Med')
+                );
         } finally {
             if (!$wasEnabled) {
                 SmsSettings::setEnabled(false, Auth::id());
@@ -188,16 +197,29 @@ final class SmsController extends Controller
         }
 
         ActivityLogger::log('settings.sms_test', Auth::id(), 'settings', null, [
-            'phone'  => Phone::mask($phone),
-            'ok'     => $result['ok'],
-            'reason' => $result['ok'] ? null : $result['code'],
+            'provider' => SmsSettings::provider(),
+            'phone'    => Phone::mask($phone),
+            'ok'       => $result['ok'],
+            'reason'   => $result['ok'] ? null : $result['code'],
         ], 'notice', $request);
 
         if ($result['ok']) {
             $this->flash('success', 'پیامک آزمایشی به ' . Phone::mask($phone) . ' ارسال شد.');
-        } else {
-            $this->flash('error', 'ارسال آزمایشی ناموفق بود: ' . $result['message']);
+            return $this->redirect('/admin/sms');
         }
+
+        /**
+         * When the gateway answered with something this panel could not read,
+         * the reply itself is the only thing that explains why — so it is
+         * shown, once, to the administrator who just pressed the button.
+         *
+         * It is never logged and never shown to a student: on the one-time-code
+         * provider a successful body contains a live code, and a body that
+         * failed to parse might still contain one.
+         */
+        $detail = $result['raw'] ?? null;
+        $this->flash('error', 'ارسال آزمایشی ناموفق بود: ' . $result['message']
+            . ($detail !== null ? ' — پاسخ خام سامانه: ' . $detail : ''));
 
         return $this->redirect('/admin/sms');
     }

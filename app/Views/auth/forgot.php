@@ -49,7 +49,9 @@ $otpEnabled = !empty($otpEnabled);
             </div>
 
             <div class="field" data-otp-step="code" hidden>
-                <label class="label" for="reset-code">کد ۶ رقمی پیامک‌شده</label>
+                <label class="label" for="reset-code" data-otp-code-label>کد پیامک‌شده</label>
+                <?php /* maxlength is a starting point; the script resizes it to the
+                         length the server reports once a code has actually been sent. */ ?>
                 <input class="input otp-code-input" type="text" id="reset-code" name="code" dir="ltr"
                        inputmode="numeric" pattern="[0-9]*" maxlength="6"
                        autocomplete="one-time-code" placeholder="------">

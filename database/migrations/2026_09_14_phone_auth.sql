@@ -68,6 +68,11 @@ CREATE TABLE IF NOT EXISTS otp_codes (
 -- absent here: there is no safe default for a credential.
 INSERT IGNORE INTO settings (setting_key, setting_value, value_type, is_public, updated_at) VALUES
     ('sms_enabled',              '0',   'bool',   0, NOW()),
+    -- console_otp: MeliPayamak mints and sends the code, and the panel only
+    -- needs an API key. smart_sms: the panel writes the message and sends it
+    -- over a sender line the account owns. The first is the default because
+    -- almost every account can use it without buying a line first.
+    ('sms_provider',             'console_otp', 'string', 0, NOW()),
     ('sms_username',             '',    'string', 0, NOW()),
     ('sms_from',                 '',    'string', 0, NOW()),
     ('otp_enabled',              '1',   'bool',   1, NOW()),
