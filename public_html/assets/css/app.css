@@ -2194,6 +2194,18 @@ a.balin-node-card:hover { transform: translateX(-3px); border-color: var(--blue)
 }
 .balin-advance .btn { box-shadow: var(--shadow-lg); border-radius: 99px; padding: 11px 26px; }
 
+/* Takes the advance button's place while a question is open, so the button
+   going away reads as "answer this" rather than as the page having broken. */
+.balin-waiting {
+    position: sticky; bottom: calc(env(safe-area-inset-bottom, 0px) + 12px);
+    margin: 0; padding: 9px 14px; z-index: 5;
+    text-align: center; font-size: 13px; line-height: 1.7;
+    color: var(--amber-ink, var(--text-2));
+    background: color-mix(in srgb, var(--amber, #f59e0b) 12%, var(--surface));
+    border: 1px solid color-mix(in srgb, var(--amber, #f59e0b) 32%, var(--line));
+    border-radius: 99px;
+}
+
 /* Each newly revealed block arrives rather than appearing, which is what
    makes the scene read as a conversation instead of a list. */
 .balin-scene > .is-entering { animation: balin-enter .26s var(--ease) both; }

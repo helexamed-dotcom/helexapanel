@@ -204,12 +204,47 @@ $mediaUrl = static fn (string $uuid): string => '/student/balin/media/' . $uuid;
         <?php endforeach; ?>
     </div>
 
-    <?php /* Written by the script; without JavaScript the scene is already whole. */ ?>
+    <?php
+    /**
+     * The scene is collapsed here, in the same breath it was parsed, rather
+     * than by the player further down the body: a script tag down there runs
+     * after the browser has had its chance to paint, and a case that flashes
+     * whole before collapsing is the very thing the player exists to stop.
+     *
+     * Rendering the blocks hidden server-side is not the answer either —
+     * without JavaScript the scene has to be readable, and this script only
+     * runs when there is JavaScript to run it. If the player never arrives,
+     * the timer puts the scene back rather than leaving a student stranded
+     * in front of an empty page.
+     */
+    ?>
+    <script nonce="<?= e($cspNonce ?? '') ?>">
+    (function () {
+        var scene = document.querySelector('.balin-stage [data-scene]');
+        if (!scene) { return; }
+
+        var blocks = Array.prototype.slice.call(scene.children);
+        blocks.forEach(function (el) { el.hidden = true; el.style.display = 'none'; });
+        scene.setAttribute('data-stepping', 'armed');
+
+        window.setTimeout(function () {
+            if (scene.getAttribute('data-stepping') === 'ready') { return; }
+            blocks.forEach(function (el) { el.hidden = false; el.style.display = ''; });
+        }, 6000);
+    }());
+    </script>
+
+    <?php /* Driven by the script; without JavaScript the scene is already whole. */ ?>
     <div class="balin-advance" data-advance hidden>
         <button type="button" class="btn btn-primary js-balin-next">
-            <span data-advance-label>ادامه گفت‌وگو</span>
+            <span data-advance-label>شروع چت</span>
         </button>
     </div>
+
+    <?php /* Says why the conversation stopped, so a missing button is not a mystery. */ ?>
+    <p class="balin-waiting" data-waiting hidden role="status">
+        برای ادامه گفت‌وگو، اول به این سؤال پاسخ بده.
+    </p>
 
     <footer class="balin-stage-foot">
         <?php if ($replay): ?>

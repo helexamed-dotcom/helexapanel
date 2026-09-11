@@ -29,12 +29,33 @@
 
     var scene   = root.querySelector('[data-scene]');
     var advance = root.querySelector('[data-advance]');
+    var waiting = root.querySelector('[data-waiting]');
     var label   = root.querySelector('[data-advance-label]');
 
     /* --------------------------------------------------- stepped reveal */
 
-    var steps   = scene ? Array.prototype.slice.call(scene.children) : [];
-    var shown   = 0;   // how many blocks are currently visible
+    var steps = scene ? Array.prototype.slice.call(scene.children) : [];
+    var shown = 0;   // how many blocks are on screen right now
+
+    /**
+     * Blocks are hidden two ways on purpose. The attribute carries the
+     * meaning and takes the block out of the accessibility tree; the inline
+     * style is the guarantee. .balin-bubble and its siblings set `display`
+     * themselves, so the attribute only bites because of a single [hidden]
+     * rule in the stylesheet — and a stylesheet served stale from the
+     * service worker would leave the whole case on screen at once, which is
+     * precisely the failure this player exists to prevent. An inline style
+     * outranks any stylesheet, stale or not.
+     */
+    function hide(el) {
+        el.hidden = true;
+        el.style.display = 'none';
+    }
+
+    function show(el) {
+        el.hidden = false;
+        el.style.display = '';
+    }
 
     /** A block the student must deal with before the scene may continue. */
     function isOpenQuestion(el) {
@@ -43,69 +64,95 @@
             && !el.classList.contains('is-answered');
     }
 
-    function lastAnsweredIndex() {
-        var last = -1;
-        steps.forEach(function (el, index) {
-            if (el.classList.contains('balin-question') && el.classList.contains('is-answered')) {
-                last = index;
-            }
-        });
-        return last;
-    }
-
-    function revealThrough(index) {
-        for (var i = 0; i <= index && i < steps.length; i++) {
-            steps[i].hidden = false;
-        }
-        shown = Math.min(index + 1, steps.length);
-        syncAdvance();
+    /** True while the last block on screen is a question still owed an answer. */
+    function blocked() {
+        return isOpenQuestion(steps[shown - 1]);
     }
 
     /**
-     * The button is only offered when there is something to advance to and
-     * nothing is waiting on the student. An unanswered question hides it,
-     * so the only way forward is to answer.
+     * Where a half-finished stage picks up: after the last question that was
+     * answered, but never past one that was not. Answering out of order is
+     * not possible through the player, but a page loaded once without
+     * JavaScript can leave that state behind, and resuming past an open
+     * question would hand out the rest of the case for free.
+     */
+    function resumeIndex() {
+        var last = -1;
+        for (var i = 0; i < steps.length; i++) {
+            if (isOpenQuestion(steps[i])) { break; }
+            if (steps[i].classList.contains('balin-question')) { last = i; }
+        }
+        return last;
+    }
+
+    /** A scene break carries no words, so it is never a press of its own. */
+    function isPassive(el) {
+        return !!el
+            && (el.tagName === 'HR' || el.classList.contains('balin-divider'));
+    }
+
+    /**
+     * The button is offered only when there is something to advance to and
+     * nothing is waiting on the student. An unanswered question takes it
+     * away and says why, so the one way forward is to answer.
      */
     function syncAdvance() {
-        if (!advance) {
-            return;
-        }
-
         var finished = shown >= steps.length;
-        var waiting  = isOpenQuestion(steps[shown - 1]);
+        var hold     = blocked();
 
-        advance.hidden = finished || waiting;
+        if (advance) {
+            if (finished || hold) { hide(advance); } else { show(advance); }
+        }
+        if (waiting) {
+            if (hold) { show(waiting); } else { hide(waiting); }
+        }
         if (label) {
-            label.textContent = shown === 0 ? 'شروع گفت‌وگو' : 'ادامه گفت‌وگو';
+            label.textContent = shown === 0 ? 'شروع چت' : 'ادامه چت';
         }
     }
 
     function next() {
-        if (shown >= steps.length) {
+        // Nothing left to say, or a question still owed an answer: the
+        // conversation does not move until the student has dealt with it.
+        if (shown >= steps.length || blocked()) {
             return;
         }
 
-        var el = steps[shown];
-        el.hidden = false;
-        el.classList.add('is-entering');
-        shown++;
+        var el;
+        do {
+            el = steps[shown];
+            show(el);
+            el.classList.add('is-entering');
+            shown++;
+        } while (shown < steps.length && isPassive(el));
 
         syncAdvance();
         el.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
 
     function startStepping() {
-        // A finished stage is being re-read, and a scene with nothing to
-        // reveal has nothing to step through.
-        if (isReplay || steps.length === 0) {
+        if (steps.length === 0) {
             return;
         }
 
-        steps.forEach(function (el) { el.hidden = true; });
+        steps.forEach(hide);
 
-        // Coming back to a half-finished stage picks up where it was left,
-        // rather than making the student click through what they already read.
-        revealThrough(lastAnsweredIndex());
+        // A finished stage is re-read from the top — a case is a conversation
+        // the second time too. A half-finished one resumes, rather than making
+        // the student click back through what they have already read.
+        var upto = isReplay ? -1 : resumeIndex();
+        for (var i = 0; i <= upto; i++) {
+            show(steps[i]);
+        }
+        shown = upto + 1;
+
+        syncAdvance();
+
+        // Tells the guard in the page that the player is running, so it does
+        // not put the scene back.
+        if (scene) {
+            scene.setAttribute('data-stepping', 'ready');
+        }
     }
 
     if (advance) {

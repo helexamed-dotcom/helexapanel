@@ -15,7 +15,7 @@ importScripts('/assets/js/helexa-db.js');
    more load of the previous CSS and JS — which after a redesign means the new
    markup rendered against the old stylesheet. A new version name makes the
    install step fetch the current files and activate drops the old caches. */
-var VERSION = 'v1.2.0';
+var VERSION = 'v1.3.0';
 var CACHES = {
     shell:  'helexa-shell-'  + VERSION,
     static: 'helexa-static-' + VERSION,
@@ -33,6 +33,7 @@ var SHELL_URLS = [
     '/assets/js/pwa.js',
     '/assets/js/app.js',
     '/assets/js/viewer.js',
+    '/assets/js/balin.js',
     '/assets/js/offline-manager.js',
     '/manifest.webmanifest'
 ];
