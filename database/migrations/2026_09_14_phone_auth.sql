@@ -20,10 +20,16 @@ SET NAMES utf8mb4;
 -- registration_source tells admin-created accounts apart from self-registered
 -- ones. Inferring it from a NULL password would be wrong the moment a
 -- self-registered student sets one.
+-- IF NOT EXISTS on each added column is what makes the header above true.
+-- This file is handed to an operator to paste into phpMyAdmin, and a half-
+-- finished first attempt is exactly when it gets run twice; without these,
+-- the second run dies on "Duplicate column name" and looks like a new fault.
+-- MODIFY is naturally repeatable: setting a column to what it already is
+-- succeeds.
 ALTER TABLE users
     MODIFY COLUMN password_hash VARCHAR(255) NULL,
-    ADD COLUMN phone_verified_at   DATETIME NULL AFTER mobile,
-    ADD COLUMN registration_source ENUM('admin','self_otp') NOT NULL DEFAULT 'admin' AFTER status;
+    ADD COLUMN IF NOT EXISTS phone_verified_at   DATETIME NULL AFTER mobile,
+    ADD COLUMN IF NOT EXISTS registration_source ENUM('admin','self_otp') NOT NULL DEFAULT 'admin' AFTER status;
 
 -- ----------------------------------------------------------- otp_codes
 -- One row per issued code. The code itself is never stored: only an HMAC of
