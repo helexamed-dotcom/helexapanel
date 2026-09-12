@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5">
+<meta name="theme-color" content="#1b8ed0">
+<title>سیستم جامع دانشگاهی</title>
+<link rel="icon" href="assets/img/logo.svg" type="image/svg+xml">
+<link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+
+<!-- ============ آیکون‌ها (SVG sprite) ============ -->
+<svg class="svg-sprite" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">
+  <symbol id="i-bars" viewBox="0 0 24 24">
+    <rect x="2" y="4"  width="20" height="2.6" rx="1.3" fill="currentColor"/>
+    <rect x="2" y="10.7" width="20" height="2.6" rx="1.3" fill="currentColor"/>
+    <rect x="2" y="17.4" width="20" height="2.6" rx="1.3" fill="currentColor"/>
+  </symbol>
+
+  <symbol id="i-envelope" viewBox="0 0 24 24">
+    <rect x="1.6" y="4.6" width="20.8" height="14.8" rx="2" fill="none" stroke="currentColor" stroke-width="2"/>
+    <path d="M2.6 6.2 12 13.4l9.4-7.2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  </symbol>
+
+  <symbol id="i-user" viewBox="0 0 24 24">
+    <circle cx="12" cy="7.4" r="4.4" fill="currentColor"/>
+    <path d="M12 13.6c-5 0-8.6 3.2-9 7.4h18c-.4-4.2-4-7.4-9-7.4z" fill="currentColor"/>
+  </symbol>
+
+  <symbol id="i-power" viewBox="0 0 24 24">
+    <path d="M7.1 5.4a8.4 8.4 0 1 0 9.8 0" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+    <path d="M12 2.4v8.8" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+  </symbol>
+
+  <symbol id="i-search" viewBox="0 0 24 24">
+    <circle cx="10.6" cy="10.6" r="6.6" fill="none" stroke="currentColor" stroke-width="2"/>
+    <path d="M15.6 15.6 21 21" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+  </symbol>
+
+  <!-- دست اشاره‌گر پیام‌ها -->
+  <symbol id="i-hand" viewBox="0 0 28 28">
+    <path d="M11.4 25.8v-6.9l-2.6 1.5c-1.3.8-2.8-.8-1.9-2l3.4-4.7c.6-.8 1.5-1.3 2.5-1.3h.7V4.9a1.9 1.9 0 0 1 3.8 0v6.5h1.2a3.4 3.4 0 0 1 3.4 3.4v11z"
+      fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+  </symbol>
+
+  <!-- زنجیر (لینک) -->
+  <symbol id="i-link" viewBox="0 0 64 64">
+    <g transform="rotate(-45 32 32)" fill="none" stroke="currentColor" stroke-width="6.4">
+      <rect x="5.5" y="22.5" width="31" height="19" rx="9.5"/>
+      <rect x="27.5" y="22.5" width="31" height="19" rx="9.5"/>
+    </g>
+  </symbol>
+
+  <!-- قفل + فلش چرخشی (تغییر گلمه عبور) -->
+  <symbol id="i-password" viewBox="0 0 64 64">
+    <path d="M52 24a22 22 0 1 0 1.6 10" fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round"/>
+    <path d="M40 8.5 53.5 22 40 26.5z" fill="currentColor"/>
+    <rect x="21" y="31" width="22" height="17" rx="3" fill="currentColor"/>
+    <path d="M25.5 31v-4a6.5 6.5 0 0 1 13 0v4" fill="none" stroke="currentColor" stroke-width="4.2"/>
+  </symbol>
+
+  <!-- کارنامه (گواهی) -->
+  <symbol id="i-certificate" viewBox="0 0 64 64">
+    <rect x="9" y="8" width="46" height="34" rx="3" fill="none" stroke="currentColor" stroke-width="4"/>
+    <path d="M17 18h20M17 26h14" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
+    <circle cx="43" cy="38" r="9" fill="currentColor"/>
+    <path d="M37 45 34 59l9-4.5 9 4.5-3-14z" fill="currentColor"/>
+  </symbol>
+
+  <!-- کتاب‌ها -->
+  <symbol id="i-books" viewBox="0 0 64 64">
+    <rect x="9"  y="16" width="11" height="34" rx="1.5" fill="currentColor"/>
+    <rect x="23" y="12" width="11" height="38" rx="1.5" fill="currentColor"/>
+    <rect x="37" y="19" width="11" height="31" rx="1.5" fill="currentColor" transform="rotate(9 42.5 34.5)"/>
+    <rect x="6" y="52" width="52" height="5" rx="1.5" fill="currentColor"/>
+  </symbol>
+</svg>
+
+<!-- ============ هدر ============ -->
+<header class="app-header">
+  <div class="app-header__inner">
+    <button type="button" class="hdr-btn hdr-menu" id="accessOpen" aria-haspopup="true" aria-expanded="false" aria-controls="accessLayer">
+      <svg class="ico ico-20"><use href="#i-bars"></use></svg>
+      <span>دسترسی</span>
+    </button>
+
+    <div class="hdr-logo">
+      <img src="assets/img/logo.svg" alt="آرم دانشگاه" width="46" height="46">
+    </div>
+
+    <div class="hdr-tools">
+      <a class="hdr-btn" href="#messages" aria-label="پیام‌ها">
+        <svg class="ico ico-20"><use href="#i-envelope"></use></svg>
+        <span class="hdr-count">44</span>
+      </a>
+      <a class="hdr-btn" href="#" aria-label="حساب کاربری">
+        <svg class="ico ico-20"><use href="#i-user"></use></svg>
+      </a>
+      <a class="hdr-btn" href="#" aria-label="خروج">
+        <svg class="ico ico-20"><use href="#i-power"></use></svg>
+      </a>
+    </div>
+  </div>
+</header>
+
+<!-- ============ محتوای صفحه اصلی ============ -->
+<main class="page">
+
+  <!-- خوش آمدید -->
+  <section class="panel">
+    <div class="panel__head">خوش آمدید.</div>
+    <div class="panel__body profile">
+      <div class="field">
+        <div class="field__label">نام خانوادگی</div>
+        <div class="field__value">ابوطالبی ادرگانی</div>
+      </div>
+      <div class="field">
+        <div class="field__label">نیمسال ورود</div>
+        <div class="field__value">نیمسال دوم 1403-1404</div>
+      </div>
+      <div class="field">
+        <div class="field__label">دانشکده</div>
+        <div class="field__value">پزشکی</div>
+      </div>
+      <div class="field">
+        <div class="field__label">رشته</div>
+        <div class="field__value">پزشکی</div>
+      </div>
+      <div class="field">
+        <div class="field__label">مقطع</div>
+        <div class="field__value">دکتری عمومی</div>
+      </div>
+      <div class="field">
+        <div class="field__label">وضعیت کلی دانشجو</div>
+        <div class="field__value">درحال تحصیل (فعال)</div>
+      </div>
+      <div class="field">
+        <div class="field__label">سهمیه ثبت نامی</div>
+        <div class="field__value">فرزند رزمنده سپاه پاسداران</div>
+      </div>
+      <div class="field">
+        <div class="field__label">نوع دوره</div>
+        <div class="field__value">روزانه</div>
+      </div>
+
+      <div class="field field--pair">
+        <div class="col">
+          <div class="field__label">استاد راهنما</div>
+          <div class="field__value">&nbsp;</div>
+        </div>
+        <div class="col">
+          <div class="field__label">استاد مشاور</div>
+          <div class="field__value">&nbsp;</div>
+        </div>
+      </div>
+
+      <div class="field">
+        <div class="field__label">تاریخ شروع رد/تایید استاد مشاور</div>
+        <div class="field__value">&nbsp;</div>
+      </div>
+      <div class="field">
+        <div class="field__label">تاریخ پایان رد/تایید استاد مشاور</div>
+        <div class="field__value">&nbsp;</div>
+      </div>
+
+      <div class="profile__photo">
+        <img src="assets/img/avatar.svg" alt="تصویر دانشجو" width="186" height="216">
+      </div>
+    </div>
+  </section>
+
+  <!-- پیام‌ها -->
+  <section class="panel" id="messages">
+    <div class="panel__head">پیام‌ها</div>
+    <div class="panel__body panel__body--flush">
+      <table class="msg-table">
+        <tbody>
+          <tr>
+            <td class="msg-table__ico"><a href="#" aria-label="مشاهده پیام"><svg class="ico ico-20"><use href="#i-hand"></use></svg></a></td>
+            <td class="msg-table__title">ویراست دوم سیستم ارزیابی فراگیر دوره دکتری عمومی رشته پزشکی</td>
+          </tr>
+          <tr>
+            <td class="msg-table__ico"><a href="#" aria-label="مشاهده پیام"><svg class="ico ico-20"><use href="#i-hand"></use></svg></a></td>
+            <td class="msg-table__title">حوزه 7 اعتباربخشی پزشکی عمومی - استاندارد 2-7 ب</td>
+          </tr>
+          <tr>
+            <td class="msg-table__ico"><a href="#" aria-label="مشاهده پیام"><svg class="ico ico-20"><use href="#i-hand"></use></svg></a></td>
+            <td class="msg-table__title">حوزه 7 اعتباربخشی پزشکی عمومی - استاندارد 2-7 الف</td>
+          </tr>
+          <tr>
+            <td class="msg-table__ico"><a href="#" aria-label="مشاهده پیام"><svg class="ico ico-20"><use href="#i-hand"></use></svg></a></td>
+            <td class="msg-table__title">حوزه 7 اعتباربخشی پزشکی عمومی - استاندارد 1-7 ج</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="pager">
+        <button type="button" class="pager__btn" data-page="first" aria-label="صفحه اول">&#9654;|</button>
+        <button type="button" class="pager__btn" data-page="prev"  aria-label="صفحه قبل">&#9654;</button>
+        <span class="pager__select">
+          <select aria-label="شماره صفحه">
+            <option selected>1</option>
+          </select>
+        </span>
+        <button type="button" class="pager__btn" data-page="next" aria-label="صفحه بعد">&#9664;</button>
+        <button type="button" class="pager__btn" data-page="last" aria-label="صفحه آخر">|&#9664;</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- اخبار قابلیت‌ها و اصلاحات -->
+  <section class="panel">
+    <div class="panel__head">اخبار قابلیت‌ها و اصلاحات</div>
+    <div class="panel__body">
+      <p class="empty-note">قابلیت و اصلاحات جدیدی برای شما ثبت نشده است</p>
+    </div>
+  </section>
+
+  <!-- لاگ ورود -->
+  <section class="panel">
+    <div class="panel__head">لاگ ورود</div>
+    <div class="panel__body">
+      <div class="table-wrap">
+        <table class="log-table">
+          <thead>
+            <tr><th class="log-table__caption" colspan="3">ورود موفق</th></tr>
+            <tr>
+              <th>شرح فعالیت</th>
+              <th>آدرس آی پی</th>
+              <th>زمان</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>ورود</td>
+              <td>5.22.91.20</td>
+              <td>1405-06-21 19:57:38</td>
+            </tr>
+            <tr>
+              <td>ورود</td>
+              <td>5.22.91.20</td>
+              <td>1405-06-21 19:50:16</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="app-footer"></footer>
+
+<!-- ============ صفحه دسترسی ============ -->
+<div class="access" id="accessLayer" hidden>
+  <div class="access__bar">
+    <button type="button" class="hdr-btn hdr-menu" id="accessClose" aria-label="بستن دسترسی">
+      <svg class="ico ico-20"><use href="#i-bars"></use></svg>
+      <span>دسترسی</span>
+    </button>
+    <div class="access__searchbox">
+      <input type="search" id="accessSearch" class="access__search" placeholder="جستجو" autocomplete="off" aria-label="جستجو در دسترسی‌ها">
+    </div>
+  </div>
+
+  <div class="access__scroll">
+    <div class="tiles" id="tiles">
+      <a class="tile tile--amber"  href="#" title="کارنامه موقت"><svg class="tile__ico"><use href="#i-link"></use></svg><span class="tile__label">کارنامه موقت</span></a>
+      <a class="tile tile--orange" href="#" title="تغییر گلمه عبور"><svg class="tile__ico"><use href="#i-password"></use></svg><span class="tile__label">تغییر گلمه عبور</span></a>
+      <a class="tile tile--amber"  href="#" title="انتخاب واحد"><svg class="tile__ico"><use href="#i-link"></use></svg><span class="tile__label">انتخاب واحد</span></a>
+
+      <a class="tile tile--crimson" href="#" title="اطلاعات شخصی"><svg class="tile__ico"><use href="#i-link"></use></svg><span class="tile__label">اطلاعات شخصی</span></a>
+      <a class="tile tile--green"   href="#" title="کارنامه"><svg class="tile__ico"><use href="#i-certificate"></use></svg><span class="tile__label">کارنامه</span></a>
+      <a class="tile tile--red"     href="#" title="تایید انتخاب واحد توسط استاد"><svg class="tile__ico"><use href="#i-link"></use></svg><span class="tile__label">تایید انتخاب واحد ...</span></a>
+
+      <a class="tile tile--amber"  href="#" title="درخواست عضویت استعداد درخشان"><svg class="tile__ico"><use href="#i-link"></use></svg><span class="tile__label">درخواست عضویت استع...</span></a>
+      <a class="tile tile--purple" href="#" title="لیست درخواست ها"><svg class="tile__ico"><use href="#i-link"></use></svg><span class="tile__label">لیست درخواست ها</span></a>
+      <a class="tile tile--amber"  href="#" title="فعالیت های استعداد درخشان"><svg class="tile__ico"><use href="#i-link"></use></svg><span class="tile__label">فعالیت های استعداد...</span></a>
+
+      <a class="tile tile--green" href="#" title="دروس دوره ای انتخاب شده"><svg class="tile__ico"><use href="#i-link"></use></svg><span class="tile__label">دروس دوره ای انتخا...</span></a>
+      <a class="tile tile--teal"  href="#" title="نیمرخ تحصیلی"><svg class="tile__ico"><use href="#i-link"></use></svg><span class="tile__label">نیمرخ تحصیلی</span></a>
+      <a class="tile tile--lime"  href="#" title="نمایش و چاپ کارت امتحان"><svg class="tile__ico"><use href="#i-link"></use></svg><span class="tile__label">نمایش و چاپ کارت ا...</span></a>
+
+      <a class="tile tile--magenta" href="#" title="ارزشیابی نیمسال جاری"><svg class="tile__ico"><use href="#i-link"></use></svg><span class="tile__label">ارزشیابی نیمسال جاری</span></a>
+      <a class="tile tile--sky"     href="#" title="استاد مشاور ستاد شاهد"><svg class="tile__ico"><use href="#i-link"></use></svg><span class="tile__label">استاد مشاور ستاد ش...</span></a>
+      <a class="tile tile--pink"    href="#" title="دوره های آزمون جامع"><svg class="tile__ico"><use href="#i-link"></use></svg><span class="tile__label">دوره های آزمون جامع</span></a>
+
+      <a class="tile tile--lime" href="#" title="کارنامه مالی"><svg class="tile__ico"><use href="#i-link"></use></svg><span class="tile__label">کارنامه مالی</span></a>
+      <a class="tile tile--blue" href="#" title="پرداخت برخط"><svg class="tile__ico"><use href="#i-link"></use></svg><span class="tile__label">پرداخت برخط</span></a>
+      <a class="tile tile--navy" href="#" title="کتابخانه دیجیتال"><svg class="tile__ico"><use href="#i-books"></use></svg><span class="tile__label">کتابخانه دیجیتال</span></a>
+    </div>
+    <p class="access__noresult" id="accessNoResult" hidden>موردی یافت نشد</p>
+  </div>
+</div>
+
+<script src="assets/js/app.js"></script>
+</body>
+</html>
