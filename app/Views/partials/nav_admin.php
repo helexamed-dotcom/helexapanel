@@ -50,7 +50,7 @@ $groups = [
     ]],
     ['فلش‌کارت و بازی', 'cards', 'rose', [
         ['/admin/flashcards',             'درس‌های فلش‌کارت',    'cards',   'flashcards.manage', 0, false],
-        ['/admin/figures',                'بازی با شکل',         'figure',  'flashcards.manage', 0, false],
+        ['/admin/figures',                'بازی با شکل',         'figure',  'figures.manage', 0, false],
         ['/admin/flashcards/access',      'دسترسی دانشجویان',   'key',     'flashcards.manage_students', 0, false],
     ]],
     ['جزیره بالین', 'island', 'teal', [

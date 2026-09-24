@@ -190,6 +190,14 @@ $router->group('/student', [
     $router->get('/planner',   [PlannerController::class, 'planner']);
     $router->get('/leaderboard', [\HeleXa\Controllers\ProfileController::class, 'leaderboard']);
 
+    // «بازی با شکل»
+    $router->get('/figures',               [\HeleXa\Controllers\Student\FigureController::class, 'index']);
+    $router->get('/figures/{uuid}',        [\HeleXa\Controllers\Student\FigureController::class, 'show']);
+    $router->post('/figures/{uuid}/answer', [\HeleXa\Controllers\Student\FigureController::class, 'answer'],
+        [ThrottleMiddleware::class . ':figure_answer,240,60']);
+    $router->post('/figures/{uuid}/finish', [\HeleXa\Controllers\Student\FigureController::class, 'finish'],
+        [ThrottleMiddleware::class . ':figure_finish,60,600']);
+
     // «نقشه‌های ذهنی»
     $router->get('/mindmaps',             [\HeleXa\Controllers\Student\MindmapController::class, 'index']);
     $router->get('/mindmaps/{uuid}',      [\HeleXa\Controllers\Student\MindmapController::class, 'show']);
@@ -428,6 +436,8 @@ $router->group('/media', [AuthenticateMiddleware::class], function (\HeleXa\Core
         [ThrottleMiddleware::class . ':media,600,300']);
     $router->get('/mindmaps/{name}', [\HeleXa\Controllers\Student\MindmapController::class, 'media'],
         [ThrottleMiddleware::class . ':media,600,300']);
+    $router->get('/figures/{name}', [\HeleXa\Controllers\Student\FigureController::class, 'media'],
+        [ThrottleMiddleware::class . ':media,600,300']);
 });
 
 /* --------------------------------------------------------------- admin */
@@ -633,6 +643,18 @@ $router->group('/admin', [
     $router->post('/lessons/{uuid}/status',   [$alc, 'setStatus'], $lessons);
     $router->post('/lessons/{uuid}/delete',   [$alc, 'destroy'],   $lessons);
     $router->post('/lessons/{uuid}',          [$alc, 'update'],    $lessons);
+
+    /* --------------------------------------------------- 🖼 بازی با شکل */
+    $fig = [PermissionMiddleware::class . ':figures.manage'];
+    $afc = \HeleXa\Controllers\Admin\FigureController::class;
+    $router->get('/figures',                  [$afc, 'index'],     $fig);
+    $router->post('/figures/new',             [$afc, 'create'],    array_merge($fig, [ThrottleMiddleware::class . ':figure_new,30,600']));
+    $router->get('/figures/{uuid}/edit',      [$afc, 'edit'],      $fig);
+    $router->get('/figures/{uuid}/export',    [$afc, 'export'],    $fig);
+    $router->post('/figures/{uuid}/image',    [$afc, 'image'],     array_merge($fig, [ThrottleMiddleware::class . ':figure_image,30,600']));
+    $router->post('/figures/{uuid}/status',   [$afc, 'setStatus'], $fig);
+    $router->post('/figures/{uuid}/delete',   [$afc, 'destroy'],   $fig);
+    $router->post('/figures/{uuid}',          [$afc, 'save'],      array_merge($fig, [ThrottleMiddleware::class . ':figure_save,240,600']));
 
     /* ------------------------------------------------ 🧠 نقشه‌های ذهنی */
     $amc = \HeleXa\Controllers\Admin\MindmapController::class;

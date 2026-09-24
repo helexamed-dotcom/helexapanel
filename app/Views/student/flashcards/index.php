@@ -27,6 +27,14 @@ $totalDue = (int) $overview['due'];
         </a>
     </section>
 
+    <?php if (\HeleXa\Services\Modules::enabled('figures')): ?>
+        <a class="fc-figures hx-zoom" href="/student/figures">
+            <span class="app-ic tone-amber"><?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'figure']); ?></span>
+            <span><b>بازی با شکل</b><small>ساختار را روی اطلس پیدا کن یا به نقطه‌ای که نشانت می‌دهیم جواب بده</small></span>
+            <em>بازی ←</em>
+        </a>
+    <?php endif; ?>
+
     <?php if ($courses !== []): ?>
         <section class="fc-page" style="gap:12px;">
             <div class="fc-head"><h3>درس‌های آماده</h3></div>
