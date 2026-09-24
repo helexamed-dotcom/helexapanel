@@ -654,3 +654,45 @@ html[dir="ltr"] .lx-panel { transform-origin: top left; }
 html[dir="rtl"] .hx-backbtn .ic { transform: scaleX(-1); }
 .hx-backbtn:active .ic { transform: translateX(3px); }
 html[dir="rtl"] .hx-backbtn:active .ic { transform: scaleX(-1) translateX(3px); }
+
+/* =====================================================================
+   Compact page heads. Every study page used to open with a tall gradient
+   hero; they keep their colour but shrink to one slim band, so the page's
+   real content starts in the first screen. One place, every module.
+   ===================================================================== */
+.panel-body :is(.qs-hero, .qb-hero, .fc-hero, .ml-hero, .hx-hero, .hub-hero, .lbd-hero, .sh-hero) {
+    padding: 10px 14px !important; border-radius: 20px !important; gap: 10px 14px !important; min-height: 0 !important;
+    box-shadow: 0 16px 34px -26px color-mix(in srgb, var(--h1, #6366f1) 80%, transparent) !important;
+}
+.panel-body :is(.qs-hero, .qb-hero, .fc-hero, .ml-hero, .hx-hero, .hub-hero, .lbd-hero, .sh-hero) :is(h1, h2) {
+    font-size: 17px !important; margin: 0 !important; line-height: 1.6 !important;
+}
+.panel-body :is(.qs-hero, .qb-hero, .fc-hero, .ml-hero, .hx-hero, .hub-hero, .sh-hero) p {
+    font-size: 12px !important; margin: 0 !important; line-height: 1.7 !important;
+    display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden;
+}
+.panel-body :is(.qb-hero-icon, .hx-hero-icon, .hub-hero-ic) { width: 40px !important; height: 40px !important; flex-basis: 40px !important; border-radius: 13px !important; font-size: 20px !important; }
+.panel-body :is(.qb-hero-icon, .hx-hero-icon, .hub-hero-ic) svg { width: 20px; height: 20px; }
+.panel-body :is(.qs-hero, .fc-hero, .ml-hero, .hx-hero) .btn { height: 36px; padding-block: 0; font-size: 12.5px; }
+.panel-body :is(.ml-hero, .lb-hero) :is(form, .lb-search, .ml-search) { height: 38px; }
+/* the qbank درس page: a small ring and one row of pills */
+.panel-body .qs-hero .qs-ring { flex: 0 0 62px !important; width: 62px; height: 62px !important; }
+.panel-body .qs-hero .qs-ring b { font-size: 15px; }
+.panel-body .qs-hero .qs-ring small { font-size: 9.5px; }
+.panel-body .qs-hero .qs-ring circle { stroke-width: 12; }
+.panel-body .qs-hero p { margin-bottom: 6px !important; }
+.panel-body .qs-back { font-size: 11.5px; }
+.panel-body .qs-pill, .panel-body .qs-go { padding: 6px 10px; font-size: 12px; border-radius: 12px; }
+.panel-body .qs-go.btn { height: 34px; }
+/* flashcards: pills on one line with the title */
+.panel-body .fc-hero .fc-pills { margin-top: 6px; gap: 6px; }
+.panel-body .fc-hero .fc-pill { padding: 3px 10px; font-size: 11.5px; }
+.panel-body .fc-hero::after { display: none; }
+.panel-body .hx-hero::before, .panel-body .hx-hero::after { opacity: .6; }
+@media (max-width: 620px) {
+    .panel-body .qs-hero { flex-direction: row !important; align-items: center !important; flex-wrap: wrap; }
+    .panel-body .qs-hero .qs-ring { order: -1; }
+    .panel-body .qs-hero .qs-hero-text { flex: 1 1 60%; }
+    .panel-body .qs-actions { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+    .panel-body .qs-actions > * { flex: none; }
+}

@@ -174,3 +174,26 @@ html[dir="rtl"] .ad-quick-btn { padding: 6px 6px 6px 12px; }
 .ad-avatar { width: 38px; height: 38px; border-radius: 50%; overflow: hidden; flex: 0 0 38px; display: grid; }
 .ad-avatar > *, .ad-avatar img, .ad-avatar svg { width: 100% !important; height: 100% !important; object-fit: cover; border-radius: 50%; }
 .ad-list > li { list-style: none; }
+
+/* ---------------------------------------------------------------------
+   Plain admin forms (label.field > span + a bare control), as the بالین
+   pages write them: the same look as every other form in the panel.
+   --------------------------------------------------------------------- */
+.is-admin-shell label.field, .is-admin-shell div.field:has(> span:first-child) {
+    display: grid; gap: 6px; align-content: start; margin: 0; font-size: 13px; font-weight: 700; color: var(--ink-2);
+}
+.is-admin-shell .field > :is(input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]):not([type="color"]), select, textarea):not(.input) {
+    width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-2);
+    font: inherit; font-size: 14px; font-weight: 400; color: var(--ink); transition: border-color .15s, box-shadow .15s;
+}
+.is-admin-shell .field > :is(input, select, textarea):not(.input):focus { outline: none; border-color: var(--blue); box-shadow: 0 0 0 3px var(--blue-soft); background: var(--surface); }
+.is-admin-shell .field > select:not(.input) {
+    appearance: none; padding-left: 32px;
+    background-image: linear-gradient(45deg, transparent 50%, var(--ink-3) 50%), linear-gradient(135deg, var(--ink-3) 50%, transparent 50%);
+    background-position: left 16px top 55%, left 11px top 55%; background-size: 5px 5px, 5px 5px; background-repeat: no-repeat;
+}
+.is-admin-shell .field > input[type="file"] { font-size: 12.5px; }
+.is-admin-shell .field > small { font-weight: 400; color: var(--ink-3); font-size: 11.5px; line-height: 1.8; }
+.is-admin-shell .form-grid { gap: 14px 18px; }
+.is-admin-shell .form-grid > .span-2 { grid-column: 1 / -1; }
+.is-admin-shell .form-actions { display: flex; gap: 8px; flex-wrap: wrap; }
