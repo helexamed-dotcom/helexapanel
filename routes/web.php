@@ -190,6 +190,7 @@ $router->group('/student', [
     $router->get('/courses', [StudentCourses::class, 'index']);
     $router->get('/courses/{uuid}', [StudentCourses::class, 'show']);
     $router->get('/analytics', [StudentAnalytics::class, 'index']);
+    $router->post('/analytics/plan', [StudentAnalytics::class, 'savePlan'], [ThrottleMiddleware::class . ':analytics_plan,10,600']);
     $router->get('/schedule',  [PlannerController::class, 'schedule']);
     $router->get('/schedule/choose',  [PlannerController::class, 'choose']);
     $router->post('/schedule/choose', [PlannerController::class, 'saveChoices'],
