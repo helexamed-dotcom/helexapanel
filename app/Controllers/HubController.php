@@ -63,6 +63,22 @@ final class HubController extends Controller
         ]));
     }
 
+    /** 🛒 — the cart at a glance, with quantities and «ادامه خرید». */
+    public function cart(Request $request, array $params = []): Response
+    {
+        $userId = (int) Auth::id();
+        $lines = [];
+        $priced = null;
+        if (\HeleXa\Models\ShopRepository::ready()) {
+            $lines = (new \HeleXa\Models\ShopRepository())->cart($userId);
+            $priced = \HeleXa\Services\Shop\Shop::price($lines, null, $userId);
+        }
+
+        return $this->fragment($this->view('hub.cart', [
+            'priced' => $priced ?? ['lines' => [], 'subtotal' => 0, 'total' => 0, 'count' => 0, 'savings' => 0],
+        ]));
+    }
+
     private function fragment(Response $response): Response
     {
         return $response

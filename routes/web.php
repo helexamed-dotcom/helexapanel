@@ -122,6 +122,35 @@ $router->get('/hub/bell',     [\HeleXa\Controllers\HubController::class, 'bell']
 $router->get('/hub/activate', [\HeleXa\Controllers\HubController::class, 'activate'],
     [AuthenticateMiddleware::class, RoleMiddleware::class . ':student', ThrottleMiddleware::class . ':hub,240,60']);
 
+$router->get('/hub/cart',     [\HeleXa\Controllers\HubController::class, 'cart'],
+    [AuthenticateMiddleware::class, RoleMiddleware::class . ':student', ThrottleMiddleware::class . ':hub,240,60']);
+
+/* ------------------------------------------------------------ 🛍 shop
+   Browsing is open to anyone signed in (admins preview it); the cart,
+   checkout and orders are the student's. The gateway's return address
+   needs no session: the order is found by the authority it was issued. */
+$router->get('/shop/pay/callback', [\HeleXa\Controllers\ShopController::class, 'callback'],
+    [ThrottleMiddleware::class . ':shop_callback,60,600']);
+$router->group('/shop', [
+    AuthenticateMiddleware::class,
+    ForcePasswordChangeMiddleware::class,
+    \HeleXa\Middleware\ModuleMiddleware::class,
+], function (\HeleXa\Core\Router $router): void {
+    $sc = \HeleXa\Controllers\ShopController::class;
+    $student = [RoleMiddleware::class . ':student'];
+    $router->get('/',                     [$sc, 'index']);
+    $router->get('/p/{uuid}',             [$sc, 'product']);
+    $router->get('/cart',                 [$sc, 'cart'],         $student);
+    $router->post('/cart',                [$sc, 'add'],          array_merge($student, [ThrottleMiddleware::class . ':shop_cart,120,600']));
+    $router->post('/cart/coupon',         [$sc, 'applyCoupon'],  array_merge($student, [ThrottleMiddleware::class . ':shop_coupon,20,600']));
+    $router->post('/checkout',            [$sc, 'checkout'],     array_merge($student, [ThrottleMiddleware::class . ':shop_checkout,20,600']));
+    $router->get('/orders',               [$sc, 'orders'],       $student);
+    $router->get('/orders/{uuid}',        [$sc, 'order'],        $student);
+    $router->post('/orders/{uuid}/pay',   [$sc, 'pay'],          array_merge($student, [ThrottleMiddleware::class . ':shop_checkout,20,600']));
+    $router->post('/orders/{uuid}/receipt', [$sc, 'receipt'],    array_merge($student, [ThrottleMiddleware::class . ':shop_receipt,12,600']));
+    $router->post('/orders/{uuid}/cancel', [$sc, 'cancel'],      $student);
+});
+
 /* ------------------------------------------------------------- student */
 $router->group('/student', [
     AuthenticateMiddleware::class,
@@ -365,6 +394,10 @@ $router->group('/content', [
 $router->group('/media', [AuthenticateMiddleware::class], function (\HeleXa\Core\Router $router): void {
     $router->get('/lessons/{name}', [\HeleXa\Controllers\Student\LessonController::class, 'media'],
         [ThrottleMiddleware::class . ':media,600,300']);
+    $router->get('/shop/{name}', [\HeleXa\Controllers\ShopController::class, 'media'],
+        [ThrottleMiddleware::class . ':media,600,300']);
+    $router->get('/receipts/{name}', [\HeleXa\Controllers\ShopController::class, 'receiptMedia'],
+        [ThrottleMiddleware::class . ':media,600,300']);
 });
 
 /* --------------------------------------------------------------- admin */
@@ -522,6 +555,33 @@ $router->group('/admin', [
     $router->post('/courses/{uuid}/contents/{content}',       [ContentController::class, 'updateContent'],  $content);
     $router->post('/courses/{uuid}/contents/{content}/delete',[ContentController::class, 'destroyContent'], $content);
     $router->post('/courses/{uuid}/contents/{content}/move',  [ContentController::class, 'moveContent'],    $content);
+
+    /* --------------------------------------------------------- 🛍 فروشگاه */
+    $shopM = [PermissionMiddleware::class . ':shop.manage'];
+    $shopO = [PermissionMiddleware::class . ':shop.orders'];
+    $asc = \HeleXa\Controllers\Admin\ShopController::class;
+    $router->get('/shop',                          [$asc, 'index'],          $shopM);
+    $router->get('/shop/products',                 [$asc, 'products'],       $shopM);
+    $router->get('/shop/products/create',          [$asc, 'create'],         $shopM);
+    $router->post('/shop/products',                [$asc, 'store'],          $shopM);
+    $router->post('/shop/media',                   [$asc, 'upload'],         array_merge($shopM, [ThrottleMiddleware::class . ':shop_media,120,600']));
+    $router->post('/shop/categories',              [$asc, 'saveCategory'],   $shopM);
+    $router->post('/shop/categories/{id}/delete',  [$asc, 'deleteCategory'], $shopM);
+    $router->get('/shop/products/{uuid}/edit',     [$asc, 'edit'],           $shopM);
+    $router->post('/shop/products/{uuid}/status',  [$asc, 'setStatus'],      $shopM);
+    $router->post('/shop/products/{uuid}/delete',  [$asc, 'destroy'],        $shopM);
+    $router->post('/shop/products/{uuid}',         [$asc, 'update'],         $shopM);
+    $router->get('/shop/orders',                   [$asc, 'orders'],         $shopO);
+    $router->get('/shop/orders/{uuid}',            [$asc, 'order'],          $shopO);
+    $router->post('/shop/orders/{uuid}/approve',   [$asc, 'approve'],        $shopO);
+    $router->post('/shop/orders/{uuid}/reject',    [$asc, 'reject'],         $shopO);
+    $router->post('/shop/orders/{uuid}/note',      [$asc, 'note'],           $shopO);
+    $router->get('/shop/coupons',                  [$asc, 'coupons'],        $shopM);
+    $router->post('/shop/coupons',                 [$asc, 'saveCoupon'],     $shopM);
+    $router->post('/shop/coupons/{id}/delete',     [$asc, 'deleteCoupon'],   $shopM);
+    $router->get('/shop/settings',                 [$asc, 'settings'],       $shopM);
+    $router->post('/shop/settings/payment',        [$asc, 'savePayment'],    $shopM);
+    $router->post('/shop/settings/theme',          [$asc, 'saveTheme'],      $shopM);
 
     /* ---------------------------------------------------- 📘 درسنامه‌ها */
     $lessons = [PermissionMiddleware::class . ':lessons.manage'];

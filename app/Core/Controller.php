@@ -65,10 +65,17 @@ abstract class Controller
         try {
             if (Auth::isStudent()) {
                 $userId = (int) Auth::id();
+                $cart = 0;
+                try {
+                    $cart = (new \HeleXa\Models\ShopRepository())->cartCount($userId);
+                } catch (\PDOException) {
+                    // the store is not installed
+                }
                 return [
                     'notifications' => (new \HeleXa\Models\NotificationRepository())->unreadCount($userId),
                     'messages'      => (new \HeleXa\Models\MessageRepository())->unreadCount($userId),
                     'support_open'  => 0,
+                    'cart'          => $cart,
                 ];
             }
 
