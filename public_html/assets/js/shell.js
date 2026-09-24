@@ -461,4 +461,21 @@
         var strip = t.parentElement;
         strip.scrollLeft += (t.getBoundingClientRect().left + t.offsetWidth / 2) - (strip.getBoundingClientRect().left + strip.clientWidth / 2);
     });
+
+    /* ------------------------------------------------ «بازگشت» */
+    // Back through history when we came from one of our own pages (and not
+    // from this same page, as after a form was saved); else the parent page
+    // the server worked out, which is the link's own address.
+    document.querySelectorAll('[data-back]').forEach(function (a) {
+        a.addEventListener('click', function (e) {
+            var ref = document.referrer;
+            if (!ref || window.history.length < 2) { return; }
+            try {
+                var u = new URL(ref);
+                if (u.origin !== window.location.origin || u.pathname === window.location.pathname || /^\/(login|register|auth)/.test(u.pathname)) { return; }
+            } catch (x) { return; }
+            e.preventDefault();
+            window.history.back();
+        });
+    });
 })();

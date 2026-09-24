@@ -26,6 +26,27 @@ $bell     = $isAdminArea
     : (int) ($unreadCounts['notifications'] ?? 0) + (int) ($unreadCounts['messages'] ?? 0) + (int) ($unreadCounts['support_answered'] ?? 0);
 $cartCount = (int) ($unreadCounts['cart'] ?? 0);
 $shopOn    = !$isAdminArea && Modules::enabled('shop');
+
+// «بازگشت» on every page but the two home pages. The button goes back in
+// the browser's history when the previous page was ours; otherwise (a page
+// opened from a link or a bookmark) it climbs to the parent address,
+// skipping the parts that are not pages of their own (an id, «edit», …).
+$home = $isAdminArea ? '/admin' : '/student';
+$path = rtrim((string) ($currentPath ?? '/'), '/') ?: '/';
+$backHref = null;
+if (!in_array($path, ['/admin', '/student', '/'], true)) {
+    $parts = array_values(array_filter(explode('/', $path), 'strlen'));
+    $skip = ['p', 'edit', 'course', 'deck', 'u', 'study', 'media'];
+    array_pop($parts);
+    while ($parts !== [] && (preg_match('/^[0-9a-f]{8}-[0-9a-f-]{27}$|^\d+$/i', end($parts)) === 1 || in_array(end($parts), $skip, true))) {
+        array_pop($parts);
+    }
+    $backHref = $parts === [] ? $home : '/' . implode('/', $parts);
+    $backHref = ['/account' => '/account/profile', '/hub' => $home][$backHref] ?? $backHref;
+    if ($backHref === $path) {
+        $backHref = $home;
+    }
+}
 ?>
 <header class="topbar hx-top">
     <div class="hx-top-start">
@@ -38,6 +59,11 @@ $shopOn    = !$isAdminArea && Modules::enabled('shop');
                 <span class="hx-launch-glyph" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
                 <span class="hx-launch-label"><?= e(t('منو')) ?></span>
             </button>
+        <?php endif; ?>
+        <?php if ($backHref !== null): ?>
+            <a class="hx-ic hx-backbtn" href="<?= e($backHref) ?>" data-back aria-label="<?= e(t('بازگشت')) ?>" title="<?= e(t('بازگشت')) ?>">
+                <?php $icon('chevron'); ?>
+            </a>
         <?php endif; ?>
         <a class="hx-brand" href="<?= $isAdminArea ? '/admin' : '/student' ?>" aria-label="<?= e($appName) ?>">
             <?php if ($siteLogo !== ''): ?>

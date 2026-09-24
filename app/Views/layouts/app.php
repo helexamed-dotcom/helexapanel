@@ -121,6 +121,7 @@
             'unreadCounts' => $unreadCounts ?? [],
             'title'        => $title ?? '',
             'appName'      => $appName ?? 'HeleXa Med',
+            'currentPath'  => $currentPath ?? '/',
         ]); ?>
 
         <main class="content" id="main">

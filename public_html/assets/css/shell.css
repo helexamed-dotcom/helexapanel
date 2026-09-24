@@ -648,3 +648,9 @@ html[dir="ltr"] .lx-panel { transform-origin: top left; }
 .switch-row input[type="checkbox"]:checked::before { inset-inline-start: 23px; }
 .switch-row input[type="checkbox"]:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
 .switch-row input[type="checkbox"]:disabled { opacity: .5; cursor: not-allowed; }
+
+/* ------------------------------------------------ «بازگشت» */
+.hx-backbtn { flex: 0 0 auto; }
+html[dir="rtl"] .hx-backbtn .ic { transform: scaleX(-1); }
+.hx-backbtn:active .ic { transform: translateX(3px); }
+html[dir="rtl"] .hx-backbtn:active .ic { transform: scaleX(-1) translateX(3px); }
