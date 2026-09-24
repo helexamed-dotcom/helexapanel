@@ -229,17 +229,28 @@ result('service worker is not cached',
     $worker['headers']['cache-control'] ?? 'missing Cache-Control',
     true);
 
-// The offline shell is the one HTML document the worker caches, so it must
-// never contain anything that belongs to a particular student.
-$shell = request($base . '/offline');
-result('offline shell needs a session',
-    in_array($shell['status'], [301, 302, 401, 403], true),
-    'HTTP ' . $shell['status']);
+// Offline study was removed: its pages must be gone, not half there.
+foreach (['/offline', '/api/offline/catalogue'] as $gone) {
+    $response = request($base . $gone);
+    result('removed page is gone: ' . $gone,
+        in_array($response['status'], [301, 302, 401, 403, 404], true),
+        'HTTP ' . $response['status']);
+}
 
+// Private pictures and personal panels need a session: receipts, posts,
+// the cart, lesson and map images, the rankings and the privacy page.
 foreach ([
     '/api/session/state',
-    '/api/offline/catalogue',
-    '/api/offline/manifest/00000000-0000-4000-8000-000000000000',
+    '/hub/cart',
+    '/shop/cart',
+    '/shop/orders',
+    '/media/receipts/20260101-aaaaaaaaaaaaaaaaaaaa.png',
+    '/media/posts/20260101-aaaaaaaaaaaaaaaaaaaa.png',
+    '/media/lessons/20260101-aaaaaaaaaaaaaaaaaaaa.png',
+    '/media/mindmaps/20260101-aaaaaaaaaaaaaaaaaaaa.png',
+    '/media/figures/20260101-aaaaaaaaaaaaaaaaaaaa.png',
+    '/student/leaderboard',
+    '/account/privacy',
 ] as $endpoint) {
     $response = request($base . $endpoint);
     result('guest blocked from ' . $endpoint,
@@ -247,12 +258,18 @@ foreach ([
         'HTTP ' . $response['status']);
 }
 
-foreach (['/api/sync/study', '/api/sync/status', '/api/offline/verify'] as $endpoint) {
+foreach (['/api/sync/study', '/api/sync/status', '/shop/cart', '/shop/checkout', '/profile/posts'] as $endpoint) {
     $response = request($base . $endpoint, 'POST', ['events' => []]);
     result('guest POST refused: ' . $endpoint,
         in_array($response['status'], [301, 302, 401, 403, 419], true),
         'HTTP ' . $response['status']);
 }
+
+// The payment return address must never mark anything paid on its own.
+$cb = request($base . '/shop/pay/callback?order=00000000-0000-4000-8000-000000000000&Authority=A0000000000000000000000000000000000&Status=OK');
+result('payment callback without a real order does nothing',
+    in_array($cb['status'], [301, 302], true),
+    'HTTP ' . $cb['status']);
 
 /* ---------------------------------------------------------------- CSRF */
 
