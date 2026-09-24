@@ -120,6 +120,21 @@ $filingSelect = function (string $name, int $depth, string $label, string $empty
                 </div>
             <?php endif; ?>
         </div>
+
+        <?php if (!empty($lessonOptions)): ?>
+            <div class="field" style="margin:16px 0 0;">
+                <span class="label">درسنامه‌های مرتبط <small class="qb-hint">(بعد از جواب دادن کنار پاسخ تشریحی می‌آید و در تحلیل آزمون پیشنهاد می‌شود)</small></span>
+                <input class="input" type="search" placeholder="جستجوی درسنامه…" data-lesson-filter style="margin-bottom:8px;max-width:320px">
+                <div class="qb-tags" data-lesson-list style="max-height:180px;overflow-y:auto">
+                    <?php foreach ($lessonOptions as $lo): ?>
+                        <label class="qb-tag-toggle" data-title="<?= e($lo['title'] . ' ' . ($lo['subject_title'] ?? '')) ?>">
+                            <input type="checkbox" name="lessons[]" value="<?= (int) $lo['id'] ?>" <?= in_array((int) $lo['id'], $lessonIds ?? [], true) ? 'checked' : '' ?>>
+                            <span>📘 <?= e($lo['title']) ?><?= !empty($lo['subject_title']) ? ' · ' . e($lo['subject_title']) : '' ?></span>
+                        </label>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+        <?php endif; ?>
     </section>
 
     <?php /* ------------------------------------------------ 2. stem */ ?>

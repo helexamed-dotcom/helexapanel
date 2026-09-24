@@ -228,6 +228,9 @@ final class QuestionBankController extends Controller
             // Returned only now, after the student has committed: seeing how
             // the class split before answering would be a hint.
             'distribution'      => $this->practice->distribution((int) $question['id']),
+            // The درسنامه‌ها that teach this question: linked by hand, by a
+            // shared tag, or filed under the same topic.
+            'lessons'           => $this->lessonsFor((int) $question['id']),
         ]);
     }
 
@@ -312,6 +315,20 @@ final class QuestionBankController extends Controller
      * The filter set shared by the player and the list, read the same way in
      * both so a link from one to the other lands on the same sequence.
      */
+    /** @return list<array{title:string, url:string}> */
+    private function lessonsFor(int $questionId): array
+    {
+        if (!\HeleXa\Services\Modules::enabled('lessons') || !\HeleXa\Models\LessonRepository::ready()) {
+            return [];
+        }
+        try {
+            return array_map(static fn (array $l): array => ['title' => (string) $l['title'], 'url' => '/student/lessons/' . $l['uuid']],
+                (new \HeleXa\Models\LessonRepository())->forQuestion($questionId, 3));
+        } catch (\PDOException) {
+            return [];
+        }
+    }
+
     /** @return array{saved:int, review:int} */
     private function markCounts(int $userId, int $subjectId): array
     {

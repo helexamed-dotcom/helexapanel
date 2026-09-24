@@ -61,7 +61,7 @@
 .pl-exam {
     display: flex; align-items: center; gap: 14px; padding: 12px 14px; border-radius: 22px;
     background: var(--glass, var(--surface)); border: 1px solid var(--glass-line, var(--line)); box-shadow: var(--glass-shadow, var(--shadow));
-    animation: hx-rise .45s var(--spring) both;
+    animation: hx-rise .45s var(--spring) backwards;
 }
 .pl-exam-date { flex: 0 0 58px; height: 62px; border-radius: 18px; display: grid; place-content: center; text-align: center; background: var(--blue-soft); color: var(--blue); }
 .pl-exam-date b { font-size: 22px; line-height: 1.1; }

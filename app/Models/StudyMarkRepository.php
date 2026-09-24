@@ -20,6 +20,9 @@ final class StudyMarkRepository extends BaseRepository
         'balin_lesson' => ['🏝️', 'جزیره بالین'],
         'course'       => ['🎓', 'دوره'],
         'custom'       => ['✍️', 'یادداشت خودم'],
+        'lesson'       => ['📘', 'درسنامه'],
+        'mindmap'      => ['🧩', 'نقشه ذهنی'],
+        'figure'       => ['🦴', 'بازی با شکل'],
     ];
 
     /** @return array<int,array<string,mixed>> open first (by due date), then done */

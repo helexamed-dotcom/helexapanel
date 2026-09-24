@@ -529,7 +529,7 @@ html[dir="rtl"] .qs-go .ic { transform: scaleX(-1); }
 .qs-card {
     display: grid; gap: 10px; padding: 14px; border-radius: 22px;
     background: var(--glass, var(--surface)); border: 1px solid var(--glass-line, var(--line)); box-shadow: var(--glass-shadow, var(--shadow));
-    animation: hx-rise .5s var(--spring) both; animation-delay: calc(var(--i) * 40ms);
+    animation: hx-rise .5s var(--spring) backwards; animation-delay: calc(var(--i) * 40ms);
 }
 .qs-card.is-empty { opacity: .6; }
 .qs-card-main { display: flex; align-items: center; gap: 12px; color: inherit; }

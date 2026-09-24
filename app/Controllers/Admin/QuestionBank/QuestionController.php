@@ -147,6 +147,7 @@ final class QuestionController extends Controller
             $created = $this->questions->findByUuid($uuid);
             if ($created !== null) {
                 $this->questions->setLessonNote((int) $created['id'], (string) $request->input('lesson_note', ''));
+                $this->syncLessons((int) $created['id'], $request);
             }
         } catch (\RuntimeException $e) {
             $this->discardFreshImages();
@@ -186,6 +187,7 @@ final class QuestionController extends Controller
 
             $this->questions->update($id, $request->int('version'), $data, $options, $tagIds);
             $this->questions->setLessonNote($id, (string) $request->input('lesson_note', ''));
+            $this->syncLessons($id, $request);
         } catch (\RuntimeException $e) {
             $this->discardFreshImages();
             $this->flash('error', $e->getMessage());
@@ -393,7 +395,28 @@ final class QuestionController extends Controller
             'minOptions'   => self::MIN_OPTIONS,
             'maxOptions'   => self::MAX_OPTIONS,
             'maxImageKb'   => (int) (QbImageStorage::maxBytes() / 1024),
+            'lessonOptions'=> $this->lessonOptions(),
+            'lessonIds'    => $question === null || !\HeleXa\Models\LessonRepository::ready() ? []
+                : (new \HeleXa\Models\LessonRepository())->lessonIdsForQuestion((int) $question['id']),
         ]);
+    }
+
+    /** «درسنامه‌های مرتبط»: the درسنامه‌ها a wrong answer should send the student to. */
+    private function syncLessons(int $questionId, Request $request): void
+    {
+        if (!\HeleXa\Models\LessonRepository::ready()) {
+            return;
+        }
+        $ids = $request->input('lessons', []);
+        (new \HeleXa\Models\LessonRepository())->syncQuestionLessons($questionId, is_array($ids) ? $ids : []);
+    }
+
+    private function lessonOptions(): array
+    {
+        if (!\HeleXa\Models\LessonRepository::ready()) {
+            return [];
+        }
+        return (new \HeleXa\Models\LessonRepository())->search([], false, 500);
     }
 
     /**

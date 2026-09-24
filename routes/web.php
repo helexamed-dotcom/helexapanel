@@ -210,6 +210,12 @@ $router->group('/student', [
     $router->get('/qbank/{uuid}/list',      [StudentQbank::class, 'listing']);
     $router->get('/qbank/{uuid}',           [StudentQbank::class, 'practice']);
 
+    /* ------------------------------------------------ 📘 درسنامه‌ها */
+    $lc = \HeleXa\Controllers\Student\LessonController::class;
+    $router->get('/lessons',               [$lc, 'index']);
+    $router->get('/lessons/{uuid}',        [$lc, 'show']);
+    $router->post('/lessons/{uuid}/state', [$lc, 'saveState'], [ThrottleMiddleware::class . ':lesson_state,240,300']);
+
     /* ------------------------------------------------ 📝 یادداشت‌ها */
     $noteWrite = [ThrottleMiddleware::class . ':note_write,240,300'];
     $router->get('/notes',                                   [StudentNotes::class, 'index']);
@@ -351,6 +357,14 @@ $router->group('/content', [
         [ThrottleMiddleware::class . ':hl_write,200,300']);
     $router->post('/{uuid}/highlights/{highlight}/color',   [HighlightController::class, 'recolor'],
         [ThrottleMiddleware::class . ':hl_write,200,300']);
+});
+
+/* ----------------------------------------------- private module images
+   Every image of the newer modules is served from here, never as a public
+   file: the name is generated and the request must be signed in. */
+$router->group('/media', [AuthenticateMiddleware::class], function (\HeleXa\Core\Router $router): void {
+    $router->get('/lessons/{name}', [\HeleXa\Controllers\Student\LessonController::class, 'media'],
+        [ThrottleMiddleware::class . ':media,600,300']);
 });
 
 /* --------------------------------------------------------------- admin */
@@ -508,6 +522,27 @@ $router->group('/admin', [
     $router->post('/courses/{uuid}/contents/{content}',       [ContentController::class, 'updateContent'],  $content);
     $router->post('/courses/{uuid}/contents/{content}/delete',[ContentController::class, 'destroyContent'], $content);
     $router->post('/courses/{uuid}/contents/{content}/move',  [ContentController::class, 'moveContent'],    $content);
+
+    /* ---------------------------------------------------- 📘 درسنامه‌ها */
+    $lessons = [PermissionMiddleware::class . ':lessons.manage'];
+    $alc = \HeleXa\Controllers\Admin\LessonController::class;
+    $router->get('/lessons',                  [$alc, 'index'],     $lessons);
+    $router->get('/lessons/create',           [$alc, 'create'],    $lessons);
+    $router->get('/lessons/transfer',         [$alc, 'transfer'],  $lessons);
+    $router->get('/lessons/export',           [$alc, 'export'],    array_merge($lessons, [ThrottleMiddleware::class . ':lesson_export,20,600']));
+    $router->post('/lessons/import',          [$alc, 'import'],    array_merge($lessons, [ThrottleMiddleware::class . ':lesson_import,20,600']));
+    $router->post('/lessons/media',           [$alc, 'upload'],    array_merge($lessons, [ThrottleMiddleware::class . ':lesson_media,120,600']));
+    $router->post('/lessons',                 [$alc, 'store'],     $lessons);
+    $router->get('/lessons/{uuid}/edit',      [$alc, 'edit'],      $lessons);
+    $router->post('/lessons/{uuid}/status',   [$alc, 'setStatus'], $lessons);
+    $router->post('/lessons/{uuid}/delete',   [$alc, 'destroy'],   $lessons);
+    $router->post('/lessons/{uuid}',          [$alc, 'update'],    $lessons);
+
+    $stc2 = \HeleXa\Controllers\Admin\SharedTagController::class;
+    $router->get('/lesson-tags',              [$stc2, 'index'],    $lessons);
+    $router->post('/lesson-tags',             [$stc2, 'store'],    $lessons);
+    $router->post('/lesson-tags/{id}',        [$stc2, 'update'],   $lessons);
+    $router->post('/lesson-tags/{id}/delete', [$stc2, 'destroy'],  $lessons);
 
     /* ----------------------------------------------- weekly schedule */
     $schedule = [PermissionMiddleware::class . ':manage_schedule'];

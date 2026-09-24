@@ -787,3 +787,17 @@
         });
     }
 })();
+
+/* The question editor's «درسنامه‌های مرتبط» search box. */
+(function () {
+    'use strict';
+    var box = document.querySelector('[data-lesson-filter]');
+    var list = document.querySelector('[data-lesson-list]');
+    if (!box || !list) { return; }
+    box.addEventListener('input', function () {
+        var q = box.value.trim();
+        list.querySelectorAll('[data-title]').forEach(function (l) {
+            l.hidden = q !== '' && l.getAttribute('data-title').indexOf(q) === -1 && !l.querySelector('input').checked;
+        });
+    });
+})();
