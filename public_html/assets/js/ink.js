@@ -187,7 +187,12 @@
         var canvas = document.createElement('canvas');
         canvas.className = 'hlx-ink-live';
         canvas.setAttribute('aria-hidden', 'true');
-        canvas.style.cssText = 'position:fixed;left:0;top:0;width:100vw;height:100vh;pointer-events:none;z-index:2147482600;';
+        // Sized in pixels from innerWidth/innerHeight, never 100vw/100vh. On
+        // iOS 100vh is the height with the address bar hidden, taller than the
+        // visible window while the bar shows, so the bitmap was stretched and
+        // the ink being drawn slid further below the pen the lower it was on
+        // the screen — then jumped into place when the stroke was committed.
+        canvas.style.cssText = 'position:fixed;left:0;top:0;pointer-events:none;z-index:2147482600;';
         (document.body || document.documentElement).appendChild(canvas);
         // No { desynchronized: true } here. On many phones a low-latency 2D
         // context used as a fixed, full-viewport overlay (inside an iframe
@@ -199,12 +204,18 @@
         var ctx = canvas.getContext('2d');
         live = { canvas: canvas, ctx: ctx, dpr: 1 };
         function size() {
+            var w = window.innerWidth, hgt = window.innerHeight;
             live.dpr = Math.min(window.devicePixelRatio || 1, 3);
-            canvas.width = Math.round(window.innerWidth * live.dpr);
-            canvas.height = Math.round(window.innerHeight * live.dpr);
+            canvas.style.width = w + 'px';
+            canvas.style.height = hgt + 'px';
+            canvas.width = Math.round(w * live.dpr);
+            canvas.height = Math.round(hgt * live.dpr);
         }
         size();
         window.addEventListener('resize', size);
+        // The address bar showing or hiding changes the window without always
+        // firing a window resize on iOS; the visual viewport does report it.
+        if (window.visualViewport) { window.visualViewport.addEventListener('resize', size); }
         return live;
     }
 
@@ -310,6 +321,14 @@
         return [ev.clientX - this.org.x, ev.clientY - this.org.y, ev.pressure];
     };
 
+    /* The board may move under a stroke — an inertial scroll still settling,
+       the address bar sliding away — and every point is relative to where the
+       board is now, not where it was at pointerdown. Measured once per frame. */
+    Board.prototype._track = function () {
+        var now = this.origin();
+        if (!this.org || now.x !== this.org.x || now.y !== this.org.y) { this.org = now; }
+    };
+
     Board.prototype._down = function (e) {
         if (!this.o.active()) { return; }
         if (e.pointerType === 'mouse' && e.button !== 0) { return; }
@@ -388,6 +407,12 @@
     Board.prototype._move = function (e) {
         if (e.pointerId !== this.pid) { return; }
         if (e.cancelable) { e.preventDefault(); }
+        if (!this.tracked) {
+            var self = this;
+            this.tracked = true;
+            this._track();
+            root.requestAnimationFrame(function () { self.tracked = false; });
+        }
         if (this.erasing) { this._eraseAt(e); this._schedule(); return; }
         if (!this.cur) { return; }
         this._add(e);

@@ -87,7 +87,11 @@
             init.headers['Content-Type'] = 'application/json';
             init.body = JSON.stringify(body);
         }
-        if (keepalive) { init.keepalive = true; }
+        // A keepalive request may carry at most 64 KB; a page of handwriting
+        // is often more, and the browser then drops it without a word. Past
+        // the limit it goes as an ordinary request, which a page that is
+        // being hidden (not closed) still completes.
+        if (keepalive && (!init.body || init.body.length < 60000)) { init.keepalive = true; }
         return fetch(url, init).then(function (r) {
             return r.json().catch(function () { return { ok: false }; }).then(function (data) {
                 if (!r.ok || !data || data.ok === false) {
@@ -357,6 +361,10 @@
         this.paintFileCount();
 
         this.onUnload = function () { self.flush(true); };
+        // iOS often skips pagehide when switching apps; hiding the tab is the
+        // last moment that is reliably ours.
+        this.onHide = function () { if (document.visibilityState === 'hidden') { self.flush(true); } };
+        document.addEventListener('visibilitychange', this.onHide);
         root.addEventListener('pagehide', this.onUnload);
         if (o.focusTitle && !note.title) { this.title.focus(); }
     };
@@ -685,6 +693,7 @@
         this.destroyed = true;
         if (this.saveTimer) { clearTimeout(this.saveTimer); }
         if (this.onUnload) { root.removeEventListener('pagehide', this.onUnload); }
+        if (this.onHide) { document.removeEventListener('visibilitychange', this.onHide); }
         this.observers.forEach(function (ro) { ro.disconnect(); });
         this.boards.forEach(function (entry) { entry.board.destroy(); });
         this.boards = [];
