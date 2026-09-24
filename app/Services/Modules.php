@@ -42,6 +42,8 @@ final class Modules
         'balin'      => ['جزیره بالین',    'کیس‌های بالینی مرحله به مرحله',      'island',   'teal',   '/student/balin',      'practice'],
         'planner'    => ['برنامه و امتحان', 'کلاس‌ها، امتحان‌ها و تقویم',        'calendar', 'blue',   '/student/planner',    'plan'],
         'analytics'  => ['تحلیل عملکرد',   'زمان مطالعه و نقاط قوت',            'chart',    'green',  '/student/analytics',  'plan'],
+        'leaderboard' => ['رتبه‌بندی',     'لیگ این هفته و رتبه کل',            'trophy',   'amber',  '/student/leaderboard', 'social'],
+        'people'     => ['هم‌کلاسی‌ها',     'پست‌ها، دنبال کردن و دوستان',       'users',    'violet', '/student/people',     'social'],
         'shop'       => ['فروشگاه',        'پکیج‌ها و محصولات آموزشی',          'bag',      'orange', '/shop',               'shop'],
     ];
 
@@ -49,6 +51,7 @@ final class Modules
         'study'    => 'مطالعه',
         'practice' => 'تمرین و بازی',
         'plan'     => 'برنامه',
+        'social'   => 'من و هم‌کلاسی‌ها',
         'shop'     => 'خرید',
     ];
 
@@ -181,6 +184,8 @@ final class Modules
             '/student/exams'      => 'planner',
             '/student/midterms'   => 'planner',
             '/student/analytics'  => 'analytics',
+            '/student/leaderboard' => 'leaderboard',
+            '/student/people'     => 'people',
             '/shop'               => 'shop',
         ];
         foreach ($map as $prefix => $key) {
