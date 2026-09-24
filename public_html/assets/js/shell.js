@@ -378,6 +378,48 @@
         });
     })();
 
+    /* ------------------------------------------- admin menu accordion
+       One module open at a time; the search box opens every module with a
+       match and hides every page without one. */
+    (function () {
+        var groups = document.querySelectorAll('[data-adn-group]');
+        if (!groups.length) { return; }
+        var searching = false;
+        groups.forEach(function (g) {
+            g.addEventListener('toggle', function () {
+                if (!g.open || searching) { return; }
+                groups.forEach(function (o) { if (o !== g) { o.open = false; } });
+            });
+        });
+        var search = document.querySelector('[data-adn-search]');
+        if (!search) { return; }
+        var initial = Array.prototype.map.call(groups, function (g) { return g.open; });
+        var norm = function (t) { return String(t || '').toLowerCase().replace(/[يى]/g, 'ی').replace(/ك/g, 'ک').replace(/[\s\u200c]+/g, ''); };
+        search.addEventListener('input', function () {
+            var q = norm(search.value);
+            searching = q !== '';
+            groups.forEach(function (g, i) {
+                var hits = 0;
+                g.querySelectorAll('[data-adn-item]').forEach(function (a) {
+                    var hit = !q || norm(a.getAttribute('data-search')).indexOf(q) !== -1;
+                    a.hidden = !hit;
+                    if (hit) { hits++; }
+                });
+                g.hidden = q !== '' && hits === 0;
+                g.open = q !== '' ? hits > 0 : initial[i];
+            });
+        });
+        search.addEventListener('keydown', function (e) {
+            if (e.key !== 'Enter') { return; }
+            var first = document.querySelector('[data-adn-item]:not([hidden])');
+            var group = first && first.closest('[data-adn-group]');
+            if (first && group && !group.hidden) { e.preventDefault(); window.location.href = first.href; }
+        });
+        document.addEventListener('keydown', function (e) {
+            if ((e.ctrlKey || e.metaKey) && !e.altKey && e.code === 'KeyK') { e.preventDefault(); search.focus(); search.select(); }
+        });
+    })();
+
     /* --------------------------------------------------- zoom-open
        Tapping a card marked .hx-zoom grows it to fill the screen, then the
        next page loads underneath — like opening a photo in the gallery. A

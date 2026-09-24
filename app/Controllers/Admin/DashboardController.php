@@ -26,7 +26,22 @@ final class DashboardController extends Controller
             'activeStudents' => $users->countActiveStudents(),
             'onlineNow'      => $sessions->countOnline(),
             'recentLogins'   => $sessions->recentLogins(8),
-            'recentActivity' => Auth::can('view_logs') ? (new ActivityLogRepository())->recent(10) : [],
+            'recentActivity' => Auth::can('view_logs') ? (new ActivityLogRepository())->recent(8) : [],
+            'inbox'          => \HeleXa\Services\AdminInbox::rows(),
+            'newToday'       => $this->count("SELECT COUNT(*) AS c FROM users u JOIN roles r ON r.id = u.role_id
+                                              WHERE r.slug = 'student' AND u.deleted_at IS NULL AND u.created_at >= CURDATE()"),
+            'salesMonth'     => Auth::can('shop.orders') ? $this->count("SELECT COALESCE(SUM(total), 0) AS c FROM shop_orders
+                                              WHERE status = 'paid' AND paid_at >= DATE_FORMAT(NOW(), '%Y-%m-01')") : null,
+            'studyToday'     => $this->count('SELECT COALESCE(SUM(duration_seconds), 0) AS c FROM study_sessions WHERE started_at >= CURDATE()'),
         ]);
+    }
+
+    private function count(string $sql): int
+    {
+        try {
+            return (int) (\HeleXa\Core\Database::selectOne($sql)['c'] ?? 0);
+        } catch (\PDOException) {
+            return 0;
+        }
     }
 }

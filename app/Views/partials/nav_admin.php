@@ -1,265 +1,141 @@
 <?php
 /**
- * Admin navigation.
+ * Admin navigation: modules as an accordion.
  *
- * Seventeen destinations is too many for one flat list, so they are grouped by
- * the job being done. A group's heading is only printed when the signed-in
- * admin can actually reach something inside it, which is why each group is
- * gated on the same permissions as its own items.
+ * Thirty-odd destinations in one scrolling list is where an admin gets lost,
+ * so each module is one row with its own icon; it opens to show its pages,
+ * and only the module you are in is open. The search box above filters every
+ * page at once. A module is printed only when the admin can reach at least
+ * one page in it.
+ *
+ * @var string $currentPath
+ * @var array  $unreadCounts
  */
-$canStudents = can('manage_students');
-$canSchedule = can('manage_schedule');
-$canExams    = can('manage_exams');
-$canCalendar = can('manage_calendar');
-$canMessages = can('manage_messages');
-$canSettings = can('manage_settings');
+use HeleXa\Core\View;
 
-$canBalin    = can('balin.view');
+$icon = static fn (string $n) => View::partial('partials.icon', ['name' => $n]);
+$count = static function (string $sql): int {
+    try {
+        return (int) (\HeleXa\Core\Database::selectOne($sql)['c'] ?? 0);
+    } catch (\Throwable) {
+        return 0;
+    }
+};
 
-$hasLearning = $canStudents || can('manage_courses') || can('manage_packages') || can('manage_content');
-$hasPlanning = $canSchedule || $canExams || $canCalendar;
-$hasComms    = can('manage_notifications') || $canMessages;
-$hasSecurity = can('view_sessions') || can('view_logs') || can('manage_admins') || $canSettings || $canStudents;
-$openFlags   = $canStudents ? \HeleXa\Services\IpWatch::openCount() : 0;
+// [href, label, icon, permission|null, badge, exact-match]
+$groups = [
+    ['کاربران', 'users', 'blue', [
+        ['/admin/students',               'دانشجویان',         'users',   'manage_students', 0, false],
+        ['/admin/student-types',          'انواع دانشجو',       'school',  'manage_students', can('manage_students') ? \HeleXa\Services\StudentTypes::pendingCount() : 0, false],
+        ['/admin/access',                 'دسترسی‌ها',          'key',     'manage_students', 0, false],
+        ['/admin/academic',               'ساختار آموزشی',      'layers',  'manage_students', 0, false],
+        ['/admin/admins',                 'مدیران',             'user',    'manage_admins',   0, false],
+    ]],
+    ['محتوای آموزشی', 'lesson', 'indigo', [
+        ['/admin/lessons',                'درسنامه‌ها',          'lesson',  'lessons.manage',  0, false],
+        ['/admin/mindmaps',               'نقشه‌های ذهنی',       'mindmap', 'lessons.manage',  0, false],
+        ['/admin/courses',                'دوره‌ها',             'book',    'manage_courses',  0, false],
+        ['/admin/library',                'کتابخانه',            'folder',  'manage_content',  0, false],
+        ['/admin/content',                'همه جزوه‌ها',         'note',    'manage_content',  0, true],
+        ['/admin/lesson-tags',            'برچسب‌های مشترک',     'tag',     'lessons.manage',  0, false],
+    ]],
+    ['بانک سوال', 'qbank', 'violet', [
+        ['/admin/qbank',                  'مرور بانک سوال',     'qbank',   'qbank.view', 0, true],
+        ['/admin/qbank/questions',        'سوالات',             'exam',    'qbank.view', 0, false],
+        ['/admin/qbank/subjects',         'دروس و زیردروس',     'layers',  'qbank.view', 0, false],
+        ['/admin/qbank/tags',             'برچسب‌ها',           'tag',     'qbank.view', 0, false],
+        ['/admin/qbank/reports',          'گزارشات اشکال',      'message', 'qbank.view', can('qbank.view') ? $count("SELECT COUNT(*) AS c FROM qb_reports WHERE status = 'open'") : 0, false],
+        ['/admin/qbank/transfer',         'ورود و خروج JSON',   'download','qbank.view', 0, false],
+        ['/admin/qbank/access',           'دسترسی دانشجویان',   'key',     'qbank.manage_students', 0, false],
+    ]],
+    ['فلش‌کارت و بازی', 'cards', 'rose', [
+        ['/admin/flashcards',             'درس‌های فلش‌کارت',    'cards',   'flashcards.manage', 0, false],
+        ['/admin/figures',                'بازی با شکل',         'figure',  'flashcards.manage', 0, false],
+        ['/admin/flashcards/access',      'دسترسی دانشجویان',   'key',     'flashcards.manage_students', 0, false],
+    ]],
+    ['جزیره بالین', 'island', 'teal', [
+        ['/admin/balin',                  'مرور جزیره',          'island',  'balin.view', 0, true],
+        ['/admin/balin/lessons',          'درس‌های بالینی',      'stethoscope', 'balin.view', 0, false],
+        ['/admin/balin/skill-tracks',     'مهارت‌های بالینی',    'route',   'balin.manage_skill_tracks', 0, false],
+        ['/admin/balin/characters',       'شخصیت‌ها',            'users',   'balin.manage_characters', 0, false],
+        ['/admin/balin/media',            'کتابخانه رسانه',      'image',   'balin.view', 0, false],
+        ['/admin/balin/transfer',         'ورود و خروج JSON',   'download','balin.view', 0, false],
+        ['/admin/balin/access',           'دسترسی دانشجویان',   'key',     'balin.manage_students', 0, false],
+        ['/admin/balin/competitions',     'رقابت هفتگی',         'trophy',  'balin.manage_competition', 0, false],
+        ['/admin/balin/rank-tiers',       'عنوان سطح‌ها',        'sparkle', 'balin.manage_rank_titles', 0, false],
+        ['/admin/balin/analytics',        'آمار بالین',          'chart',   'balin.view_statistics', 0, false],
+    ]],
+    ['فروشگاه', 'bag', 'orange', [
+        ['/admin/shop',                   'مرور فروشگاه',        'store',   'shop.manage', 0, true],
+        ['/admin/shop/orders',            'سفارش‌ها',            'receipt', 'shop.orders', can('shop.orders') ? $count("SELECT COUNT(*) AS c FROM shop_orders WHERE status = 'review'") : 0, false],
+        ['/admin/shop/products',          'محصولات',             'bag',     'shop.manage', 0, false],
+        ['/admin/shop/coupons',           'کدهای تخفیف',         'percent', 'shop.manage', 0, false],
+        ['/admin/shop/settings',          'پرداخت و ظاهر',       'creditcard', 'shop.manage', 0, false],
+        ['/admin/packages',               'پکیج‌ها',             'package', 'manage_packages', 0, false],
+        ['/admin/activation-codes',       'کدهای فعال‌سازی',      'key',     'manage_packages', 0, false],
+    ]],
+    ['برنامه و آزمون', 'calendar', 'sky', [
+        ['/admin/schedule',               'برنامه هفتگی',        'calendar','manage_schedule', 0, false],
+        ['/admin/exams',                  'امتحانات',            'exam',    'manage_exams',    0, false],
+        ['/admin/midterms',               'میان‌ترم‌ها',          'clock',   'manage_exams',    0, false],
+        ['/admin/calendar',               'تقویم',               'layers',  'manage_calendar', 0, false],
+    ]],
+    ['ارتباطات', 'chat', 'green', [
+        ['/admin/notifications',          'اطلاعیه‌ها',          'bell',    'manage_notifications', 0, false],
+        ['/admin/messages',               'پیام‌ها',             'message', 'manage_messages', 0, false],
+        ['/admin/support',                'پشتیبانی',           'support', 'manage_messages', (int) ($unreadCounts['support_open'] ?? 0), false],
+    ]],
+    ['تنظیمات و امنیت', 'settings', 'slate', [
+        ['/admin/home-screen',            'صفحه اصلی دانشجو',    'apps',    'manage_settings', 0, false],
+        ['/admin/settings',               'تنظیمات سایت',        'settings','manage_settings', 0, false],
+        ['/admin/points',                 'امتیاز و لیگ',        'trophy',  'manage_settings', 0, false],
+        ['/admin/sessions',               'نشست‌ها',             'clock',   'view_sessions',   0, false],
+        ['/admin/security/flags',         'ورود مشکوک',          'shield',  'manage_students', can('manage_students') ? \HeleXa\Services\IpWatch::openCount() : 0, false],
+        ['/admin/security',               'بازبینی امنیت',       'shield',  'manage_settings', 0, true],
+        ['/admin/logs',                   'گزارش فعالیت',        'list',    'view_logs',       0, false],
+        ['/admin/backup',                 'پشتیبان‌گیری',         'download','manage_settings', 0, false],
+    ]],
+];
+
+$isOn = static function (string $href, bool $exact) use ($currentPath): bool {
+    return $exact ? $currentPath === $href : ($currentPath === $href || str_starts_with($currentPath, $href . '/'));
+};
 ?>
-<div class="nav-group">
-    <div class="nav-label"><?= e(t('مرور کلی')) ?></div>
-    <a class="nav-item<?= active_when($currentPath, '/admin') ?>" href="/admin" data-tip="<?= e(t('داشبورد')) ?>">
-        <?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'home']); ?> <span class="nav-text"><?= e(t('داشبورد')) ?></span>
-    </a>
-</div>
+<label class="adn-search">
+    <?php $icon('search'); ?>
+    <input type="search" placeholder="<?= e(t('جستجوی صفحه…')) ?>" data-adn-search autocomplete="off" aria-label="<?= e(t('جستجو در منو')) ?>">
+</label>
 
-<?php if ($hasLearning): ?>
-    <div class="nav-group">
-        <div class="nav-label"><?= e(t('آموزش')) ?></div>
-        <?php if ($canStudents): ?>
-            <a class="nav-item<?= active_when($currentPath, '/admin/students') ?>" href="/admin/students" data-tip="<?= e(t('دانشجویان')) ?>">
-                <?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'users']); ?> <span class="nav-text"><?= e(t('دانشجویان')) ?></span>
-            </a>
-        <?php endif; ?>
-        <?php if ($canStudents): ?>
-            <a class="nav-item<?= active_when($currentPath, '/admin/access') ?>" href="/admin/access" data-tip="<?= e(t('دسترسی‌ها')) ?>">
-                <?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'key']); ?> <span class="nav-text"><?= e(t('دسترسی‌ها')) ?></span>
-            </a>
-        <?php endif; ?>
-        <?php if (can('manage_courses')): ?>
-            <a class="nav-item<?= active_when($currentPath, '/admin/courses') ?>" href="/admin/courses" data-tip="<?= e(t('دوره‌ها')) ?>">
-                <?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'book']); ?> <span class="nav-text"><?= e(t('دوره‌ها')) ?></span>
-            </a>
-        <?php endif; ?>
-        <?php if (can('manage_packages')): ?>
-            <a class="nav-item<?= active_when($currentPath, '/admin/packages') ?>" href="/admin/packages" data-tip="<?= e(t('پکیج‌ها')) ?>">
-                <?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'package']); ?> <span class="nav-text"><?= e(t('پکیج‌ها')) ?></span>
-            </a>
-            <a class="nav-item<?= active_when($currentPath, '/admin/activation-codes') ?>" href="/admin/activation-codes" data-tip="<?= e(t('کدهای فعال‌سازی')) ?>">
-                <?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'key']); ?> <span class="nav-text"><?= e(t('کدهای فعال‌سازی')) ?></span>
-            </a>
-        <?php endif; ?>
-        <?php if (can('manage_content')): ?>
-            <a class="nav-item<?= active_when($currentPath, '/admin/library') ?>" href="/admin/library" data-tip="<?= e(t('محتوای آموزشی')) ?>">
-                <?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'folder']); ?> <span class="nav-text"><?= e(t('محتوای آموزشی')) ?></span>
-            </a>
-        <?php endif; ?>
-        <?php if ($canStudents): ?>
-            <a class="nav-item<?= active_when($currentPath, '/admin/academic') ?>" href="/admin/academic" data-tip="<?= e(t('ساختار آموزشی')) ?>">
-                <?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'school']); ?> <span class="nav-text"><?= e(t('ساختار آموزشی')) ?></span>
-            </a>
-        <?php endif; ?>
-    </div>
-<?php endif; ?>
+<a class="nav-item adn-home<?= $currentPath === '/admin' ? ' is-active' : '' ?>" href="/admin" data-tip="<?= e(t('داشبورد')) ?>">
+    <?php $icon('home'); ?> <span class="nav-text"><?= e(t('داشبورد')) ?></span>
+</a>
 
-<?php
-/**
- * Balin is a module in its own right, not a page — it has its own content
- * tree, its own exams and its own competition — so it gets a group rather
- * than one more entry under teaching.
- */
-if ($canBalin): ?>
-    <div class="nav-group">
-        <div class="nav-label"><?= e(t('جزیره بالین')) ?></div>
-        <a class="nav-item<?= active_when($currentPath, '/admin/balin') ?>" href="/admin/balin" data-tip="<?= e(t('مرور جزیره')) ?>">
-            <?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'island']); ?> <span class="nav-text"><?= e(t('مرور جزیره')) ?></span>
-        </a>
-        <a class="nav-item<?= active_when($currentPath, '/admin/balin/lessons') ?>" href="/admin/balin/lessons" data-tip="<?= e(t('درس‌های بالینی')) ?>">
-            <?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'stethoscope']); ?> <span class="nav-text"><?= e(t('درس‌های بالینی')) ?></span>
-        </a>
-        <?php if (can('balin.manage_skill_tracks')): ?>
-            <a class="nav-item<?= active_when($currentPath, '/admin/balin/skill-tracks') ?>" href="/admin/balin/skill-tracks" data-tip="<?= e(t('مهارت‌های بالینی')) ?>">
-                <?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'route']); ?> <span class="nav-text"><?= e(t('مهارت‌های بالینی')) ?></span>
-            </a>
-        <?php endif; ?>
-        <?php if (can('balin.manage_characters')): ?>
-            <a class="nav-item<?= active_when($currentPath, '/admin/balin/characters') ?>" href="/admin/balin/characters" data-tip="<?= e(t('شخصیت‌ها')) ?>">
-                <?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'users']); ?> <span class="nav-text"><?= e(t('شخصیت‌ها')) ?></span>
-            </a>
-        <?php endif; ?>
-        <a class="nav-item<?= active_when($currentPath, '/admin/balin/transfer') ?>" href="/admin/balin/transfer" data-tip="<?= e(t('ورود و خروج JSON')) ?>">
-            <?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'download']); ?> <span class="nav-text"><?= e(t('ورود و خروج JSON')) ?></span>
-        </a>
-        <a class="nav-item<?= active_when($currentPath, '/admin/balin/media') ?>" href="/admin/balin/media" data-tip="<?= e(t('کتابخانه رسانه')) ?>">
-            <?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'folder']); ?> <span class="nav-text"><?= e(t('کتابخانه رسانه')) ?></span>
-        </a>
-        <?php if (can('balin.manage_students')): ?>
-            <a class="nav-item<?= active_when($currentPath, '/admin/balin/access') ?>" href="/admin/balin/access" data-tip="<?= e(t('دسترسی دانشجویان')) ?>">
-                <?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'key']); ?> <span class="nav-text"><?= e(t('دسترسی دانشجویان')) ?></span>
-            </a>
-        <?php endif; ?>
-        <?php if (can('balin.manage_competition')): ?>
-            <a class="nav-item<?= active_when($currentPath, '/admin/balin/competitions') ?>" href="/admin/balin/competitions" data-tip="<?= e(t('رقابت هفتگی')) ?>">
-                <?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'trophy']); ?> <span class="nav-text"><?= e(t('رقابت هفتگی')) ?></span>
-            </a>
-        <?php endif; ?>
-        <?php if (can('balin.manage_rank_titles')): ?>
-            <a class="nav-item<?= active_when($currentPath, '/admin/balin/rank-tiers') ?>" href="/admin/balin/rank-tiers" data-tip="<?= e(t('عنوان سطح‌ها')) ?>">
-                <?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'sparkle']); ?> <span class="nav-text"><?= e(t('عنوان سطح‌ها')) ?></span>
-            </a>
-        <?php endif; ?>
-        <?php if (can('balin.view_statistics')): ?>
-            <a class="nav-item<?= active_when($currentPath, '/admin/balin/analytics') ?>" href="/admin/balin/analytics" data-tip="<?= e(t('آمار بالین')) ?>">
-                <?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'chart']); ?> <span class="nav-text"><?= e(t('آمار بالین')) ?></span>
-            </a>
-        <?php endif; ?>
-    </div>
-<?php endif; ?>
-
-<?php
-/**
- * The question bank is its own group for the same reason Balin is: it has a
- * syllabus, a tag set, a question list and an access list, and four entries
- * under «آموزش» would bury them.
- */
-if (can('qbank.view')): ?>
-    <div class="nav-group">
-        <div class="nav-label"><?= e(t('بانک سوال')) ?></div>
-        <a class="nav-item<?= $currentPath === '/admin/qbank' ? ' is-active' : '' ?>" href="/admin/qbank" data-tip="<?= e(t('مرور بانک سوال')) ?>">
-            <?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'qbank']); ?> <span class="nav-text"><?= e(t('مرور بانک سوال')) ?></span>
-        </a>
-        <a class="nav-item<?= active_when($currentPath, '/admin/qbank/questions') ?>" href="/admin/qbank/questions" data-tip="<?= e(t('سوالات')) ?>">
-            <?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'exam']); ?> <span class="nav-text"><?= e(t('سوالات')) ?></span>
-        </a>
-        <a class="nav-item<?= active_when($currentPath, '/admin/qbank/subjects') ?>" href="/admin/qbank/subjects" data-tip="<?= e(t('دروس و زیردروس')) ?>">
-            <?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'layers']); ?> <span class="nav-text"><?= e(t('دروس و زیردروس')) ?></span>
-        </a>
-        <a class="nav-item<?= active_when($currentPath, '/admin/qbank/tags') ?>" href="/admin/qbank/tags" data-tip="<?= e(t('برچسب‌ها')) ?>">
-            <?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'tag']); ?> <span class="nav-text"><?= e(t('برچسب‌ها')) ?></span>
-        </a>
-        <a class="nav-item<?= active_when($currentPath, '/admin/qbank/transfer') ?>" href="/admin/qbank/transfer" data-tip="<?= e(t('ورود و خروج JSON')) ?>">
-            <?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'download']); ?> <span class="nav-text"><?= e(t('ورود و خروج JSON')) ?></span>
-        </a>
-        <?php $openReports = (new \HeleXa\Models\QuestionBank\QbReportRepository())->countOpen(); ?>
-        <a class="nav-item<?= active_when($currentPath, '/admin/qbank/reports') ?>" href="/admin/qbank/reports" data-tip="<?= e(t('گزارشات اشکال')) ?>">
-            <?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'message']); ?> <span class="nav-text"><?= e(t('گزارشات اشکال')) ?></span>
-            <?php if ($openReports > 0): ?>
-                <span class="nav-badge"><?= e(fa((string) $openReports)) ?></span>
-            <?php endif; ?>
-        </a>
-        <?php if (can('qbank.manage_students')): ?>
-            <a class="nav-item<?= active_when($currentPath, '/admin/qbank/access') ?>" href="/admin/qbank/access" data-tip="<?= e(t('دسترسی دانشجویان')) ?>">
-                <?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'key']); ?> <span class="nav-text"><?= e(t('دسترسی دانشجویان')) ?></span>
-            </a>
-        <?php endif; ?>
-    </div>
-<?php endif; ?>
-
-<?php if (can('flashcards.manage') || can('flashcards.manage_students')): ?>
-    <div class="nav-group">
-        <div class="nav-label"><?= e(t('فلش‌کارت')) ?></div>
-        <?php if (can('flashcards.manage')): ?>
-            <a class="nav-item<?= $currentPath === '/admin/flashcards' || str_starts_with($currentPath, '/admin/flashcards/course') || str_starts_with($currentPath, '/admin/flashcards/deck') ? ' is-active' : '' ?>"
-               href="/admin/flashcards" data-tip="<?= e(t('درس‌های فلش‌کارت')) ?>">
-                <?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'cards']); ?> <span class="nav-text"><?= e(t('درس‌های فلش‌کارت')) ?></span>
-            </a>
-        <?php endif; ?>
-        <?php if (can('flashcards.manage_students')): ?>
-            <a class="nav-item<?= active_when($currentPath, '/admin/flashcards/access') ?>" href="/admin/flashcards/access" data-tip="<?= e(t('دسترسی فلش‌کارت')) ?>">
-                <?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'key']); ?> <span class="nav-text"><?= e(t('دسترسی دانشجویان')) ?></span>
-            </a>
-        <?php endif; ?>
-    </div>
-<?php endif; ?>
-
-<?php if ($hasPlanning): ?>
-    <div class="nav-group">
-        <div class="nav-label"><?= e(t('برنامه و آزمون')) ?></div>
-        <?php if ($canSchedule): ?>
-            <a class="nav-item<?= active_when($currentPath, '/admin/schedule') ?>" href="/admin/schedule" data-tip="<?= e(t('برنامه هفتگی')) ?>">
-                <?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'calendar']); ?> <span class="nav-text"><?= e(t('برنامه هفتگی')) ?></span>
-            </a>
-        <?php endif; ?>
-        <?php if ($canExams): ?>
-            <a class="nav-item<?= active_when($currentPath, '/admin/exams') ?>" href="/admin/exams" data-tip="<?= e(t('امتحانات')) ?>">
-                <?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'exam']); ?> <span class="nav-text"><?= e(t('امتحانات')) ?></span>
-            </a>
-            <a class="nav-item<?= active_when($currentPath, '/admin/midterms') ?>" href="/admin/midterms" data-tip="<?= e(t('میان‌ترم‌ها')) ?>">
-                <?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'clock']); ?> <span class="nav-text"><?= e(t('میان‌ترم‌ها')) ?></span>
-            </a>
-        <?php endif; ?>
-        <?php if ($canCalendar): ?>
-            <a class="nav-item<?= active_when($currentPath, '/admin/calendar') ?>" href="/admin/calendar" data-tip="<?= e(t('تقویم')) ?>">
-                <?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'layers']); ?> <span class="nav-text"><?= e(t('تقویم')) ?></span>
-            </a>
-        <?php endif; ?>
-    </div>
-<?php endif; ?>
-
-<?php if ($hasComms): ?>
-    <div class="nav-group">
-        <div class="nav-label"><?= e(t('ارتباطات')) ?></div>
-        <?php if (can('manage_notifications')): ?>
-            <a class="nav-item<?= active_when($currentPath, '/admin/notifications') ?>" href="/admin/notifications" data-tip="<?= e(t('اطلاعیه‌ها')) ?>">
-                <?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'bell']); ?> <span class="nav-text"><?= e(t('اطلاعیه‌ها')) ?></span>
-            </a>
-        <?php endif; ?>
-        <?php if ($canMessages): ?>
-            <a class="nav-item<?= active_when($currentPath, '/admin/messages') ?>" href="/admin/messages" data-tip="<?= e(t('پیام‌ها')) ?>">
-                <?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'message']); ?> <span class="nav-text"><?= e(t('پیام‌ها')) ?></span>
-            </a>
-            <a class="nav-item<?= active_when($currentPath, '/admin/support') ?>" href="/admin/support" data-tip="<?= e(t('پشتیبانی')) ?>">
-                <?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'support']); ?> <span class="nav-text"><?= e(t('پشتیبانی')) ?></span>
-                <?php if (($unreadCounts['support_open'] ?? 0) > 0): ?>
-                    <span class="nav-badge"><?= e(fa((string) $unreadCounts['support_open'])) ?></span>
-                <?php endif; ?>
-            </a>
-        <?php endif; ?>
-    </div>
-<?php endif; ?>
-
-<?php if ($hasSecurity): ?>
-    <div class="nav-group">
-        <div class="nav-label"><?= e(t('امنیت و تنظیمات')) ?></div>
-        <?php if (can('view_sessions')): ?>
-            <a class="nav-item<?= active_when($currentPath, '/admin/sessions') ?>" href="/admin/sessions" data-tip="<?= e(t('نشست‌ها')) ?>">
-                <?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'clock']); ?> <span class="nav-text"><?= e(t('نشست‌ها')) ?></span>
-            </a>
-        <?php endif; ?>
-        <?php if ($canStudents): ?>
-            <a class="nav-item<?= active_when($currentPath, '/admin/security/flags') ?>" href="/admin/security/flags" data-tip="<?= e(t('کاربران مشکوک')) ?>">
-                <?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'shield']); ?> <span class="nav-text"><?= e(t('کاربران مشکوک')) ?></span>
-                <?php if ($openFlags > 0): ?>
-                    <span class="nav-badge"><?= e(fa((string) $openFlags)) ?></span>
-                <?php endif; ?>
-            </a>
-        <?php endif; ?>
-        <?php if (can('view_logs')): ?>
-            <a class="nav-item<?= active_when($currentPath, '/admin/logs') ?>" href="/admin/logs" data-tip="<?= e(t('گزارش فعالیت')) ?>">
-                <?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'list']); ?> <span class="nav-text"><?= e(t('گزارش فعالیت')) ?></span>
-            </a>
-        <?php endif; ?>
-        <?php if (can('manage_admins')): ?>
-            <a class="nav-item<?= active_when($currentPath, '/admin/admins') ?>" href="/admin/admins" data-tip="<?= e(t('مدیران')) ?>">
-                <?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'user']); ?> <span class="nav-text"><?= e(t('مدیران')) ?></span>
-            </a>
-        <?php endif; ?>
-        <?php if ($canSettings): ?>
-            <a class="nav-item<?= $currentPath === '/admin/security' ? ' is-active' : '' ?>" href="/admin/security" data-tip="<?= e(t('بازبینی امنیت')) ?>">
-                <?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'shield']); ?> <span class="nav-text"><?= e(t('بازبینی امنیت')) ?></span>
-            </a>
-            <a class="nav-item<?= active_when($currentPath, '/admin/settings') ?>" href="/admin/settings" data-tip="<?= e(t('تنظیمات')) ?>">
-                <?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'settings']); ?> <span class="nav-text"><?= e(t('تنظیمات')) ?></span>
-            </a>
-            <a class="nav-item<?= active_when($currentPath, '/admin/backup') ?>" href="/admin/backup" data-tip="<?= e(t('پشتیبان‌گیری')) ?>">
-                <?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'download']); ?> <span class="nav-text"><?= e(t('پشتیبان‌گیری')) ?></span>
-            </a>
-        <?php endif; ?>
-    </div>
-<?php endif; ?>
+<?php foreach ($groups as [$label, $gIcon, $tone, $items]):
+    $items = array_values(array_filter($items, static fn (array $i): bool => $i[3] === null || can($i[3])));
+    if ($items === []) {
+        continue;
+    }
+    $open  = false;
+    $badge = 0;
+    foreach ($items as $i) {
+        $open = $open || $isOn($i[0], $i[5]);
+        $badge += (int) $i[4];
+    }
+    ?>
+    <details class="adn-group" data-adn-group <?= $open ? 'open' : '' ?>>
+        <summary data-tip="<?= e(t($label)) ?>">
+            <span class="app-ic tone-<?= e($tone) ?>"><?php $icon($gIcon); ?></span>
+            <span class="adn-title"><?= e(t($label)) ?></span>
+            <?php if ($badge > 0): ?><span class="adn-dot"><?= e(fa((string) min(99, $badge))) ?></span><?php endif; ?>
+            <span class="adn-chev"><?php $icon('chevron-down'); ?></span>
+        </summary>
+        <div class="adn-items">
+            <?php foreach ($items as [$href, $text, $ic, , $b, $exact]): ?>
+                <a class="nav-item<?= $isOn($href, $exact) ? ' is-active' : '' ?>" href="<?= e($href) ?>" data-adn-item data-search="<?= e($text . ' ' . $label) ?>">
+                    <?php $icon($ic); ?> <span class="nav-text"><?= e(t($text)) ?></span>
+                    <?php if ($b > 0): ?><span class="nav-badge"><?= e(fa((string) min(99, $b))) ?></span><?php endif; ?>
+                </a>
+            <?php endforeach; ?>
+        </div>
+    </details>
+<?php endforeach; ?>

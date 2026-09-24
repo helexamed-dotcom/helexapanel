@@ -127,6 +127,7 @@ $router->group('/student', [
     AuthenticateMiddleware::class,
     RoleMiddleware::class . ':student',
     ForcePasswordChangeMiddleware::class,
+    \HeleXa\Middleware\ModuleMiddleware::class,
 ], function (\HeleXa\Core\Router $router): void {
     $router->get('/', [StudentDashboard::class, 'index']);
     $router->get('/courses', [StudentCourses::class, 'index']);
@@ -141,7 +142,13 @@ $router->group('/student', [
     $router->get('/calendar',  [PlannerController::class, 'calendar']);
 
     /* ----------------------------------------------- the study suite */
+    // «امروز من» and «درس‌های من» live on the home page now; the old
+    // addresses redirect there.
     $router->get('/today', [\HeleXa\Controllers\Student\TodayController::class, 'index']);
+
+    // «چه نوع دانشجویی هستی؟»
+    $router->post('/type', [\HeleXa\Controllers\Student\StudentTypeController::class, 'request'],
+        [ThrottleMiddleware::class . ':student_type,6,3600']);
 
     // «آزمون‌های من» — the answer route is called once per tick.
     $router->get('/my-exams',                 [\HeleXa\Controllers\Student\MyExamController::class, 'index']);
@@ -397,6 +404,15 @@ $router->group('/admin', [
     $router->post('/students/{uuid}/access/qbank',                    [StudentAccessController::class, 'qbank'],         $students);
     $router->post('/students/{uuid}/access/flashcards',               [StudentAccessController::class, 'flashcards'],    $students);
 
+    /* ----------------------------------------------- student types */
+    $stc = \HeleXa\Controllers\Admin\StudentTypeController::class;
+    $router->get('/student-types',                  [$stc, 'index'],    $students);
+    $router->post('/student-types',                 [$stc, 'save'],     $students);
+    $router->get('/student-types/requests',         [$stc, 'requests'], $students);
+    $router->post('/student-types/requests/{id}',   [$stc, 'decide'],   $students);
+    $router->post('/student-types/{id}/delete',     [$stc, 'destroy'],  $students);
+    $router->post('/students/{uuid}/type',          [$stc, 'assign'],   $students);
+
     /* --------------------------------------------------- terms/groups */
     $router->get('/academic',                        [AcademicController::class, 'index'],        $students);
     $router->post('/academic/universities',              [AcademicController::class, 'storeUniversity'],   $students);
@@ -558,6 +574,16 @@ $router->group('/admin', [
         [PermissionMiddleware::class . ':manage_settings']);
     $router->post('/backup/config', [\HeleXa\Controllers\Admin\BackupController::class, 'importConfig'],
         [PermissionMiddleware::class . ':manage_settings', ThrottleMiddleware::class . ':backup_import,10,600']);
+
+    /* «صفحه اصلی دانشجو»: countdowns and which sections are on. */
+    $router->get('/home-screen',                         [\HeleXa\Controllers\Admin\HomeScreenController::class, 'index'],
+        [PermissionMiddleware::class . ':manage_settings']);
+    $router->post('/home-screen/countdowns',             [\HeleXa\Controllers\Admin\HomeScreenController::class, 'addCountdown'],
+        [PermissionMiddleware::class . ':manage_settings']);
+    $router->post('/home-screen/countdowns/{id}/delete', [\HeleXa\Controllers\Admin\HomeScreenController::class, 'removeCountdown'],
+        [PermissionMiddleware::class . ':manage_settings']);
+    $router->post('/home-screen/sections',               [\HeleXa\Controllers\Admin\HomeScreenController::class, 'saveSections'],
+        [PermissionMiddleware::class . ':manage_settings']);
 
     $router->get('/settings',  [SettingsController::class, 'index'],
         [PermissionMiddleware::class . ':manage_settings']);

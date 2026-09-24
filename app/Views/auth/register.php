@@ -160,6 +160,19 @@ $selectedTerms = array_map('intval', $old['terms'] ?? []);
             رمز دست‌کم ۸ کاراکتر، ترکیبی از حروف انگلیسی و عدد.
         </p>
 
+        <?php if (!empty($studentTypes)): ?>
+            <div class="field">
+                <label class="label" for="student_type_id">چه نوع دانشجویی هستی؟</label>
+                <select class="input" id="student_type_id" name="student_type_id">
+                    <option value="">بعداً انتخاب می‌کنم</option>
+                    <?php foreach ($studentTypes as $t): ?>
+                        <option value="<?= (int) $t['id'] ?>" <?= (int) ($old['student_type_id'] ?? 0) === (int) $t['id'] ? 'selected' : '' ?>><?= e($t['title']) ?></option>
+                    <?php endforeach; ?>
+                </select>
+                <span class="auth-sub" style="display:block;margin:4px 0 0;font-size:11.5px;">بخش‌های مخصوص تو بعد از تأیید مدیر فعال می‌شود.</span>
+            </div>
+        <?php endif; ?>
+
         <div class="field">
             <label class="label" for="activation_code">کد فعال‌سازی (اگر داری)</label>
             <input class="input" id="activation_code" name="activation_code" dir="ltr" autocapitalize="characters"

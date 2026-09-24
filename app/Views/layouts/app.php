@@ -26,6 +26,9 @@
     <?php /* The shell: header, menu, tab bar, pop-ups and the motion. Last,
              so it has the final word over the older layers. */ ?>
     <link rel="stylesheet" href="<?= asset('/assets/css/shell.css') ?>">
+    <?php if (isset($currentUser['role_slug']) && $currentUser['role_slug'] !== 'student'): ?>
+        <link rel="stylesheet" href="<?= asset('/assets/css/admin.css') ?>">
+    <?php endif; ?>
     <?php foreach ((array) ($extraCss ?? []) as $css): ?>
         <link rel="stylesheet" href="<?= asset('/assets/css/' . $css . '.css') ?>">
     <?php endforeach; ?>

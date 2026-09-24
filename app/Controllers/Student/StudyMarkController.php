@@ -18,15 +18,10 @@ use HeleXa\Services\Auth;
  */
 final class StudyMarkController extends Controller
 {
+    /** The list lives on the home page now; old links land on it. */
     public function index(Request $request, array $params = []): Response
     {
-        $userId = (int) Auth::id();
-
-        return $this->page('layouts.app', 'student.study.index', [
-            'title' => 'درس‌های من',
-            'marks' => (new StudyMarkRepository())->forUser($userId),
-            'kinds' => StudyMarkRepository::KINDS,
-        ]);
+        return $this->redirect('/student#my-study');
     }
 
     public function store(Request $request, array $params = []): Response
@@ -80,6 +75,9 @@ final class StudyMarkController extends Controller
         }
 
         $back = $request->string('back');
-        return $this->redirect(preg_match('~^/student/[A-Za-z0-9/_\-?=&%.]*$~', $back) === 1 ? $back : '/student/study');
+        if ($back === '/student') {
+            return $this->redirect('/student#my-study');
+        }
+        return $this->redirect(preg_match('~^/student/[A-Za-z0-9/_\-?=&%.]*$~', $back) === 1 ? $back : '/student#my-study');
     }
 }

@@ -131,6 +131,18 @@ final class RegisterController extends Controller
         if ($user !== null) {
             PackageAccess::grantFree($user, null);
 
+            // «چه نوع دانشجویی هستی؟» — answered at sign-up goes straight to
+            // the admin's queue (or applies at once for a type that needs no
+            // approval).
+            $typeId = $request->int('student_type_id');
+            if ($typeId > 0) {
+                try {
+                    \HeleXa\Services\StudentTypes::request($id, $typeId, '');
+                } catch (\Throwable $e) {
+                    error_log('[register type] ' . $e->getMessage());
+                }
+            }
+
             // An activation code given at sign-up is used straight away.
             if (trim($request->string('activation_code')) !== '') {
                 $redeemed    = \HeleXa\Services\ActivationCodes::redeem($user, $request->string('activation_code'));
@@ -245,7 +257,8 @@ final class RegisterController extends Controller
     /** @param array<string,string> $errors */
     private function viewData(array $errors = [], array $old = []): array
     {
-        return ['title' => 'ثبت‌نام', 'errors' => $errors, 'old' => $old]
+        return ['title' => 'ثبت‌نام', 'errors' => $errors, 'old' => $old,
+                'studentTypes' => \HeleXa\Services\StudentTypes::all(true)]
             + $this->options(new AcademicRepository());
     }
 }

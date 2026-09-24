@@ -137,3 +137,23 @@
         </div>
     </form>
 </div>
+
+<?php if ($student !== null && ($types = \HeleXa\Services\StudentTypes::all()) !== []):
+    $currentType = \HeleXa\Services\StudentTypes::typeIdOf(['id' => (int) $student['id']]); ?>
+    <section class="ad-card" style="margin-top:16px">
+        <header class="ad-card-head">
+            <span class="app-ic tone-violet"><?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'school']); ?></span>
+            <div><h3>نوع دانشجو</h3><p>بخش‌هایی که این دانشجو در سایت می‌بیند از نوعش می‌آید. <a href="/admin/student-types">مدیریت انواع</a></p></div>
+        </header>
+        <form method="post" action="/admin/students/<?= e($student['uuid']) ?>/type" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+            <input type="hidden" name="_token" value="<?= e($csrf_token) ?>">
+            <select class="input" name="type_id" style="max-width:280px">
+                <option value="0">بدون نوع (بخش‌های پیش‌فرض)</option>
+                <?php foreach ($types as $t): ?>
+                    <option value="<?= (int) $t['id'] ?>" <?= $currentType === (int) $t['id'] ? 'selected' : '' ?>><?= e($t['title']) ?></option>
+                <?php endforeach; ?>
+            </select>
+            <button class="btn btn-primary btn-sm" type="submit">ذخیره نوع</button>
+        </form>
+    </section>
+<?php endif; ?>
