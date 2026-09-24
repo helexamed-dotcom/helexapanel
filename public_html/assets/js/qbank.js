@@ -294,7 +294,7 @@
         var explImg  = document.querySelector('[data-qb-explain-img]');
         var explWait = document.querySelector('[data-qb-explain-wait]');
         var explOpen = player.querySelector('[data-qb-explain-open]');
-        var sheetOn  = window.matchMedia ? window.matchMedia('(max-width: 1099px)') : { matches: false };
+        var sheetOn  = window.matchMedia ? window.matchMedia('(max-width: 1199px)') : { matches: false };
 
         /* On a phone the explanation is a sheet, opened by its own button. */
         // The page animates in with a transform, which would trap a fixed
@@ -452,7 +452,7 @@
                     next.href = next.getAttribute('data-removed-href');
                     next.textContent = 'سوال بعدی ←';
                 }
-                next.focus();
+                next.focus({ preventScroll: true });
             }
         }
     }
@@ -799,5 +799,95 @@
         list.querySelectorAll('[data-title]').forEach(function (l) {
             l.hidden = q !== '' && l.getAttribute('data-title').indexOf(q) === -1 && !l.querySelector('input').checked;
         });
+    });
+})();
+
+/* -----------------------------------------------------------------------
+   The compact player's side panel and keys: every filter applies at once,
+   the panel is a sheet on a phone, and 1–8 / arrows drive the question.
+   ----------------------------------------------------------------------- */
+(function () {
+    'use strict';
+
+    var form = document.querySelector('form[data-qx-auto]');
+    if (form) {
+        var send = function () {
+            // Empty fields stay out of the address, which stays readable.
+            Array.prototype.forEach.call(form.elements, function (el) {
+                if (el.name && !el.value) { el.disabled = true; }
+            });
+            form.classList.add('is-busy');
+            form.submit();
+        };
+        form.addEventListener('change', function (e) {
+            if (e.target.matches('input[type="radio"], select')) {
+                // The tree cascade (app.js) has already cleared a stale عنوان.
+                window.setTimeout(send, 0);
+            }
+        });
+        form.addEventListener('submit', function (e) { e.preventDefault(); send(); });
+    }
+
+    var jump = document.querySelector('form[data-qx-jump]');
+    if (jump) {
+        jump.addEventListener('submit', function () {
+            Array.prototype.forEach.call(jump.elements, function (el) { if (el.name && !el.value) { el.disabled = true; } });
+        });
+    }
+
+    /* the filter sheet on a phone */
+    var panel = document.querySelector('[data-qx-filters]');
+    var home = panel ? panel.parentNode : null;
+    var marker = panel ? document.createComment('qx-filters') : null;
+    var scrim = null;
+    if (panel) { home.insertBefore(marker, panel); }
+
+    function openPanel() {
+        if (!panel || panel.classList.contains('is-sheet')) { return; }
+        // Fixed inside an animated parent would be trapped under its transform.
+        document.body.appendChild(panel);
+        scrim = document.createElement('div');
+        scrim.className = 'qb-sheet-scrim';
+        scrim.addEventListener('click', closePanel);
+        document.body.appendChild(scrim);
+        panel.classList.add('is-sheet');
+        document.documentElement.classList.add('qb-sheet-open');
+    }
+    function closePanel() {
+        if (!panel || !panel.classList.contains('is-sheet')) { return; }
+        panel.classList.remove('is-sheet');
+        home.insertBefore(panel, marker.nextSibling);
+        document.documentElement.classList.remove('qb-sheet-open');
+        if (scrim) { scrim.remove(); scrim = null; }
+    }
+    document.querySelectorAll('[data-qx-filters-open]').forEach(function (b) { b.addEventListener('click', openPanel); });
+    document.querySelectorAll('[data-qx-filters-close]').forEach(function (b) { b.addEventListener('click', closePanel); });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { closePanel(); } });
+
+    /* keys */
+    var player = document.querySelector('.qx[data-qb-player]');
+    if (!player) { return; }
+    var FA = '۰۱۲۳۴۵۶۷۸۹';
+    document.addEventListener('keydown', function (e) {
+        if (e.ctrlKey || e.metaKey || e.altKey || e.defaultPrevented) { return; }
+        var t = e.target;
+        if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) { return; }
+        if (document.querySelector('.hlx-modal-back, .qb-sheet-scrim')) { return; }
+        var key = e.key;
+        var d = FA.indexOf(key);
+        if (d > 0) { key = String(d); }
+        if (/^[1-8]$/.test(key)) {
+            var opt = player.querySelector('[data-qb-answer][data-key="' + key + '"]');
+            if (opt && !opt.disabled) { e.preventDefault(); opt.click(); }
+            return;
+        }
+        // RTL: the arrow pointing left moves forward.
+        if (key === 'ArrowLeft') {
+            var next = player.querySelector('[data-qb-next]');
+            if (next) { e.preventDefault(); window.location.href = next.href; }
+        } else if (key === 'ArrowRight') {
+            var prev = player.querySelector('[data-qx-prev]');
+            if (prev) { e.preventDefault(); window.location.href = prev.href; }
+        }
     });
 })();

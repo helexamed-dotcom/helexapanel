@@ -14,6 +14,7 @@
  * @var array $filing
  * @var array $allTags
  * @var array $difficulties
+ * @var array $stats
  */
 $base = '/student/qbank/' . rawurlencode((string) $subject['uuid']);
 $keep = array_filter([
@@ -25,28 +26,28 @@ $keep = array_filter([
     'tag'        => $filters['tag_id'] ?: null,
 ]);
 ?>
-<div class="qb-page" style="max-width:900px;">
-    <section class="qb-hero">
-        <div class="qb-hero-main">
-            <div class="qb-hero-icon"><?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'list']); ?></div>
-            <div>
-                <h2><?= e($subject['title']) ?></h2>
-                <p><?= e(fa((string) $total)) ?> سوال با این فیلترها</p>
-            </div>
-        </div>
-        <div class="qb-hero-actions">
+<div class="qx qx-listing">
+    <header class="qx-bar">
+        <a class="qx-subject" href="<?= e($base) ?>" title="صفحه درس">
+            <span class="app-ic tone-violet"><?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'list', 'size' => 18]); ?></span>
+            <span class="qx-subject-text"><b><?= e($subject['title']) ?></b><small><?= e(fa((string) $total)) ?> سوال با این فیلترها</small></span>
+        </a>
+        <div class="qx-bar-end">
             <?php if ($total > 0): ?>
-                <a class="btn btn-primary" href="<?= e($base . '?' . http_build_query($keep + ['n' => 1])) ?>">شروع تمرین همین‌ها</a>
+                <a class="btn btn-primary btn-sm" href="<?= e($base . '?' . http_build_query($keep + ['n' => 1])) ?>">▶ تمرین همین‌ها</a>
             <?php endif; ?>
-            <a class="btn btn-ghost" href="/student/qbank">همه درس‌ها</a>
+            <button type="button" class="qx-iconbtn qx-filter-btn" data-qx-filters-open aria-label="جستجو و فیلتر">
+                <?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'sliders', 'size' => 18]); ?><?php if ($keep !== []): ?><em><?= e(fa((string) count($keep))) ?></em><?php endif; ?>
+            </button>
         </div>
-    </section>
+    </header>
 
-    <?php \HeleXa\Core\View::partial('student.qbank._filters', [
-        'action' => $base . '/list', 'filters' => $filters, 'filing' => $filing,
-        'allTags' => $allTags, 'difficulties' => $difficulties, 'open' => true,
+    <div class="qx-grid">
+    <?php \HeleXa\Core\View::partial('student.qbank._sidebar', [
+        'action' => $base . '/list', 'filters' => $filters, 'filing' => $filing, 'allTags' => $allTags,
+        'difficulties' => $difficulties, 'stats' => $stats, 'total' => $total, 'jumpBase' => $base,
     ]); ?>
-
+    <main class="qx-q qx-rows">
     <?php if ($rows === []): ?>
         <div class="empty">سوالی با این فیلترها پیدا نشد.</div>
     <?php else: ?>
@@ -89,4 +90,6 @@ $keep = array_filter([
             </nav>
         <?php endif; ?>
     <?php endif; ?>
+    </main>
+    </div>
 </div>

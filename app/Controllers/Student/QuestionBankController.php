@@ -137,6 +137,7 @@ final class QuestionBankController extends Controller
             'filing'       => $this->practice->filingOptions((int) $subject['id']),
             'allTags'      => (new QbTagRepository())->all(true),
             'difficulties' => QbQuestionRepository::DIFFICULTY_LABELS,
+            'stats'        => $this->practice->statsFor($userId, (int) $subject['id']),
         ]);
     }
 
