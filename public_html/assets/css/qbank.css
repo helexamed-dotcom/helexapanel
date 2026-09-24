@@ -491,3 +491,113 @@ a.qb-stat:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
   .qb-row.has-check { grid-template-columns: auto 1fr; }
   .qb-row.has-check .qb-row-actions { grid-column: 1 / -1; }
 }
+
+/* =====================================================================
+   The درس page: its زیردرس‌ها and عنوان‌ها before any question.
+   ===================================================================== */
+.qs { display: grid; gap: 16px; }
+.qs-hero {
+    display: flex; gap: 20px; align-items: center; padding: 22px; border-radius: 28px; color: #fff; position: relative; overflow: hidden;
+    background: radial-gradient(120% 140% at 100% 0%, rgba(255,255,255,.22), transparent 55%), linear-gradient(135deg, #7c3aed, #4f46e5 55%, #2563eb);
+    box-shadow: 0 30px 60px -34px rgba(79, 70, 229, .9);
+}
+.qs-hero-text { flex: 1; min-width: 0; }
+.qs-back { display: inline-flex; align-items: center; gap: 5px; font-size: 12.5px; opacity: .85; color: #fff; }
+html[dir="rtl"] .qs-back .ic { transform: scaleX(-1); }
+.qs-hero h2 { margin: 4px 0 2px; font-size: 24px; }
+.qs-hero p { margin: 0 0 14px; opacity: .9; font-size: 13.5px; }
+.qs-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.qs-go { background: #fff; color: #4f46e5; font-weight: 800; display: inline-flex; align-items: center; gap: 6px; }
+html[dir="rtl"] .qs-go .ic { transform: scaleX(-1); }
+.qs-pill { display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px; border-radius: 14px; font-size: 12.5px; font-weight: 700; color: #fff; background: rgba(255,255,255,.14); box-shadow: inset 0 0 0 1px rgba(255,255,255,.2); transition: background .2s; }
+.qs-pill:hover { background: rgba(255,255,255,.24); }
+.qs-pill b { font-size: 11px; padding: 0 7px; border-radius: 99px; background: rgba(255,255,255,.22); }
+.qs-pill.is-red b { background: #f43f5e; }
+.qs-ring { position: relative; flex: 0 0 118px; height: 118px; display: grid; place-items: center; }
+.qs-ring svg { position: absolute; inset: 0; transform: rotate(-90deg); }
+.qs-ring circle { fill: none; stroke-width: 10; stroke-linecap: round; stroke: rgba(255,255,255,.2); }
+.qs-ring circle + circle { stroke: #fde047; stroke-dasharray: calc(var(--p) * 1) 100; animation: home-ring 1.2s var(--spring) both; }
+@keyframes home-ring { from { stroke-dasharray: 0 100; } }
+.qs-ring > div { display: grid; text-align: center; }
+.qs-ring b { font-size: 24px; }
+.qs-ring small { font-size: 11px; opacity: .85; }
+@media (max-width: 620px) { .qs-hero { flex-direction: column; align-items: stretch; } .qs-ring { align-self: center; } }
+
+.qs-title { margin: 4px 4px -4px; font-size: 15px; color: var(--ink-2); }
+.qs-empty { padding: 26px; text-align: center; border-radius: 22px; background: var(--glass, var(--surface)); border: 1px solid var(--glass-line, var(--line)); }
+.qs-grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
+.qs-card {
+    display: grid; gap: 10px; padding: 14px; border-radius: 22px;
+    background: var(--glass, var(--surface)); border: 1px solid var(--glass-line, var(--line)); box-shadow: var(--glass-shadow, var(--shadow));
+    animation: hx-rise .5s var(--spring) both; animation-delay: calc(var(--i) * 40ms);
+}
+.qs-card.is-empty { opacity: .6; }
+.qs-card-main { display: flex; align-items: center; gap: 12px; color: inherit; }
+.qs-card-main .app-ic { width: 44px; height: 44px; border-radius: 14px; font-size: 17px; }
+.qs-card-text { flex: 1; min-width: 0; display: grid; }
+.qs-card-text b { font-size: 14.5px; }
+.qs-card-text small { font-size: 12px; color: var(--ink-3); }
+.qs-card-play { width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; color: #fff; background: linear-gradient(135deg, var(--t1), var(--t2)); transition: transform .3s var(--spring-pop); }
+html[dir="rtl"] .qs-card-play .ic { transform: scaleX(-1); }
+.qs-card-main:hover .qs-card-play { transform: scale(1.12); }
+.qs-bar { position: relative; height: 8px; border-radius: 99px; background: color-mix(in srgb, var(--ink) 8%, transparent); overflow: hidden; }
+.qs-bar i { position: absolute; inset-block: 0; inset-inline-start: 0; border-radius: inherit; background: color-mix(in srgb, var(--t2) 40%, transparent); }
+.qs-bar i.is-right { background: linear-gradient(90deg, var(--t1), var(--t2)); }
+.qs-topics summary { cursor: pointer; font-size: 12.5px; font-weight: 700; color: var(--ink-2); }
+.qs-topics ul { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 4px; }
+.qs-topics a { display: flex; align-items: center; gap: 8px; padding: 7px 8px; border-radius: 12px; font-size: 13px; transition: background .2s; }
+.qs-topics a:hover { background: color-mix(in srgb, var(--t2) 10%, transparent); }
+.qs-topics a span:nth-child(2) { flex: 1; }
+.qs-topics small { color: var(--ink-3); font-size: 11.5px; }
+.qs-dot { width: 18px; height: 18px; border-radius: 50%; flex: 0 0 18px; background: conic-gradient(var(--t2) calc(var(--p) * 1%), color-mix(in srgb, var(--ink) 10%, transparent) 0); }
+
+/* =====================================================================
+   The explanation beside the question (laptop) or in a sheet (phone).
+   ===================================================================== */
+.qb-page-wide { max-width: 1320px; }
+.qb-stage { display: grid; gap: 16px; }
+.qb-explain { white-space: normal; }
+.qb-explain-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.qb-explain-head .app-ic { width: 34px; height: 34px; border-radius: 11px; }
+.qb-explain-head h4 { margin: 0; flex: 1; font-size: 15px; color: var(--ink); }
+.qb-explain-x { display: none; width: 36px; height: 36px; border-radius: 50%; border: 0; cursor: pointer; place-items: center; background: color-mix(in srgb, var(--ink) 7%, transparent); color: var(--ink-2); }
+.qb-explain-wait { margin: 0; color: var(--ink-3); font-size: 13px; line-height: 2; }
+.qb-explain-body { white-space: pre-wrap; line-height: 2.1; font-size: 14.5px; }
+.qb-explain-links { display: grid; gap: 6px; margin-top: 12px; }
+.qb-explain-links:empty { display: none; }
+.qb-explain-links small { font-size: 11.5px; font-weight: 800; color: var(--ink-3); }
+.qb-explain-links a { padding: 8px 12px; border-radius: 12px; font-size: 13px; font-weight: 700; background: var(--blue-soft); color: var(--blue); }
+.qb-explain-open {
+    display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 13px; border: 0; cursor: pointer;
+    border-radius: 16px; font: inherit; font-weight: 800; font-size: 14px; color: #fff;
+    background: linear-gradient(135deg, #7c3aed, #4f46e5); box-shadow: 0 12px 24px -14px #4f46e5;
+    animation: qb-pop .4s var(--spring-pop, ease) both;
+}
+.qb-explain-open[hidden] { display: none; }
+
+@media (min-width: 1100px) {
+    .qb-stage { grid-template-columns: minmax(0, 1.25fr) minmax(320px, .9fr); align-items: start; }
+    .qb-side { position: sticky; top: calc(var(--top-h, 64px) + 16px); }
+    /* Always there, waiting, so nothing jumps when the answer arrives. */
+    .qb-side .qb-explain {
+        display: block; padding: 18px; border-radius: 24px; max-height: calc(100vh - 120px); overflow-y: auto;
+        background: var(--glass, var(--surface)); border: 1px solid var(--glass-line, var(--line)); box-shadow: var(--glass-shadow, var(--shadow));
+    }
+    .qb-side .qb-explain.is-open { border-color: color-mix(in srgb, #7c3aed 35%, transparent); box-shadow: 0 0 0 4px color-mix(in srgb, #7c3aed 10%, transparent), var(--glass-shadow, var(--shadow)); }
+    .qb-explain-open { display: none !important; }
+}
+
+@media (max-width: 1099px) {
+    /* The explanation never scrolls into the page; it waits for its button. */
+    .qb-side .qb-explain, .qb-side .qb-explain.is-open { display: none; }
+    .qb-explain.is-sheet {
+        display: block; position: fixed; z-index: 1300; inset: auto 8px calc(8px + env(safe-area-inset-bottom)) 8px;
+        max-height: 82vh; overflow-y: auto; padding: 18px 18px 22px; border-radius: 28px;
+        background: var(--surface); box-shadow: 0 -20px 60px -20px rgba(15, 23, 42, .5);
+        animation: hx-sheet-in .5s var(--spring, ease) both;
+    }
+    .qb-explain.is-sheet::before { content: ''; display: block; width: 40px; height: 5px; border-radius: 99px; margin: -6px auto 12px; background: color-mix(in srgb, var(--ink) 18%, transparent); }
+    .qb-explain-x { display: grid; }
+    .qb-sheet-scrim { position: fixed; inset: 0; z-index: 1250; background: rgba(9, 15, 28, .4); -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px); animation: hx-fade .3s ease both; }
+    html.qb-sheet-open, html.qb-sheet-open body { overflow: hidden; }
+}

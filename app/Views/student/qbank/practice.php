@@ -36,7 +36,7 @@ $query    = static fn (array $extra = []): string => ($q = http_build_query($kee
 $link     = static fn (int $n): string => $base . $query(['n' => $n]);
 $accuracy = $stats['answered'] > 0 ? (int) round($stats['correct'] * 100 / $stats['answered']) : null;
 ?>
-<div class="qb-page" style="max-width:900px;">
+<div class="qb-page qb-page-wide">
     <section class="qb-hero">
         <div class="qb-hero-main">
             <div class="qb-hero-icon"><?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'qbank']); ?></div>
@@ -72,6 +72,7 @@ $accuracy = $stats['answered'] > 0 ? (int) round($stats['correct'] * 100 / $stat
             </h3>
         </section>
     <?php else: ?>
+      <div class="qb-stage">
         <section class="qb-section qb-player" data-qb-player
                  data-answer-url="/student/qbank/answer/<?= e($question['uuid']) ?>"
                  data-mark-url="/student/qbank/mark/<?= e($question['uuid']) ?>">
@@ -140,11 +141,11 @@ $accuracy = $stats['answered'] > 0 ? (int) round($stats['correct'] * 100 / $stat
             <div class="qb-verdict" data-qb-verdict role="status" aria-live="polite"></div>
             <p class="qb-hint" data-qb-share-note hidden></p>
 
-            <div class="qb-explain" data-qb-explain>
-                <h4>پاسخ تشریحی</h4>
-                <div data-qb-explain-text></div>
-                <figure class="qb-figure"><img data-qb-explain-img alt="تصویر پاسخ تشریحی" hidden></figure>
-            </div>
+            <?php /* On a phone the explanation opens as a sheet from this button
+                     instead of being appended under the options. */ ?>
+            <button type="button" class="qb-explain-open" data-qb-explain-open hidden>
+                <?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'lesson', 'size' => 18]); ?> نمایش پاسخ تشریحی
+            </button>
 
             <?php /* The lesson opens once the question is answered; the report is always there. */ ?>
             <?php
@@ -194,5 +195,21 @@ $accuracy = $stats['answered'] > 0 ? (int) round($stats['correct'] * 100 / $stat
                    data-removed-href="<?= e($removedHref) ?>"><?= e($nextLabel) ?></a>
             </nav>
         </section>
+
+        <?php /* Beside the question on a laptop; a sheet on a phone. */ ?>
+        <aside class="qb-side">
+            <div class="qb-explain" data-qb-explain role="region" aria-label="پاسخ تشریحی">
+                <div class="qb-explain-head">
+                    <span class="app-ic tone-violet"><?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'lesson', 'size' => 18]); ?></span>
+                    <h4>پاسخ تشریحی</h4>
+                    <button type="button" class="qb-explain-x" data-qb-explain-close aria-label="بستن"><?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'close', 'size' => 18]); ?></button>
+                </div>
+                <p class="qb-explain-wait" data-qb-explain-wait>یک گزینه را انتخاب کن؛ توضیح کامل پاسخ همین‌جا کنار سوال نمایش داده می‌شود.</p>
+                <div class="qb-explain-body" data-qb-explain-text></div>
+                <figure class="qb-figure"><img data-qb-explain-img alt="تصویر پاسخ تشریحی" hidden></figure>
+                <div class="qb-explain-links" data-qb-explain-links></div>
+            </div>
+        </aside>
+      </div>
     <?php endif; ?>
 </div>

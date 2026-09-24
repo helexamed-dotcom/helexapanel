@@ -207,6 +207,78 @@ final class QbPracticeRepository extends BaseRepository
         ];
     }
 
+    /**
+     * The درس as a tree, for its overview page: every زیردرس and عنوان with
+     * how many published questions it holds and how many of them this student
+     * has answered, answered right on the latest try, or got wrong.
+     *
+     * @return array{total:int, done:int, right:int, wrong:int, children:list<array>}
+     */
+    public function outline(int $userId, int $subjectId): array
+    {
+        $rows = $this->select(
+            "SELECT q.sub_subject_id AS sid, q.topic_id AS tid, COUNT(*) AS total,
+                    SUM(l.qid IS NOT NULL) AS done, COALESCE(SUM(l.ok = 1), 0) AS rightc, COALESCE(SUM(l.ok = 0), 0) AS wrongc
+             FROM qb_questions q
+             LEFT JOIN (
+                 SELECT a.question_id AS qid, a.is_correct AS ok
+                 FROM qb_attempts a
+                 JOIN (SELECT question_id, MAX(id) AS mid FROM qb_attempts WHERE user_id = :u GROUP BY question_id) m ON m.mid = a.id
+             ) l ON l.qid = q.id
+             WHERE q.deleted_at IS NULL AND q.status = 'published' AND q.subject_id = :s
+             GROUP BY q.sub_subject_id, q.topic_id",
+            ['u' => $userId, 's' => $subjectId]
+        );
+
+        $nodes = [];
+        foreach ($this->filingOptions($subjectId) as $n) {
+            $nodes[(int) $n['id']] = $n + ['total' => 0, 'done' => 0, 'right' => 0, 'wrong' => 0, 'children' => []];
+        }
+        $sum = ['total' => 0, 'done' => 0, 'right' => 0, 'wrong' => 0];
+        $loose = ['id' => 0, 'title' => 'سوال‌های بدون زیردرس', 'depth' => 2, 'parent_id' => $subjectId,
+                  'total' => 0, 'done' => 0, 'right' => 0, 'wrong' => 0, 'children' => []];
+        foreach ($rows as $r) {
+            $add = ['total' => (int) $r['total'], 'done' => (int) $r['done'], 'right' => (int) $r['rightc'], 'wrong' => (int) $r['wrongc']];
+            foreach ($add as $k => $v) {
+                $sum[$k] += $v;
+            }
+            $sid = (int) $r['sid'];
+            $tid = (int) $r['tid'];
+            $target = isset($nodes[$sid]) ? $sid : null;
+            if ($target === null) {
+                foreach ($add as $k => $v) {
+                    $loose[$k] += $v;
+                }
+                continue;
+            }
+            foreach ($add as $k => $v) {
+                $nodes[$sid][$k] += $v;
+            }
+            if ($tid > 0 && isset($nodes[$tid])) {
+                foreach ($add as $k => $v) {
+                    $nodes[$tid][$k] += $v;
+                }
+            }
+        }
+
+        $children = [];
+        foreach ($nodes as $id => $n) {
+            if ((int) $n['depth'] === 3 && isset($nodes[(int) $n['parent_id']])) {
+                $nodes[(int) $n['parent_id']]['children'][] = $n;
+            }
+        }
+        foreach ($nodes as $n) {
+            if ((int) $n['depth'] === 2) {
+                $children[] = $n;
+            }
+        }
+        if ($loose['total'] > 0) {
+            $children[] = $loose;
+        }
+
+        return $sum + ['children' => $children];
+    }
+
     /** Children of the subject that hold at least one published question, for the filter. */
     public function filingOptions(int $subjectId): array
     {

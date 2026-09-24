@@ -289,9 +289,38 @@
         var url      = player.getAttribute('data-answer-url');
         var buttons  = player.querySelectorAll('[data-qb-answer]');
         var verdict  = player.querySelector('[data-qb-verdict]');
-        var explain  = player.querySelector('[data-qb-explain]');
-        var explText = player.querySelector('[data-qb-explain-text]');
-        var explImg  = player.querySelector('[data-qb-explain-img]');
+        var explain  = document.querySelector('[data-qb-explain]');
+        var explText = document.querySelector('[data-qb-explain-text]');
+        var explImg  = document.querySelector('[data-qb-explain-img]');
+        var explWait = document.querySelector('[data-qb-explain-wait]');
+        var explOpen = player.querySelector('[data-qb-explain-open]');
+        var sheetOn  = window.matchMedia ? window.matchMedia('(max-width: 1099px)') : { matches: false };
+
+        /* On a phone the explanation is a sheet, opened by its own button. */
+        // The page animates in with a transform, which would trap a fixed
+        // sheet inside it under its own backdrop; it goes to <body> while open.
+        var scrim = null;
+        var explHome = explain ? explain.parentNode : null;
+        function openSheet() {
+            if (!explain || !sheetOn.matches) { return; }
+            document.body.appendChild(explain);
+            scrim = document.createElement('div');
+            scrim.className = 'qb-sheet-scrim';
+            scrim.addEventListener('click', closeSheet);
+            document.body.appendChild(scrim);
+            explain.classList.add('is-sheet');
+            document.documentElement.classList.add('qb-sheet-open');
+        }
+        function closeSheet() {
+            if (!explain) { return; }
+            explain.classList.remove('is-sheet');
+            if (explHome && explain.parentNode !== explHome) { explHome.appendChild(explain); }
+            document.documentElement.classList.remove('qb-sheet-open');
+            if (scrim) { scrim.remove(); scrim = null; }
+        }
+        if (explOpen) { explOpen.addEventListener('click', openSheet); }
+        document.querySelectorAll('[data-qb-explain-close]').forEach(function (b) { b.addEventListener('click', closeSheet); });
+        document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { closeSheet(); } });
         var busy     = false;
 
         buttons.forEach(function (button) {
@@ -388,6 +417,26 @@
                     explImg.src = data.explanation_image;
                     explImg.hidden = false;
                 }
+                explain.classList.add('is-open');
+                if (explWait) { explWait.hidden = true; }
+                if (explOpen) { explOpen.hidden = false; }
+            } else if (explWait) {
+                explWait.textContent = 'برای این سوال پاسخ تشریحی ثبت نشده است.';
+            }
+            // Linked درسنامه‌ها (the question's own tags): a way to read up at once.
+            var links = document.querySelector('[data-qb-explain-links]');
+            if (links && data.lessons && data.lessons.length) {
+                links.textContent = '';
+                var h = document.createElement('small');
+                h.textContent = 'درسنامه‌های مرتبط';
+                links.appendChild(h);
+                data.lessons.forEach(function (l) {
+                    var a = document.createElement('a');
+                    a.href = l.url;
+                    a.textContent = '📘 ' + l.title;
+                    links.appendChild(a);
+                });
+                if (explOpen) { explOpen.hidden = false; }
                 explain.classList.add('is-open');
             }
 

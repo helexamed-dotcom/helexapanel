@@ -63,11 +63,28 @@ final class QuestionBankController extends Controller
         ]);
     }
 
-    /** One question from the filtered sequence of one درس. */
+    /**
+     * One question from the filtered sequence of one درس.
+     *
+     * Opened bare — straight from the درس card — the درس's own page comes
+     * first: its زیردرس‌ها and عنوان‌ها with progress, so the student picks
+     * where to practise instead of landing in question one of everything.
+     * Any query (a position, a filter, a mode) goes to the player.
+     */
     public function practice(Request $request, array $params = []): Response
     {
         $userId  = (int) Auth::id();
         $subject = $this->grantedSubjectOr404($userId, (string) ($params['uuid'] ?? ''));
+
+        if ($request->all() === []) {
+            return $this->page('layouts.app', 'student.qbank.subject', [
+                'title'   => $subject['title'],
+                'subject' => $subject,
+                'outline' => $this->practice->outline($userId, (int) $subject['id']),
+                'marks'   => $this->markCounts($userId, (int) $subject['id']),
+                'lesson'  => trim((string) ($subject['lesson_note'] ?? '')) !== '',
+            ]);
+        }
 
         $filters = $this->readFilters($request);
 
@@ -295,6 +312,24 @@ final class QuestionBankController extends Controller
      * The filter set shared by the player and the list, read the same way in
      * both so a link from one to the other lands on the same sequence.
      */
+    /** @return array{saved:int, review:int} */
+    private function markCounts(int $userId, int $subjectId): array
+    {
+        $out = ['saved' => 0, 'review' => 0];
+        try {
+            foreach (\HeleXa\Core\Database::select(
+                'SELECT m.mark, COUNT(*) AS c FROM qb_marks m JOIN qb_questions q ON q.id = m.question_id
+                 WHERE m.user_id = :u AND q.subject_id = :s AND m.mark IN (\'saved\', \'review\') GROUP BY m.mark',
+                ['u' => $userId, 's' => $subjectId]
+            ) as $row) {
+                $out[$row['mark']] = (int) $row['c'];
+            }
+        } catch (\PDOException) {
+            // marks table not installed
+        }
+        return $out;
+    }
+
     private function readFilters(Request $request): array
     {
         $mode = $request->string('mode');
