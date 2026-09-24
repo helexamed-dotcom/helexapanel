@@ -189,6 +189,12 @@ $router->group('/student', [
     $router->get('/calendar',  [PlannerController::class, 'calendar']);
     $router->get('/planner',   [PlannerController::class, 'planner']);
     $router->get('/leaderboard', [\HeleXa\Controllers\ProfileController::class, 'leaderboard']);
+
+    // «نقشه‌های ذهنی»
+    $router->get('/mindmaps',             [\HeleXa\Controllers\Student\MindmapController::class, 'index']);
+    $router->get('/mindmaps/{uuid}',      [\HeleXa\Controllers\Student\MindmapController::class, 'show']);
+    $router->post('/mindmaps/{uuid}/done', [\HeleXa\Controllers\Student\MindmapController::class, 'done'],
+        [ThrottleMiddleware::class . ':mindmap_done,60,600']);
     $router->get('/people',      [\HeleXa\Controllers\ProfileController::class, 'people']);
 
     /* ----------------------------------------------- the study suite */
@@ -420,6 +426,8 @@ $router->group('/media', [AuthenticateMiddleware::class], function (\HeleXa\Core
         [ThrottleMiddleware::class . ':media,600,300']);
     $router->get('/posts/{name}', [\HeleXa\Controllers\ProfileController::class, 'media'],
         [ThrottleMiddleware::class . ':media,600,300']);
+    $router->get('/mindmaps/{name}', [\HeleXa\Controllers\Student\MindmapController::class, 'media'],
+        [ThrottleMiddleware::class . ':media,600,300']);
 });
 
 /* --------------------------------------------------------------- admin */
@@ -625,6 +633,18 @@ $router->group('/admin', [
     $router->post('/lessons/{uuid}/status',   [$alc, 'setStatus'], $lessons);
     $router->post('/lessons/{uuid}/delete',   [$alc, 'destroy'],   $lessons);
     $router->post('/lessons/{uuid}',          [$alc, 'update'],    $lessons);
+
+    /* ------------------------------------------------ 🧠 نقشه‌های ذهنی */
+    $amc = \HeleXa\Controllers\Admin\MindmapController::class;
+    $router->get('/mindmaps',                 [$amc, 'index'],     $lessons);
+    $router->post('/mindmaps/new',            [$amc, 'create'],    $lessons);
+    $router->post('/mindmaps/import',         [$amc, 'import'],    array_merge($lessons, [ThrottleMiddleware::class . ':mindmap_import,20,600']));
+    $router->post('/mindmaps/media',          [$amc, 'upload'],    array_merge($lessons, [ThrottleMiddleware::class . ':mindmap_media,120,600']));
+    $router->get('/mindmaps/{uuid}/edit',     [$amc, 'edit'],      $lessons);
+    $router->get('/mindmaps/{uuid}/export',   [$amc, 'export'],    $lessons);
+    $router->post('/mindmaps/{uuid}/status',  [$amc, 'setStatus'], $lessons);
+    $router->post('/mindmaps/{uuid}/delete',  [$amc, 'destroy'],   $lessons);
+    $router->post('/mindmaps/{uuid}',         [$amc, 'save'],      array_merge($lessons, [ThrottleMiddleware::class . ':mindmap_save,240,600']));
 
     $stc2 = \HeleXa\Controllers\Admin\SharedTagController::class;
     $router->get('/lesson-tags',              [$stc2, 'index'],    $lessons);

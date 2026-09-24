@@ -214,3 +214,5 @@ input[type="range"] { width: 100%; accent-color: var(--blue); }
 .sa-pts { width: 96px; flex: 0 0 96px; text-align: center; font-weight: 900; }
 .sa-post-thumb { flex: 0 0 40px; height: 40px; border-radius: 12px; overflow: hidden; }
 .sa-post-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.sa-pre { margin: 0; padding: 12px; border-radius: 14px; background: color-mix(in srgb, var(--ink) 5%, transparent); font-size: 11.5px; line-height: 1.8; white-space: pre-wrap; max-height: 320px; overflow: auto; }
+.sa .ad-hero .ad-quick .input { height: 44px; border-radius: 14px; }
