@@ -115,16 +115,6 @@
             <input type="checkbox" name="is_printable" value="1" <?= (int) ($old['is_printable'] ?? 0) === 1 ? 'checked' : '' ?>>
             <span>چاپ این محتوا مجاز باشد (پیش‌فرض: مسدود)</span>
         </label>
-        <label class="switch-row">
-            <input type="checkbox" name="offline_enabled" value="1" <?= (int) ($old['offline_enabled'] ?? 1) === 1 ? 'checked' : '' ?>>
-            <span>
-                ذخیره برای مطالعه آفلاین مجاز باشد
-                <span style="display:block; color:var(--ink-3); font-size:11.5px;">
-                    با فعال بودن این گزینه، نسخه‌ای از این جزوه روی دستگاه دانشجو ذخیره می‌شود
-                    و تا پایان اعتبار آفلاین بدون اینترنت قابل مطالعه است.
-                </span>
-            </span>
-        </label>
 
         <?php if (!empty($report)): ?>
             <h4 class="card-title" style="margin-top:22px;">گزارش بررسی فایل</h4>

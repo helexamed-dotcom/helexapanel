@@ -1,5 +1,5 @@
 /* =====================================================================
-   HeleXa Med — PWA shell, connection state, offline library.
+   HeleXa Med — PWA shell and connection state.
    Layered on top of app.css; it changes nothing that already exists.
    ===================================================================== */
 
@@ -83,88 +83,6 @@ body.is-offline [data-needs-network] { opacity: .45; pointer-events: none; }
     background: var(--ink); color: #fff; border-radius: 14px; padding: 12px 16px;
     font-size: 13.5px; box-shadow: var(--shadow-lg);
     animation: rise .3s ease both;
-}
-
-/* offline save button --------------------------------------------------- */
-
-.offline-btn.btn-ok   { background: #dcfce7; border: 1.5px solid #86efac; color: #15803d; }
-.offline-btn.btn-warn { background: #fef3c7; border: 1.5px solid #fcd34d; color: #b45309; }
-.offline-btn[disabled] { opacity: .55; }
-
-.offline-hint { font-size: 11.5px; color: var(--ink-3); margin-top: 6px; }
-
-/* offline shell --------------------------------------------------------- */
-
-.offline-body { background: var(--canvas); }
-
-.offline-shell { display: flex; flex-direction: column; min-height: 100dvh; }
-
-.offline-bar {
-    display: flex; align-items: center; gap: 10px;
-    padding: 0 14px; height: 60px; flex: 0 0 auto;
-    padding-top: env(safe-area-inset-top);
-    height: calc(60px + env(safe-area-inset-top));
-    background: rgba(255, 255, 255, .92); backdrop-filter: blur(10px);
-    border-bottom: 1px solid var(--line);
-    position: sticky; top: 0; z-index: 20;
-}
-.offline-title { font-size: 15px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.offline-sub   { font-size: 11.5px; color: var(--ink-3); }
-
-.offline-main {
-    flex: 1; padding: 18px 14px calc(28px + env(safe-area-inset-bottom));
-    display: flex; flex-direction: column; gap: 14px;
-}
-.offline-main > section { display: flex; flex-direction: column; gap: 14px; }
-
-.offline-summary {
-    display: flex; align-items: center; justify-content: space-between;
-    gap: 14px; flex-wrap: wrap;
-}
-
-/* offline reader -------------------------------------------------------- */
-
-.reader-head {
-    display: flex; align-items: center; gap: 8px;
-    background: var(--surface); border: 1px solid var(--line);
-    border-radius: var(--radius-sm); padding: 8px 10px;
-}
-.reader-title {
-    flex: 1 1 auto; min-width: 0; font-size: 14px; font-weight: 600;
-    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.reader-status { display: flex; gap: 6px; flex-wrap: wrap; }
-
-/* Standing on its own here rather than under a toolbar, so it reads as a
-   panel instead of a strip with a stray bottom rule. */
-.offline-shell .vpalette {
-    border: 1px solid var(--line); border-radius: var(--radius-sm);
-    background: var(--surface-2); padding: 9px 12px;
-}
-
-.reader-stage {
-    position: relative; flex: 1; min-height: 60vh;
-    background: #fff; border: 1px solid var(--line);
-    border-radius: var(--radius-sm); overflow: hidden;
-}
-.reader-frame { width: 100%; height: 100%; min-height: 60vh; border: 0; display: block; }
-.reader-loading {
-    position: absolute; inset: 0; background: #fff;
-    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
-}
-.reader-loading[hidden] { display: none; }
-
-@media (max-width: 560px) {
-    .offline-summary { flex-direction: column; align-items: stretch; }
-    .offline-summary .row-actions { justify-content: stretch; }
-    .offline-summary .row-actions .btn { flex: 1; justify-content: center; }
-    .reader-head { flex-wrap: wrap; }
-    .reader-head .reader-title { flex: 1 1 100%; order: -1; }
-    .reader-head .timer, .reader-head .hl-mini { font-size: 11.5px; }
-}
-
-@media print {
-    .offline-shell { display: none !important; }
 }
 
 /* course tree rows now carry an action, so the link is an inline block */

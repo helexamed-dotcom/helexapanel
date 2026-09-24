@@ -555,11 +555,10 @@ select.input {
 .leaf-card-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .leaf-card-actions .btn { display: inline-flex; align-items: center; gap: 6px; }
 .leaf-card-study { flex: 1 1 auto; justify-content: center; }
-.leaf-card-actions .offline-btn { flex: 1 1 auto; justify-content: center; }
 
 /* Roomy enough for the buttons to sit beside each other. */
 @media (min-width: 560px) {
-    .leaf-card-study, .leaf-card-actions .offline-btn { flex: 0 0 auto; }
+    .leaf-card-study { flex: 0 0 auto; }
 }
 
 .leaf-icon { font-size: 15px; opacity: .8; }
@@ -961,7 +960,6 @@ table.data thead th {
 :root[data-theme="dark"] .tabbar        { background: rgba(21, 28, 38, .94); }
 :root[data-theme="dark"] .scrim         { background: rgba(0, 0, 0, .58); }
 :root[data-theme="dark"] .nav-item-danger:hover { background: #2a1618; }
-:root[data-theme="dark"] .offline-bar   { background: rgba(21, 28, 38, .92); }
 :root[data-theme="dark"] .input         { background: #111823; color: var(--ink); }
 :root[data-theme="dark"] .input:focus   { background: #131b28; }
 :root[data-theme="dark"] table.data td       { border-bottom-color: #1d2632; }
@@ -1266,7 +1264,7 @@ table.data thead th {
     .viewer-frame, .vpalette, .vmenu { transition: none; animation: none; }
 }
 
-/* study status, shared with the offline reader --------------------------- */
+/* study status --------------------------- */
 
 .status-btn {
     border: 1.5px solid var(--line); background: var(--surface); color: var(--ink-2);

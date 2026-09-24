@@ -158,17 +158,6 @@ $colorNames  = [
                     </button>
                 <?php endif; ?>
 
-                <?php if ($isStudent && $offlineEnabled): ?>
-                    <button class="vmenu-row offline-btn"
-                            type="button"
-                            data-offline-save="<?= e($content['uuid']) ?>"
-                            data-version="<?= e($content['checksum'] ?? '') ?>"
-                            data-offline-allowed="<?= (int) ($content['offline_enabled'] ?? 1) === 1 ? '1' : '0' ?>"
-                            data-needs-network>
-                        <span class="row-icon"><?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'download']); ?></span>
-                        <span data-offline-label>ذخیره برای مطالعه آفلاین</span>
-                    </button>
-                <?php endif; ?>
 
                 <button class="vmenu-row" type="button" data-theme-toggle>
                     <span class="row-icon theme-icon-sun"><?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'sun']); ?></span>
@@ -286,9 +275,6 @@ $colorNames  = [
 <script src="/assets/js/helexa-db.js" nonce="<?= e($cspNonce ?? '') ?>"></script>
 <script src="/assets/js/helexa-core.js" nonce="<?= e($cspNonce ?? '') ?>"></script>
 <script src="/assets/js/pwa.js" nonce="<?= e($cspNonce ?? '') ?>"></script>
-<?php if ($isStudent && $offlineEnabled): ?>
-    <script src="/assets/js/offline-manager.js" nonce="<?= e($cspNonce ?? '') ?>"></script>
-<?php endif; ?>
 <script src="<?= asset('/assets/js/viewer.js') ?>"
         nonce="<?= e($cspNonce ?? '') ?>"
         data-content="<?= e($content['uuid']) ?>"

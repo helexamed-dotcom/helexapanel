@@ -42,7 +42,6 @@ use HeleXa\Controllers\Admin\StudentTransferController;
 use HeleXa\Controllers\Admin\SecurityFlagController;
 use HeleXa\Controllers\Student\SecurityController as StudentSecurity;
 use HeleXa\Controllers\Api\MobileController as MobileApi;
-use HeleXa\Controllers\Api\OfflineController as OfflineApi;
 use HeleXa\Controllers\Api\SessionController as SessionApi;
 use HeleXa\Controllers\Api\SyncController;
 use HeleXa\Controllers\AuthController;
@@ -50,7 +49,6 @@ use HeleXa\Controllers\ContentViewerController;
 use HeleXa\Controllers\HighlightController;
 use HeleXa\Controllers\InkController;
 use HeleXa\Controllers\HomeController;
-use HeleXa\Controllers\OfflineController;
 use HeleXa\Controllers\PreferencesController;
 use HeleXa\Controllers\Student\AnalyticsController as StudentAnalytics;
 use HeleXa\Controllers\Student\CourseController as StudentCourses;
@@ -269,13 +267,6 @@ $router->group('/student', [
     $router->get('/balin/media/{uuid}',[BalinProfileController::class, 'media'],       $balin);
 });
 
-/* ---------------------------------------------------- PWA / offline */
-// The offline shell holds no user data, which is what makes it safe for the
-// service worker to cache a single copy of it.
-$router->get('/offline', [OfflineController::class, 'index'], [AuthenticateMiddleware::class]);
-
-// Internal JSON API. Session-authenticated like every other route; there is
-// no separate token scheme and no second way in.
 /* ----------------------------------------------------- the Android app
    Read-only JSON for the mobile client, behind exactly the guards the
    student pages use. It is a second way to read the same data, never a
@@ -298,16 +289,12 @@ $router->group('/api/mobile', [
     $router->post('/notifications/{id}/read', [MobileApi::class, 'readNotification']);
 });
 
+// Internal JSON API. Session-authenticated like every other route; there is
+// no separate token scheme and no second way in. /api/sync only carries study
+// time and highlights that were queued during a short loss of connection.
 $router->group('/api', [AuthenticateMiddleware::class], function (\HeleXa\Core\Router $router): void {
     $router->get('/session/state', [SessionApi::class, 'state'],
         [ThrottleMiddleware::class . ':session_state,240,60']);
-
-    $router->get('/offline/catalogue',      [OfflineApi::class, 'catalogue'],
-        [ThrottleMiddleware::class . ':offline_cat,60,300']);
-    $router->get('/offline/manifest/{uuid}', [OfflineApi::class, 'manifest'],
-        [ThrottleMiddleware::class . ':offline_pkg,120,3600']);
-    $router->post('/offline/verify',        [OfflineApi::class, 'verify'],
-        [ThrottleMiddleware::class . ':offline_verify,60,300']);
 
     $router->post('/sync/study',  [SyncController::class, 'study'],
         [ThrottleMiddleware::class . ':sync_study,60,300']);

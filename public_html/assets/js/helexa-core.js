@@ -1,6 +1,6 @@
 /* =====================================================================
    HeleXa Med — shared PWA core: identity, connectivity, sync.
-   Loaded by every panel page and by the offline shell.
+   Loaded by every panel page.
    ===================================================================== */
 (function (root) {
     'use strict';
@@ -11,7 +11,6 @@
         scope: null,
         user: null,
         csrf: null,
-        offline: { enabled: false, lease_days: 14, max_contents: 60 },
         connection: 'checking',   // checking | online | offline | reconnecting | syncing
         lastProbe: 0,
         booted: false
@@ -69,7 +68,6 @@
                 setConnection('online');
                 state.csrf = data.csrf || state.csrf;
                 state.user = data.user;
-                state.offline = data.offline || state.offline;
 
                 if (storedScope && storedScope !== data.user.scope) {
                     // Account switch on a shared device.
@@ -82,7 +80,9 @@
                 }
 
                 state.scope = data.user.scope;
-                return DB.setMeta('scope', data.user.scope)
+                return DB.getMeta('legacy_purged').then(function (done) {
+                    return done ? null : DB.purgeLegacyContent().then(function () { return DB.setMeta('legacy_purged', 1); });
+                }).then(function () { return DB.setMeta('scope', data.user.scope); })
                     .then(function () { return DB.setMeta('user_name', data.user.name); })
                     .then(function () { return state; });
             }).catch(function () {

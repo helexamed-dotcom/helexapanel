@@ -48,7 +48,6 @@ final class ContentViewerController extends Controller
             'statusValue'  => $status['status'] ?? 'unread',
             'isStudent'    => Auth::isStudent(),
             'heartbeatInt' => Settings::int('heartbeat_interval', 25),
-            'offlineEnabled'   => \HeleXa\Services\OfflineAccess::isEnabled(),
             'highlightEnabled' => Settings::bool('highlight_enabled', true),
             'inkEnabled'   => Auth::isStudent() && Settings::bool('ink_enabled', true),
             'notesEnabled' => Auth::isStudent() && Settings::bool('notes_enabled', true),
@@ -69,8 +68,8 @@ final class ContentViewerController extends Controller
 
         // Browsers that support Fetch Metadata tell us how the request was made.
         // A top-level navigation means someone pasted the raw URL into a tab.
-        // "empty" is the offline downloader calling fetch() from the viewer;
-        // it is still a same-origin subresource request, never a navigation.
+        // "empty" is the viewer itself calling fetch(); it is still a
+        // same-origin subresource request, never a navigation.
         $dest = strtolower((string) $request->header('Sec-Fetch-Dest'));
         $site = strtolower((string) $request->header('Sec-Fetch-Site'));
         $allowedDestinations = ['', 'iframe', 'frame', 'empty'];

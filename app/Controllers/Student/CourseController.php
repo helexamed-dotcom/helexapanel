@@ -56,7 +56,6 @@ final class CourseController extends Controller
             'sections'  => $sections,
             'bySection' => $bySection,
             'statuses'  => $statuses,
-            'offlineEnabled' => \HeleXa\Services\OfflineAccess::isEnabled() && $isStudent,
         ]);
     }
 }

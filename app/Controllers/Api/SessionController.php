@@ -8,8 +8,7 @@ use HeleXa\Core\Csrf;
 use HeleXa\Core\Request;
 use HeleXa\Core\Response;
 use HeleXa\Services\Auth;
-use HeleXa\Services\OfflineAccess;
-use HeleXa\Services\Settings;
+use HeleXa\Core\Str;
 
 /**
  * The client's single source of truth about "who am I, right now".
@@ -32,13 +31,11 @@ final class SessionController extends Controller
                 'uuid'  => (string) $user['uuid'],
                 'name'  => (string) $user['full_name'],
                 'role'  => (string) $user['role_slug'],
-                // Opaque handle used to scope local storage to this account.
-                'scope' => OfflineAccess::deviceScope($user),
-            ],
-            'offline' => [
-                'enabled'      => OfflineAccess::isEnabled() && Auth::isStudent(),
-                'lease_days'   => Settings::int('offline_lease_days', 14),
-                'max_contents' => Settings::int('offline_max_contents', 60),
+                // Opaque handle used to scope the local sync queue to this
+                // account. Derived, carries no secret, and changes if the app
+                // key is rotated. The prefix is kept so existing devices keep
+                // their queue across the update.
+                'scope' => substr(Str::hmac('offline-scope:' . $user['uuid']), 0, 32),
             ],
         ])->withHeader('Cache-Control', 'no-store, private');
     }

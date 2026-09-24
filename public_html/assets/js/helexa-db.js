@@ -5,8 +5,8 @@
    (importScripts), so it must not touch `window` or the DOM.
 
    Everything personal is keyed by an opaque per-account scope handed out by
-   /api/session/state. That is what keeps user A's downloaded lessons and
-   progress unreadable to user B on a shared device: a different account gets
+   /api/session/state. That is what keeps user A's queued study time
+   unreadable to user B on a shared device: a different account gets
    a different scope, and the boot sequence wipes the database outright when
    the scope changes.
    ===================================================================== */
@@ -157,108 +157,24 @@
         return get(STORES.meta, key).then(function (row) { return row ? row.value : null; });
     }
 
-    /* -------------------------------------------------------- content */
-
     function key(scope, uuid) { return scope + ':' + uuid; }
 
-    function saveContent(scope, meta, html) {
-        var id = key(scope, meta.content_uuid);
-        var record = {
-            id: id,
-            scope: scope,
-            content_uuid: meta.content_uuid,
-            course_uuid: meta.course_uuid,
-            course_title: meta.course_title,
-            title: meta.title,
-            content_type: meta.content_type,
-            version: meta.version,
-            byte_size: html ? html.length : (meta.byte_size || 0),
-            lease_expires_at: meta.lease ? meta.lease.expires_at : null,
-            updated_at: meta.updated_at || null,
-            cached_at: new Date().toISOString(),
-            status: 'ready'
-        };
-
-        return put(STORES.contents, record).then(function () {
-            return html === null || html === undefined
-                ? record
-                : put(STORES.blobs, { id: id, html: html }).then(function () { return record; });
-        });
-    }
-
-    function listContents(scope) {
-        return getAll(STORES.contents, 'scope', scope);
-    }
-
-    function getContent(scope, uuid) {
-        return get(STORES.contents, key(scope, uuid));
-    }
-
-    function getContentHtml(scope, uuid) {
-        return get(STORES.blobs, key(scope, uuid)).then(function (row) { return row ? row.html : null; });
-    }
-
-    function markContent(scope, uuid, patch) {
-        return getContent(scope, uuid).then(function (record) {
-            if (!record) { return null; }
-            Object.keys(patch).forEach(function (k) { record[k] = patch[k]; });
-            return put(STORES.contents, record);
-        });
-    }
-
-    function removeContent(scope, uuid) {
-        var id = key(scope, uuid);
-        return remove(STORES.blobs, id).then(function () { return remove(STORES.contents, id); });
-    }
-
-    /** A lease that has run out makes the local copy unusable by the app. */
-    function leaseValid(record) {
-        if (!record || !record.lease_expires_at) { return false; }
-        return new Date(record.lease_expires_at).getTime() > Date.now();
-    }
-
-    /* -------------------------------------------------------- courses */
-
-    function saveCatalogue(scope, courses) {
+    /**
+     * Downloaded lessons were retired with the offline library. Devices that
+     * saved some before the update still hold them, so the boot sequence calls
+     * this once to wipe every store except the sync queue and the meta row.
+     */
+    function purgeLegacyContent() {
+        var names = [STORES.courses, STORES.contents, STORES.blobs, STORES.progress, STORES.cacheMeta];
         return open().then(function (db) {
-            return new Promise(function (resolve, reject) {
-                var transaction = db.transaction(STORES.courses, 'readwrite');
-                var store = transaction.objectStore(STORES.courses);
-                courses.forEach(function (course) {
-                    store.put({
-                        id: key(scope, course.uuid),
-                        scope: scope,
-                        uuid: course.uuid,
-                        title: course.title,
-                        color: course.color,
-                        ends_at: course.ends_at,
-                        sections: course.sections,
-                        lessons: course.lessons,
-                        cached_at: new Date().toISOString()
-                    });
-                });
+            return new Promise(function (resolve) {
+                var transaction = db.transaction(names, 'readwrite');
+                names.forEach(function (name) { transaction.objectStore(name).clear(); });
                 transaction.oncomplete = function () { resolve(true); };
-                transaction.onerror = function () { reject(transaction.error); };
+                transaction.onerror = function () { resolve(false); };
             });
         });
     }
-
-    function listCourses(scope) { return getAll(STORES.courses, 'scope', scope); }
-
-    /* ------------------------------------------------------- progress */
-
-    function saveProgress(scope, uuid, patch) {
-        var id = key(scope, uuid);
-        return get(STORES.progress, id).then(function (existing) {
-            var record = existing || { id: id, scope: scope, content_uuid: uuid, seconds: 0 };
-            Object.keys(patch).forEach(function (k) { record[k] = patch[k]; });
-            record.updated_at = new Date().toISOString();
-            return put(STORES.progress, record);
-        });
-    }
-
-    function getProgress(scope, uuid) { return get(STORES.progress, key(scope, uuid)); }
-    function listProgress(scope) { return getAll(STORES.progress, 'scope', scope); }
 
     /* ---------------------------------------------------- sync queue */
 
@@ -316,18 +232,7 @@
         clearAll: clearAll,
         setMeta: setMeta,
         getMeta: getMeta,
-        saveContent: saveContent,
-        listContents: listContents,
-        getContent: getContent,
-        getContentHtml: getContentHtml,
-        markContent: markContent,
-        removeContent: removeContent,
-        leaseValid: leaseValid,
-        saveCatalogue: saveCatalogue,
-        listCourses: listCourses,
-        saveProgress: saveProgress,
-        getProgress: getProgress,
-        listProgress: listProgress,
+        purgeLegacyContent: purgeLegacyContent,
         enqueue: enqueue,
         pendingEvents: pendingEvents,
         allEvents: allEvents,

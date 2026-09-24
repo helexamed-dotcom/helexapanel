@@ -30,7 +30,7 @@ $typeMeta = [
     'custom'         => ['folder',  'محتوا'],
 ];
 
-$renderContents = function (array $list) use ($statuses, $statusMeta, $typeMeta, $offlineEnabled, $csrf_token): void {
+$renderContents = function (array $list) use ($statuses, $statusMeta, $typeMeta, $csrf_token): void {
     foreach ($list as $item) {
         $status = $statuses[(int) $item['id']]['status'] ?? 'unread';
         [$chip, $label] = $statusMeta[$status] ?? $statusMeta['unread'];
@@ -63,17 +63,6 @@ $renderContents = function (array $list) use ($statuses, $statusMeta, $typeMeta,
                     <?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'book', 'size' => 16]); ?>
                     <span>مطالعه</span>
                 </a>
-                <?php if (!empty($offlineEnabled)): ?>
-                    <button class="btn btn-ghost btn-sm offline-btn"
-                            type="button"
-                            data-offline-save="<?= e($item['uuid']) ?>"
-                            data-version="<?= e($item['checksum'] ?? '') ?>"
-                            data-offline-allowed="<?= (int) ($item['offline_enabled'] ?? 1) === 1 ? '1' : '0' ?>"
-                            data-needs-network>
-                        <?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'download', 'size' => 16]); ?>
-                        <span>ذخیره آفلاین</span>
-                    </button>
-                <?php endif; ?>
             </div>
         </article>
     <?php }

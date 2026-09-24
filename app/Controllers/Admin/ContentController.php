@@ -364,7 +364,6 @@ final class ContentController extends Controller
             'section_id'   => $sectionId,
             'is_printable' => $request->bool('is_printable') ? 1 : 0,
             // Default on: existing lessons keep behaving as they always did.
-            'offline_enabled' => $request->bool('offline_enabled') ? 1 : 0,
             'status'       => $this->pick($request->string('status', 'draft'), ['draft', 'published', 'hidden'], 'draft'),
             'source_mode'  => $request->string('source_mode') === 'paste' ? 'paste' : 'upload',
             'html_code'    => $request->string('source_mode') === 'paste' ? (string) $request->input('html_code', '') : null,
