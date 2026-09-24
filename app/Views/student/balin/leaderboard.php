@@ -19,7 +19,7 @@ $link = static function (string $type, ?int $scopeId = null): string {
     if ($scopeId !== null) {
         $query['scope'] = $scopeId;
     }
-    return '/student/balin/leaderboard?' . http_build_query($query);
+    return '/student/balin/leaderboard?' . http_build_query($query + ['island' => 1]);
 };
 ?>
 <div class="balin">
@@ -49,6 +49,7 @@ $link = static function (string $type, ?int $scopeId = null): string {
     <div class="balin-board-filters">
         <?php if ($lessons !== []): ?>
             <form method="get" action="/student/balin/leaderboard" class="balin-filter">
+                <input type="hidden" name="island" value="1">
                 <input type="hidden" name="board" value="lesson">
                 <label class="field">
                     <span>رتبه در یک درس</span>
@@ -68,6 +69,7 @@ $link = static function (string $type, ?int $scopeId = null): string {
 
         <?php if ($tracks !== []): ?>
             <form method="get" action="/student/balin/leaderboard" class="balin-filter">
+                <input type="hidden" name="island" value="1">
                 <input type="hidden" name="board" value="skill">
                 <label class="field">
                     <span>رتبه در یک مهارت</span>
@@ -129,7 +131,7 @@ $link = static function (string $type, ?int $scopeId = null): string {
                     }
                 ?>
                     <a class="pager-link<?= $p === $page['page'] ? ' is-active' : '' ?>"
-                       href="/student/balin/leaderboard?<?= e(http_build_query($query)) ?>"><?= e(fa($p)) ?></a>
+                       href="/student/balin/leaderboard?<?= e(http_build_query($query + ['island' => 1])) ?>"><?= e(fa($p)) ?></a>
                 <?php endfor; ?>
             </nav>
         <?php endif; ?>

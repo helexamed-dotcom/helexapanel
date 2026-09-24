@@ -103,7 +103,25 @@ $router->get('/account/password',  [AccountController::class, 'showPasswordForm'
 $router->post('/account/password', [AccountController::class, 'updatePassword'],
     [AuthenticateMiddleware::class, ThrottleMiddleware::class . ':password,10,600']);
 
-$router->get('/account/profile',        [AccountController::class, 'showProfile'],   [AuthenticateMiddleware::class]);
+$router->get('/account/profile',        [\HeleXa\Controllers\ProfileController::class, 'me'], [AuthenticateMiddleware::class]);
+$router->get('/account/privacy',        [\HeleXa\Controllers\ProfileController::class, 'privacy'],
+    [AuthenticateMiddleware::class, RoleMiddleware::class . ':student']);
+$router->post('/account/privacy',       [\HeleXa\Controllers\ProfileController::class, 'savePrivacy'],
+    [AuthenticateMiddleware::class, RoleMiddleware::class . ':student', ThrottleMiddleware::class . ':privacy,30,600']);
+
+/* The social side of the profile: someone's page, posts, likes, follows. */
+$router->get('/u/{key}',                        [\HeleXa\Controllers\ProfileController::class, 'show'],
+    [AuthenticateMiddleware::class, ThrottleMiddleware::class . ':profile_view,240,60']);
+$router->post('/profile/posts',                 [\HeleXa\Controllers\ProfileController::class, 'createPost'],
+    [AuthenticateMiddleware::class, RoleMiddleware::class . ':student', ThrottleMiddleware::class . ':profile_post,20,3600']);
+$router->post('/profile/posts/{uuid}/delete',   [\HeleXa\Controllers\ProfileController::class, 'deletePost'],
+    [AuthenticateMiddleware::class, RoleMiddleware::class . ':student']);
+$router->post('/profile/posts/{uuid}/like',     [\HeleXa\Controllers\ProfileController::class, 'like'],
+    [AuthenticateMiddleware::class, RoleMiddleware::class . ':student', ThrottleMiddleware::class . ':profile_like,120,60']);
+$router->post('/profile/follow/{uuid}',         [\HeleXa\Controllers\ProfileController::class, 'follow'],
+    [AuthenticateMiddleware::class, RoleMiddleware::class . ':student', ThrottleMiddleware::class . ':profile_follow,60,600']);
+$router->post('/profile/requests/{uuid}',       [\HeleXa\Controllers\ProfileController::class, 'decide'],
+    [AuthenticateMiddleware::class, RoleMiddleware::class . ':student']);
 $router->get('/account/settings',       [PreferencesController::class, 'show'],     [AuthenticateMiddleware::class]);
 $router->post('/account/settings',      [PreferencesController::class, 'save'],     [AuthenticateMiddleware::class]);
 $router->post('/account/settings/mode', [PreferencesController::class, 'mode'],
@@ -170,6 +188,8 @@ $router->group('/student', [
     $router->get('/midterms',  [PlannerController::class, 'midterms']);
     $router->get('/calendar',  [PlannerController::class, 'calendar']);
     $router->get('/planner',   [PlannerController::class, 'planner']);
+    $router->get('/leaderboard', [\HeleXa\Controllers\ProfileController::class, 'leaderboard']);
+    $router->get('/people',      [\HeleXa\Controllers\ProfileController::class, 'people']);
 
     /* ----------------------------------------------- the study suite */
     // «امروز من» and «درس‌های من» live on the home page now; the old
@@ -398,6 +418,8 @@ $router->group('/media', [AuthenticateMiddleware::class], function (\HeleXa\Core
         [ThrottleMiddleware::class . ':media,600,300']);
     $router->get('/receipts/{name}', [\HeleXa\Controllers\ShopController::class, 'receiptMedia'],
         [ThrottleMiddleware::class . ':media,600,300']);
+    $router->get('/posts/{name}', [\HeleXa\Controllers\ProfileController::class, 'media'],
+        [ThrottleMiddleware::class . ':media,600,300']);
 });
 
 /* --------------------------------------------------------------- admin */
@@ -555,6 +577,12 @@ $router->group('/admin', [
     $router->post('/courses/{uuid}/contents/{content}',       [ContentController::class, 'updateContent'],  $content);
     $router->post('/courses/{uuid}/contents/{content}/delete',[ContentController::class, 'destroyContent'], $content);
     $router->post('/courses/{uuid}/contents/{content}/move',  [ContentController::class, 'moveContent'],    $content);
+
+    /* ------------------------------------------- 🏆 امتیاز، لیگ و پست‌ها */
+    $pts = [PermissionMiddleware::class . ':points.manage'];
+    $router->get('/points',                [\HeleXa\Controllers\Admin\PointsController::class, 'index'],    $pts);
+    $router->post('/points',               [\HeleXa\Controllers\Admin\PointsController::class, 'save'],     $pts);
+    $router->post('/points/posts/{uuid}',  [\HeleXa\Controllers\Admin\PointsController::class, 'moderate'], $pts);
 
     /* --------------------------------------------------------- 🛍 فروشگاه */
     $shopM = [PermissionMiddleware::class . ':shop.manage'];

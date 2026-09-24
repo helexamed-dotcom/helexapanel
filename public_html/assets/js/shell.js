@@ -454,4 +454,11 @@
         window.setTimeout(function () { window.location.href = a.href; }, 360);
         window.addEventListener('pageshow', function () { ghost.remove(); }, { once: true });
     });
+
+    /* ------------------------------------------ tab strips on phones */
+    // A horizontally scrolling strip starts with its current tab in view.
+    document.querySelectorAll('.ptabs .ptab.is-active').forEach(function (t) {
+        var strip = t.parentElement;
+        strip.scrollLeft += (t.getBoundingClientRect().left + t.offsetWidth / 2) - (strip.getBoundingClientRect().left + strip.clientWidth / 2);
+    });
 })();

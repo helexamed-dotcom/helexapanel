@@ -43,6 +43,11 @@ final class BalinProfileController extends Controller
      */
     public function leaderboard(Request $request, array $params = []): Response
     {
+        // Rankings, leagues and levels live on the profile now, one table for
+        // every section of the site rather than one per section.
+        if (!$request->bool('island')) {
+            return $this->redirect('/student/leaderboard');
+        }
         $userId = (int) Auth::id();
 
         // The ranking section follows the switch on «مرور جزیره»: switched off

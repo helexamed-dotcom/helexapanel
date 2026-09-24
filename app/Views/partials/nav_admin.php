@@ -88,7 +88,7 @@ $groups = [
     ['تنظیمات و امنیت', 'settings', 'slate', [
         ['/admin/home-screen',            'صفحه اصلی دانشجو',    'apps',    'manage_settings', 0, false],
         ['/admin/settings',               'تنظیمات سایت',        'settings','manage_settings', 0, false],
-        ['/admin/points',                 'امتیاز و لیگ',        'trophy',  'manage_settings', 0, false],
+        ['/admin/points',                 'امتیاز، لیگ و پست‌ها', 'trophy',  'points.manage', 0, false],
         ['/admin/sessions',               'نشست‌ها',             'clock',   'view_sessions',   0, false],
         ['/admin/security/flags',         'ورود مشکوک',          'shield',  'manage_students', can('manage_students') ? \HeleXa\Services\IpWatch::openCount() : 0, false],
         ['/admin/security',               'بازبینی امنیت',       'shield',  'manage_settings', 0, true],

@@ -19,11 +19,6 @@ use HeleXa\Services\Auth;
 
 final class AccountController extends Controller
 {
-    public function showProfile(Request $request, array $params = []): Response
-    {
-        return $this->showEdit($request, $params);
-    }
-
     /** «ویرایش مشخصات»: name, contact, avatar, classes and level. */
     public function showEdit(Request $request, array $params = []): Response
     {
@@ -255,7 +250,11 @@ final class AccountController extends Controller
         if ($target === null) {
             throw HttpException::notFound();
         }
-        if ((int) $target['id'] !== (int) $viewer['id'] && !Auth::can('manage_students') && !Auth::can('manage_admins')) {
+        // Students see each other's pictures on profiles, posts and the
+        // rankings, as on any social page; an admin's picture stays private.
+        $studentToStudent = Auth::isStudent() && ($target['role_slug'] ?? $this->roleOf((int) $target['id'])) === 'student'
+            && ($target['status'] ?? 'active') === 'active';
+        if ((int) $target['id'] !== (int) $viewer['id'] && !$studentToStudent && !Auth::can('manage_students') && !Auth::can('manage_admins')) {
             throw HttpException::forbidden();
         }
 
@@ -273,6 +272,12 @@ final class AccountController extends Controller
             'X-Content-Type-Options' => 'nosniff',
             'Content-Disposition'    => 'inline',
         ]);
+    }
+
+    private function roleOf(int $userId): ?string
+    {
+        $row = \HeleXa\Core\Database::selectOne('SELECT r.slug FROM users u JOIN roles r ON r.id = u.role_id WHERE u.id = :u', ['u' => $userId]);
+        return $row['slug'] ?? null;
     }
 
     /**

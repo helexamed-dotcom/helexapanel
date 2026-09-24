@@ -337,7 +337,7 @@ $delta   = $weekTotal - $lastWeek;
             <section class="home-card">
                 <div class="home-card-head">
                     <h3><?php $icon('trophy', 18); ?> رتبه و آزمون</h3>
-                    <a class="home-link" href="/account/profile#league">لیگ من</a>
+                    <a class="home-link" href="/student/leaderboard">جدول لیگ</a>
                 </div>
                 <?php if ($rank !== null):
                     $line = static fn (array $r): string => $r['rank'] === null ? '—' : MyRank::ordinal((int) $r['rank']) . ' از ' . fa((string) $r['of']); ?>

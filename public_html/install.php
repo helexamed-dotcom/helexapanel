@@ -95,6 +95,7 @@ const FRESH_INSTALL_MIGRATIONS = [
     '2026_09_26_student_types_and_home.sql',
     '2026_09_27_lessons.sql',
     '2026_09_28_shop.sql',
+    '2026_09_29_profiles.sql',
 ];
 
 /** Splits the schema on semicolons at end of line; the file contains no procedures. */

@@ -131,6 +131,9 @@ final class FlashcardController extends Controller
         }
 
         $next = $this->study->rate($userId, (int) $card['id'], $rating);
+        // One point per card per day, whatever the rating: showing up is the habit.
+        \HeleXa\Services\Points::award($userId, \HeleXa\Services\Points::amount('flashcard_review', 2), 'flashcard_review',
+            'fc_card', (int) $card['id'], 'fc:' . $userId . ':' . $card['id'] . ':' . date('Ymd'));
 
         return $this->json([
             'ok'       => true,

@@ -15,7 +15,9 @@ $rows = [
     ['/account/settings', 'ظاهر و زبان',          'palette', 'pink'],
 ];
 if (!$isAdminArea) {
-    $rows[] = ['/account/privacy', 'حریم خصوصی و نمایش', 'eye', 'teal'];
+    $rows[] = ['/account/privacy',     'حریم خصوصی و نمایش', 'eye',    'teal'];
+    $rows[] = ['/student/leaderboard', 'رتبه‌بندی و لیگ',     'trophy', 'amber'];
+    $rows[] = ['/student/people',      'هم‌کلاسی‌ها',         'users',  'violet'];
 }
 $rows[] = ['/account/sessions', 'نشست‌ها و دستگاه‌ها', 'shield', 'slate'];
 $rows[] = ['/account/password', 'رمز عبور',           'key',    'amber'];

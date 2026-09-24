@@ -59,7 +59,7 @@ $stats = $profile['stats'];
                     <div><strong><?= e(fa((int) $profile['ranks']['mastery']['rank_position'])) ?></strong><span>رتبه تسلط</span></div>
                 <?php endif; ?>
             </div>
-            <a class="btn btn-ghost btn-sm" href="/student/balin/leaderboard">مشاهده جدول کامل</a>
+            <a class="btn btn-ghost btn-sm" href="/student/balin/leaderboard?island=1">مشاهده جدول کامل</a>
         </section>
     <?php endif; ?>
 
