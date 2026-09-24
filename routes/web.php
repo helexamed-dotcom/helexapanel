@@ -287,6 +287,7 @@ $router->group('/student', [
     $lc = \HeleXa\Controllers\Student\LessonController::class;
     $router->get('/lessons',               [$lc, 'index']);
     $router->get('/lessons/{uuid}',        [$lc, 'show']);
+    $router->get('/lessons/{uuid}/p/{page}', [$lc, 'show']);
     $router->post('/lessons/{uuid}/state', [$lc, 'saveState'], [ThrottleMiddleware::class . ':lesson_state,240,300']);
 
     /* ------------------------------------------------ 📝 یادداشت‌ها */
@@ -659,6 +660,18 @@ $router->group('/admin', [
     $router->post('/lessons/{uuid}/status',   [$alc, 'setStatus'], $lessons);
     $router->post('/lessons/{uuid}/delete',   [$alc, 'destroy'],   $lessons);
     $router->post('/lessons/{uuid}',          [$alc, 'update'],    $lessons);
+    // its زیردرس‌ها and pages
+    $lpc = \HeleXa\Controllers\Admin\LessonPageController::class;
+    $router->post('/lessons/{uuid}/sections',               [$lpc, 'addSection'],    $lessons);
+    $router->post('/lessons/{uuid}/sections/{id}',          [$lpc, 'renameSection'], $lessons);
+    $router->post('/lessons/{uuid}/sections/{id}/delete',   [$lpc, 'deleteSection'], $lessons);
+    $router->post('/lessons/{uuid}/sections/{id}/move',     [$lpc, 'moveSection'],   $lessons);
+    $router->get('/lessons/{uuid}/pages/new',               [$lpc, 'create'],        $lessons);
+    $router->post('/lessons/{uuid}/pages',                  [$lpc, 'store'],         $lessons);
+    $router->get('/lessons/{uuid}/pages/{page}/edit',       [$lpc, 'edit'],          $lessons);
+    $router->post('/lessons/{uuid}/pages/{page}',           [$lpc, 'update'],        $lessons);
+    $router->post('/lessons/{uuid}/pages/{page}/delete',    [$lpc, 'destroy'],       $lessons);
+    $router->post('/lessons/{uuid}/pages/{page}/move',      [$lpc, 'move'],          $lessons);
 
     /* --------------------------------------------------- 🖼 بازی با شکل */
     $fig = [PermissionMiddleware::class . ':figures.manage'];

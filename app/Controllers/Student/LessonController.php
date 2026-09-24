@@ -44,6 +44,8 @@ final class LessonController extends Controller
             'rows'     => $rows,
             'held'     => $held,
             'states'   => LessonRepository::ready() ? $this->lessons->statesFor($userId) : [],
+            'counts'   => LessonRepository::pagesReady() ? $this->lessons->counts() : [],
+            'pagesRead' => LessonRepository::pagesReady() ? $this->lessons->pagesReadBy($userId) : [],
             'filters'  => $filters,
             'subjects' => SubjectTree::roots(),
             'tags'     => $this->usedTags(),
@@ -51,21 +53,66 @@ final class LessonController extends Controller
         ]);
     }
 
+    /**
+     * GET /student/lessons/{uuid} and /student/lessons/{uuid}/p/{page}.
+     * A درسنامه is read page by page; without a page it opens where the
+     * student left off (or on the first page they have not finished).
+     */
     public function show(Request $request, array $params = []): Response
     {
         $userId = (int) Auth::id();
         $lesson = $this->readable((string) ($params['uuid'] ?? ''), $userId);
-        $this->lessons->touch($userId, (int) $lesson['id']);
-        $state = $this->lessons->readState($userId, (int) $lesson['id']) ?? [];
-        $tags  = $this->lessons->tagsFor((int) $lesson['id']);
+        $lessonId = (int) $lesson['id'];
+        $this->lessons->touch($userId, $lessonId);
+        $state = $this->lessons->readState($userId, $lessonId) ?? [];
+
+        $pages = LessonRepository::pagesReady() ? $this->lessons->pageList($lessonId, $userId) : [];
+        $page = null;
+        if ($pages !== []) {
+            $wanted = (string) ($params['page'] ?? '');
+            $index = null;
+            foreach ($pages as $i => $p) {
+                if ($wanted !== '' ? $p['uuid'] === $wanted : (int) $p['id'] === (int) ($state['last_page_id'] ?? 0)) {
+                    $index = $i;
+                }
+            }
+            if ($index === null && $wanted !== '') {
+                throw HttpException::notFound();
+            }
+            if ($index === null) {
+                $index = 0;
+                foreach ($pages as $i => $p) {
+                    if (!$p['is_read']) {
+                        $index = $i;
+                        break;
+                    }
+                }
+            }
+            $page = $this->lessons->page($lessonId, $pages[$index]['uuid']);
+            $page['index'] = $index;
+            $this->lessons->saveState($userId, $lessonId, ['last_page_id' => (int) $page['id']]);
+        }
+
+        $pageState = $page !== null ? ($this->lessons->pageState($userId, (int) $page['id']) ?? []) : $state;
+        $tags = $page !== null ? ($this->lessons->pageTagsFor([(int) $page['id']])[(int) $page['id']] ?? []) : $this->lessons->tagsFor($lessonId);
+        $body = $page !== null ? (string) $page['body_html'] : (string) $lesson['body_html'];
+        $done = count(array_filter($pages, static fn (array $p): bool => $p['is_read']));
 
         return $this->page('layouts.app', 'student.lessons.show', [
-            'title'      => $lesson['title'],
+            'title'      => $page !== null ? $page['title'] . ' — ' . $lesson['title'] : $lesson['title'],
             'lesson'     => $lesson,
+            'pageRow'    => $page,
+            'outline'    => $page !== null ? $this->lessons->outline($lessonId, $userId) : [],
+            'pages'      => $pages,
+            'prev'       => $page !== null ? ($pages[$page['index'] - 1] ?? null) : null,
+            'next'       => $page !== null ? ($pages[$page['index'] + 1] ?? null) : null,
+            'done'       => $done,
+            'body'       => $body,
             'path'       => SubjectTree::pathOf($lesson['subject_id'] === null ? null : (int) $lesson['subject_id']),
-            'toc'        => RichText::headings((string) $lesson['body_html']),
+            'toc'        => RichText::headings($body),
             'tags'       => $tags,
             'state'      => $state,
+            'pageState'  => $pageState,
             'related'    => $this->related($lesson, $tags),
             'extraCss'   => ['lessons'],
             'extraJs'    => ['lesson-reader'],
@@ -73,39 +120,75 @@ final class LessonController extends Controller
     }
 
     /**
-     * The student's own layer: highlights and text colours, the reading
-     * position, the bookmark, and «خواندم» — which pays points once.
+     * The student's own layer: highlights and text colours (per page), the
+     * reading position, the bookmark, and «خواندم» on a page — which pays a
+     * little once, and the whole درسنامه's points when its last page is done.
      */
     public function saveState(Request $request, array $params = []): Response
     {
         $userId = (int) Auth::id();
         $lesson = $this->readable((string) ($params['uuid'] ?? ''), $userId);
+        $lessonId = (int) $lesson['id'];
         $body = json_decode((string) file_get_contents('php://input'), true);
         $body = is_array($body) ? $body : $request->all();
+        $page = null;
+        if (!empty($body['page']) && is_string($body['page']) && LessonRepository::pagesReady()) {
+            $page = $this->lessons->page($lessonId, $body['page']);
+            if ($page === null) {
+                return $this->json(['ok' => false], 404);
+            }
+        }
         $fields = [];
+        $pageFields = [];
 
         if (isset($body['highlights']) && is_array($body['highlights'])) {
-            $fields['highlights'] = json_encode($this->cleanHighlights($body['highlights']), JSON_UNESCAPED_UNICODE);
+            $json = json_encode($this->cleanHighlights($body['highlights']), JSON_UNESCAPED_UNICODE);
+            if ($page !== null) {
+                $pageFields['highlights'] = $json;
+            } else {
+                $fields['highlights'] = $json;
+            }
         }
-        if (isset($body['progress'])) {
+        if (isset($body['progress']) && $page === null) {
             $fields['progress'] = max(0, min(100, (int) $body['progress']));
         }
         if (isset($body['bookmarked'])) {
             $fields['bookmarked'] = $body['bookmarked'] ? 1 : 0;
         }
         $reward = null;
+        $finished = false;
         if (!empty($body['read'])) {
-            $state = $this->lessons->readState($userId, (int) $lesson['id']);
-            if (empty($state['read_at'])) {
+            if ($page !== null) {
+                $ps = $this->lessons->pageState($userId, (int) $page['id']);
+                if (empty($ps['read_at'])) {
+                    $pageFields['read_at'] = date('Y-m-d H:i:s');
+                    $reward = Points::award($userId, Points::amount('lesson_page_read', 4), 'lesson_read', 'lesson_page', (int) $page['id'],
+                        'lesson_page_read:' . $userId . ':' . $page['id']);
+                }
+            }
+            $state = $this->lessons->readState($userId, $lessonId);
+            if ($page !== null) {
+                $this->lessons->savePageState($userId, (int) $page['id'], $pageFields);
+                $pageFields = [];
+            }
+            $all = $page !== null ? $this->lessons->pageList($lessonId, $userId) : [];
+            $finished = $page === null || ($all !== [] && count(array_filter($all, static fn (array $p): bool => !$p['is_read'])) === 0);
+            if ($page !== null && $all !== []) {
+                $fields['progress'] = (int) round(count(array_filter($all, static fn (array $p): bool => $p['is_read'])) * 100 / count($all));
+            }
+            if ($finished && empty($state['read_at'])) {
                 $fields['read_at'] = date('Y-m-d H:i:s');
                 $fields['progress'] = 100;
-                $reward = Points::award($userId, Points::amount('lesson_read', 15), 'lesson_read', 'lesson', (int) $lesson['id'],
-                    'lesson_read:' . $userId . ':' . $lesson['id']);
+                $reward = Points::award($userId, Points::amount('lesson_read', 15), 'lesson_read', 'lesson', $lessonId,
+                    'lesson_read:' . $userId . ':' . $lessonId) ?? $reward;
             }
         }
-        $this->lessons->saveState($userId, (int) $lesson['id'], $fields);
+        if ($page !== null && $pageFields !== []) {
+            $this->lessons->savePageState($userId, (int) $page['id'], $pageFields);
+        }
+        $this->lessons->saveState($userId, $lessonId, $fields);
 
-        return $this->json(['ok' => true, 'xp' => $reward]);
+        return $this->json(['ok' => true, 'xp' => $reward, 'finished' => $finished]);
     }
 
     /** Lesson images, for anyone signed in who may read lessons. */

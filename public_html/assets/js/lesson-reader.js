@@ -17,6 +17,7 @@
     var doc    = root.querySelector('[data-lr-doc]');
     var pop    = root.querySelector('[data-lr-pop]');
     var uuid   = root.getAttribute('data-uuid');
+    var pageId = root.getAttribute('data-page') || '';
     var url    = '/student/lessons/' + uuid + '/state';
     var token  = (document.querySelector('meta[name="csrf-token"]') || {}).content || '';
     var PHONE  = window.matchMedia('(max-width: 760px)');
@@ -203,6 +204,7 @@
     }
     function flush(keepalive) {
         if (!Object.keys(pending).length) { return Promise.resolve(); }
+        if (pageId) { pending.page = pageId; }
         var body = JSON.stringify(pending);
         pending = {};
         return fetch(url, {
@@ -277,9 +279,17 @@
             pending.read = 1;
             flush().then(function (res) {
                 readBtn.classList.add('is-done');
-                readBtn.querySelector('span').textContent = 'این درسنامه را خوانده‌ای';
+                readBtn.querySelector('span').textContent = pageId ? 'خوانده‌ای ✓' : 'این درسنامه را خوانده‌ای';
+                var cur = root.querySelector('[data-lr-current]');
+                if (cur) { cur.classList.add('is-read'); }
                 var xp = res && res.xp && res.xp.xp;
-                toast(xp ? 'آفرین! +' + fa(xp) + ' امتیاز 🎉' : 'آفرین! 🎉', 'ok');
+                if (res && res.finished && pageId) {
+                    toast('کل این درسنامه را خواندی! 🎉' + (xp ? ' +' + fa(xp) + ' امتیاز' : ''), 'ok');
+                } else {
+                    toast(xp ? 'آفرین! +' + fa(xp) + ' امتیاز 🎉' : 'آفرین! 🎉', 'ok');
+                }
+                var nextLink = root.querySelector('[data-lr-next]');
+                if (nextLink) { nextLink.classList.add('is-glow'); }
                 if (!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches)) { confetti(readBtn); }
             });
         });
@@ -327,8 +337,34 @@
             });
             close = window.HlxUI.modal({ title: 'هایلایت‌ها و یادداشت‌های من', body: box, wide: true,
                 actions: marks.length ? [{ label: 'پاک کردن همه', onClick: function (c) {
-                    if (window.confirm('همه هایلایت‌ها و یادداشت‌های این درسنامه پاک شود؟')) { marks = []; render(); save({ highlights: marks }); c(); }
+                    if (window.confirm('همه هایلایت‌ها و یادداشت‌های این صفحه پاک شود؟')) { marks = []; render(); save({ highlights: marks }); c(); }
                 } }, { label: 'بستن', primary: true }] : [{ label: 'بستن', primary: true }] });
         });
     }
+
+    /* ------------------------------------- the فهرست as a sheet on a phone */
+    var side = root.querySelector('[data-lr-outline]');
+    var sideHome = side ? side.parentNode : null, sideNext = side ? side.nextSibling : null, scrim = null;
+    function openOutline() {
+        if (!side) { return; }
+        document.body.appendChild(side);
+        scrim = document.createElement('div');
+        scrim.className = 'lr-scrim';
+        scrim.addEventListener('click', closeOutline);
+        document.body.appendChild(scrim);
+        side.classList.add('is-sheet');
+        document.documentElement.classList.add('lr-sheet-open');
+        var cur = side.querySelector('[data-lr-current]');
+        if (cur) { cur.scrollIntoView({ block: 'center' }); }
+    }
+    function closeOutline() {
+        if (!side || !side.classList.contains('is-sheet')) { return; }
+        side.classList.remove('is-sheet');
+        sideHome.insertBefore(side, sideNext);
+        document.documentElement.classList.remove('lr-sheet-open');
+        if (scrim) { scrim.remove(); scrim = null; }
+    }
+    root.querySelectorAll('[data-lr-outline-open]').forEach(function (b) { b.addEventListener('click', openOutline); });
+    document.querySelectorAll('[data-lr-outline-close]').forEach(function (b) { b.addEventListener('click', closeOutline); });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { closeOutline(); } });
 })();

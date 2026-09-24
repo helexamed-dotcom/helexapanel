@@ -9,12 +9,10 @@ use HeleXa\Core\Request;
 use HeleXa\Core\Response;
 use HeleXa\Models\LessonRepository;
 use HeleXa\Models\PackageRepository;
-use HeleXa\Models\QuestionBank\QbTagRepository;
 use HeleXa\Services\ActivityLogger;
 use HeleXa\Services\Auth;
 use HeleXa\Services\LessonTransfer;
 use HeleXa\Services\MediaStore;
-use HeleXa\Services\RichText;
 
 /**
  * «درسنامه‌ها» for the admin: write them in a Word-like editor, file them
@@ -41,6 +39,7 @@ final class LessonController extends Controller
         return $this->page('layouts.app', 'admin.lessons.index', [
             'title'    => 'درسنامه‌ها',
             'rows'     => $this->lessons->search($filters, false),
+            'counts'   => LessonRepository::pagesReady() ? $this->lessons->counts() : [],
             'filters'  => $filters,
             'subjects' => $this->subjectOptions(),
         ]);
@@ -155,22 +154,19 @@ final class LessonController extends Controller
         return $this->page('layouts.app', 'admin.lessons.form', [
             'title'     => $lesson === null ? 'درسنامه جدید' : 'ویرایش درسنامه',
             'lesson'    => $lesson,
-            'tagIds'    => $lesson === null ? [] : array_column($this->lessons->tagsFor((int) $lesson['id']), 'id'),
-            'allTags'   => (new QbTagRepository())->all(true),
+            'outline'   => $lesson !== null && LessonRepository::pagesReady() ? $this->lessons->outline((int) $lesson['id']) : [],
             'subjects'  => $this->subjectOptions(),
             'packages'  => (new PackageRepository())->all(),
             'colors'    => LessonRepository::COLORS,
             'extraCss'  => ['lessons'],
-            'extraJs'   => ['lesson-editor'],
         ]);
     }
 
     private function persist(Request $request, ?array $lesson): Response
     {
         $title = trim(mb_substr($request->string('title'), 0, 191));
-        $body  = RichText::clean((string) $request->input('body_html', ''));
-        if ($title === '' || RichText::plain($body) === '' && !str_contains($body, '<img')) {
-            $this->flash('error', 'عنوان و متن درسنامه لازم است.');
+        if ($title === '') {
+            $this->flash('error', 'عنوان درسنامه لازم است.');
             return $this->redirect($lesson === null ? '/admin/lessons/create' : '/admin/lessons/' . $lesson['uuid'] . '/edit');
         }
 
@@ -180,14 +176,21 @@ final class LessonController extends Controller
             'subject_id'      => $request->int('subject_id'),
             'package_id'      => $request->int('package_id'),
             'color'           => $request->string('color'),
-            'body_html'       => $body,
-            'reading_minutes' => RichText::readingMinutes($body),
+            // The text lives in the pages now; this column keeps a pre-pages body.
+            'body_html'       => (string) ($lesson['body_html'] ?? ''),
+            'reading_minutes' => (int) ($lesson['reading_minutes'] ?? 1),
             'status'          => $request->string('status'),
             'sort_order'      => $request->int('sort_order'),
         ], (int) Auth::id());
 
-        $tags = $request->input('tags', []);
-        $this->lessons->syncTags($id, is_array($tags) ? $tags : []);
+        // A new درسنامه can start with its whole فهرست, one زیردرس per line.
+        if ($lesson === null && LessonRepository::pagesReady()) {
+            foreach (array_slice(preg_split('/\R/u', $request->string('sections')) ?: [], 0, 40) as $line) {
+                if (($line = trim(mb_substr($line, 0, 191))) !== '') {
+                    $this->lessons->addSection($id, $line);
+                }
+            }
+        }
 
         $cover = $request->file('cover');
         if ($cover !== null && (int) ($cover['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_NO_FILE) {
@@ -210,7 +213,8 @@ final class LessonController extends Controller
         $this->flash('success', 'درسنامه ذخیره شد.');
         $saved = $this->lessons->find($id);
 
-        return $this->redirect($request->bool('stay') && $saved ? '/admin/lessons/' . $saved['uuid'] . '/edit' : '/admin/lessons');
+        // A new one opens on its فهرست, where its pages are written.
+        return $this->redirect(($lesson === null || $request->bool('stay')) && $saved ? '/admin/lessons/' . $saved['uuid'] . '/edit#outline' : '/admin/lessons');
     }
 
     private function lessonOr404(string $uuid): array

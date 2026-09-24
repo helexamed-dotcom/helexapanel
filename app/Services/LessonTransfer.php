@@ -10,12 +10,16 @@ use HeleXa\Models\LessonRepository;
 /**
  * درسنامه‌ها in and out as JSON.
  *
- * A lesson's text comes in either as `html` (what export writes) or as
+ * A درسنامه has `sections` (زیردرس‌ها), each with `pages`; a page carries
+ * its own `tags` and its text either as `html` (what export writes) or as
  * `blocks` — a list simple enough for an AI to produce: headings,
  * paragraphs, callout boxes, lists and tables, with **bold**, __underline__
  * and ==highlight== inline. Both end in RichText::clean(), the same door
- * the editor uses. A `uuid` that already exists updates that lesson; the
- * درس is matched by its titles and tags are created on the way in.
+ * the editor uses. A version-1 file (one `html`/`blocks` per درسنامه) still
+ * imports, as one زیردرس with one page. A `uuid` that already exists updates
+ * that درسنامه: زیردرس‌ها are matched by title, pages by uuid or title, and
+ * nothing the file leaves out is deleted. The درس is matched by its titles
+ * and tags are created on the way in.
  */
 final class LessonTransfer
 {
@@ -30,18 +34,26 @@ final class LessonTransfer
             if ($full === null) {
                 continue;
             }
+            $sections = [];
+            foreach (LessonRepository::pagesReady() ? $repo->outline((int) $full['id']) : [] as $sec) {
+                $pages = [];
+                foreach ($sec['pages'] as $p) {
+                    $body = $repo->page((int) $full['id'], $p['uuid']);
+                    $pages[] = ['uuid' => $p['uuid'], 'title' => $p['title'], 'tags' => array_column($p['tags'], 'title'), 'html' => (string) ($body['body_html'] ?? '')];
+                }
+                $sections[] = ['title' => $sec['title'], 'pages' => $pages];
+            }
             $out[] = [
-                'uuid'    => $full['uuid'],
-                'title'   => $full['title'],
-                'summary' => $full['summary'],
-                'subject' => SubjectTree::pathOf($full['subject_id'] === null ? null : (int) $full['subject_id']),
-                'tags'    => array_column($repo->tagsFor((int) $full['id']), 'title'),
-                'color'   => $full['color'],
-                'status'  => $full['status'],
-                'html'    => $full['body_html'],
+                'uuid'     => $full['uuid'],
+                'title'    => $full['title'],
+                'summary'  => $full['summary'],
+                'subject'  => SubjectTree::pathOf($full['subject_id'] === null ? null : (int) $full['subject_id']),
+                'color'    => $full['color'],
+                'status'   => $full['status'],
+                'sections' => $sections,
             ];
         }
-        return ['format' => self::FORMAT, 'version' => 1, 'exported_at' => date('c'), 'lessons' => $out];
+        return ['format' => self::FORMAT, 'version' => 2, 'exported_at' => date('c'), 'lessons' => $out];
     }
 
     /** @return array{created:int, updated:int, errors:list<string>} */
@@ -67,10 +79,13 @@ final class LessonTransfer
                 continue;
             }
             $title = trim(mb_substr((string) ($item['title'] ?? ''), 0, 191));
-            $html  = isset($item['html']) ? (string) $item['html'] : self::blocksToHtml((array) ($item['blocks'] ?? []));
-            $html  = RichText::clean($html);
-            if ($title === '' || $html === '') {
-                $result['errors'][] = "مورد {$n}: عنوان یا متن ندارد";
+            // Version 1: one text per درسنامه → one زیردرس with one page.
+            $sections = is_array($item['sections'] ?? null) ? $item['sections'] : [[
+                'title' => $title,
+                'pages' => [['title' => $title, 'tags' => $item['tags'] ?? [], 'html' => $item['html'] ?? null, 'blocks' => $item['blocks'] ?? []]],
+            ]];
+            if ($title === '') {
+                $result['errors'][] = "مورد {$n}: عنوان ندارد";
                 continue;
             }
             $subject = is_array($item['subject'] ?? null) ? SubjectTree::findPath($item['subject']) : 0;
@@ -82,18 +97,69 @@ final class LessonTransfer
                 'subject_id'      => $subject ?: ($existing['subject_id'] ?? $defaultSubject),
                 'package_id'      => $existing['package_id'] ?? null,
                 'color'           => (string) ($item['color'] ?? ($existing['color'] ?? 'indigo')),
-                'body_html'       => $html,
-                'reading_minutes' => RichText::readingMinutes($html),
+                'body_html'       => (string) ($existing['body_html'] ?? ''),
+                'reading_minutes' => (int) ($existing['reading_minutes'] ?? 1),
                 'status'          => $publish ? 'published' : (string) ($item['status'] ?? ($existing['status'] ?? 'draft')),
                 'sort_order'      => (int) ($item['sort_order'] ?? ($existing['sort_order'] ?? 0)),
             ], $actorId);
 
-            if (isset($item['tags']) && is_array($item['tags'])) {
-                $repo->syncTags($id, self::tagIds($item['tags']));
+            if (LessonRepository::pagesReady()) {
+                $pagesDone = self::importSections($repo, $id, $sections, $n, $result['errors']);
+                if ($pagesDone === 0 && $existing === null) {
+                    $result['errors'][] = "مورد {$n}: هیچ صفحه‌ای با متن نداشت";
+                }
+                $repo->refresh($id);
             }
             $existing === null ? $result['created']++ : $result['updated']++;
         }
         return $result;
+    }
+
+    /**
+     * زیردرس‌ها by title, pages by uuid (within this درسنامه) or by title
+     * within their زیردرس; each page's tags replace what it had.
+     */
+    private static function importSections(LessonRepository $repo, int $lessonId, array $sections, string $n, array &$errors): int
+    {
+        $outline = $repo->outline($lessonId);
+        $byTitle = [];
+        foreach ($outline as $sec) {
+            $byTitle[$sec['title']] = $sec;
+        }
+        $done = 0;
+        foreach (array_slice($sections, 0, 60) as $si => $sec) {
+            if (!is_array($sec)) {
+                continue;
+            }
+            $secTitle = trim(mb_substr((string) ($sec['title'] ?? ''), 0, 191)) ?: 'زیردرس ' . fa((string) ($si + 1));
+            $sectionId = isset($byTitle[$secTitle]) ? (int) $byTitle[$secTitle]['id'] : $repo->addSection($lessonId, $secTitle);
+            $known = $byTitle[$secTitle]['pages'] ?? [];
+            foreach (array_slice((array) ($sec['pages'] ?? []), 0, 200) as $pi => $pg) {
+                if (!is_array($pg)) {
+                    continue;
+                }
+                $pTitle = trim(mb_substr((string) ($pg['title'] ?? ''), 0, 191));
+                $html = RichText::clean(isset($pg['html']) && is_string($pg['html']) ? $pg['html'] : self::blocksToHtml((array) ($pg['blocks'] ?? [])));
+                if ($pTitle === '' || $html === '') {
+                    $errors[] = "مورد {$n}، «{$secTitle}»، صفحه " . fa((string) ($pi + 1)) . ': عنوان یا متن ندارد';
+                    continue;
+                }
+                $page = is_string($pg['uuid'] ?? null) ? $repo->page($lessonId, $pg['uuid']) : null;
+                if ($page === null) {
+                    foreach ($known as $k) {
+                        if ($k['title'] === $pTitle) {
+                            $page = $repo->page($lessonId, $k['uuid']);
+                        }
+                    }
+                }
+                $pageId = $repo->savePage($lessonId, $page, [
+                    'section_id' => $sectionId, 'title' => $pTitle, 'body_html' => $html, 'reading_minutes' => RichText::readingMinutes($html),
+                ]);
+                $repo->syncPageTags($lessonId, $pageId, self::tagIds(is_array($pg['tags'] ?? null) ? $pg['tags'] : []));
+                $done++;
+            }
+        }
+        return $done;
     }
 
     /** Tag titles → ids, creating the missing ones. @return list<int> */
@@ -186,20 +252,28 @@ final class LessonTransfer
     {
         return (string) json_encode([
             'format'  => self::FORMAT,
-            'version' => 1,
+            'version' => 2,
             'lessons' => [[
-                'title'   => 'چرخه قلبی',
-                'summary' => 'مراحل سیستول و دیاستول و صداهای قلب',
-                'subject' => ['فیزیولوژی', 'قلب و عروق'],
-                'tags'    => ['قلب', 'چرخه قلبی'],
-                'color'   => 'rose',
-                'blocks'  => [
-                    ['type' => 'h2', 'text' => 'مراحل چرخه قلبی'],
-                    ['type' => 'p', 'text' => 'چرخه قلبی از **سیستول** و **دیاستول** تشکیل شده است. ==مهم‌ترین نکته== ترتیب باز و بسته شدن دریچه‌هاست.'],
-                    ['type' => 'list', 'ordered' => true, 'items' => ['انقباض ایزوولومتریک', 'خروج سریع خون', 'استراحت ایزوولومتریک']],
-                    ['type' => 'callout', 'tone' => 'tip', 'text' => 'صدای S1 با بسته شدن دریچه‌های دهلیزی-بطنی ایجاد می‌شود.'],
-                    ['type' => 'table', 'header' => true, 'rows' => [['صدا', 'علت'], ['S1', 'بسته شدن میترال و تریکوسپید'], ['S2', 'بسته شدن آئورت و پولمونر']]],
-                    ['type' => 'callout', 'tone' => 'warn', 'text' => '!!S3 در بزرگسالان!! معمولاً پاتولوژیک است.'],
+                'title'    => 'باکتری‌شناسی',
+                'summary'  => 'از کلیات تا باکتری‌های مهم بالینی',
+                'subject'  => ['میکروب‌شناسی'],
+                'color'    => 'teal',
+                'sections' => [
+                    ['title' => 'کلیات باکتری‌شناسی', 'pages' => [
+                        ['title' => 'ساختار سلول باکتری', 'tags' => ['کلیات باکتری‌شناسی'], 'blocks' => [
+                            ['type' => 'h2', 'text' => 'دیواره سلولی'],
+                            ['type' => 'p', 'text' => '**پپتیدوگلیکان** در گرم مثبت‌ها ضخیم و در گرم منفی‌ها ==نازک== است.'],
+                            ['type' => 'callout', 'tone' => 'key', 'text' => 'LPS فقط در غشای خارجی گرم منفی‌ها هست.'],
+                        ]],
+                        ['title' => 'رنگ‌آمیزی گرم', 'tags' => ['کلیات باکتری‌شناسی'], 'blocks' => [
+                            ['type' => 'list', 'ordered' => true, 'items' => ['کریستال ویوله', 'لوگل', 'الکل', 'سافرانین']],
+                        ]],
+                    ]],
+                    ['title' => 'کوکسی‌های گرم مثبت', 'pages' => [
+                        ['title' => 'استافیلوکوک‌ها', 'tags' => ['کوکسی‌های گرم مثبت', 'استافیلوکوک'], 'blocks' => [
+                            ['type' => 'table', 'header' => true, 'rows' => [['گونه', 'کوآگولاز'], ['S. aureus', 'مثبت'], ['S. epidermidis', 'منفی']]],
+                        ]],
+                    ]],
                 ],
             ]],
         ], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
@@ -210,7 +284,9 @@ final class LessonTransfer
         return <<<'TXT'
 تو یک استاد پزشکی هستی. برای موضوعی که می‌دهم یک «درسنامه» کامل و دقیق به فارسی بنویس و خروجی را فقط به صورت JSON معتبر با این ساختار برگردان (هیچ متن دیگری ننویس):
 
-{"format":"helexa-lessons","version":1,"lessons":[{"title":"...","summary":"یک جمله","subject":["نام درس","نام زیردرس"],"tags":["برچسب۱","برچسب۲"],"color":"indigo","blocks":[ ... ]}]}
+{"format":"helexa-lessons","version":2,"lessons":[{"title":"نام درس","summary":"یک جمله","subject":["نام درس در بانک سوال"],"color":"indigo","sections":[{"title":"زیردرس ۱","pages":[{"title":"عنوان صفحه","tags":["برچسب۱"],"blocks":[ ... ]}]}]}]}
+
+هر درسنامه چند زیردرس (sections) دارد و هر زیردرس چند صفحه (pages). هر صفحه کوتاه و درباره یک مبحث باشد (حدود ۳۰۰ تا ۸۰۰ کلمه) و برچسب‌هایش دقیقاً همان نام مبحث باشد (مثلاً «کلیات باکتری‌شناسی») تا با بانک سوال و فلش‌کارت یکی شود.
 
 انواع بلوک:
 - {"type":"h2","text":"تیتر اصلی"} و {"type":"h3","text":"تیتر فرعی"}

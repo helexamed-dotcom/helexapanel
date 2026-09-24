@@ -869,3 +869,35 @@ document.querySelectorAll('[data-title-source]').forEach(function (select) {
         }
     });
 })();
+
+/* -----------------------------------------------------------------------
+   Small form helpers: the shared tag picker's filter, an input that saves
+   its form when it loses focus, and a textarea that grows with its text.
+   ----------------------------------------------------------------------- */
+(function () {
+    'use strict';
+    document.querySelectorAll('[data-tag-picker]').forEach(function (box) {
+        var filter = box.querySelector('[data-tp-filter]');
+        if (!filter) { return; }
+        filter.addEventListener('input', function () {
+            var q = filter.value.trim().toLowerCase();
+            box.querySelectorAll('.tp-tag').forEach(function (t) {
+                t.hidden = q !== '' && (t.getAttribute('data-title') || '').indexOf(q) === -1 && !t.querySelector('input').checked;
+            });
+        });
+        filter.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); } });
+    });
+
+    document.querySelectorAll('input[data-autosave-blur]').forEach(function (input) {
+        var start = input.value;
+        input.addEventListener('change', function () {
+            if (input.value.trim() !== '' && input.value !== start) { input.form.submit(); }
+        });
+    });
+
+    document.querySelectorAll('textarea[data-grow]').forEach(function (ta) {
+        var fit = function () { ta.style.height = 'auto'; ta.style.height = ta.scrollHeight + 'px'; };
+        ta.addEventListener('input', fit);
+        fit();
+    });
+})();

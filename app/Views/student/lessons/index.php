@@ -8,6 +8,8 @@
  * @var array $filters
  * @var array $subjects
  * @var array $tags
+ * @var array $counts     lesson id => [pages, sections]
+ * @var array $pagesRead  lesson id => pages finished
  */
 use HeleXa\Core\View;
 
@@ -16,13 +18,14 @@ $done = count(array_filter($states, static fn ($s) => !empty($s['read_at'])));
 $marked = array_values(array_filter($rows, static fn ($l) => !empty($states[(int) $l['id']]['bookmarked'])));
 ?>
 <div class="lb">
-    <section class="lb-hero">
-        <div>
+    <section class="hx-pagebar">
+        <span class="app-ic tone-indigo"><?php $icon('lesson', 18); ?></span>
+        <div class="hx-pagebar-text">
             <h2>درسنامه‌ها</h2>
-            <p><?= e(fa((string) count($rows))) ?> درسنامه · <?= e(fa((string) $done)) ?> خوانده‌شده</p>
+            <small><?= e(fa((string) count($rows))) ?> درسنامه · <?= e(fa((string) $done)) ?> تمام‌شده</small>
         </div>
-        <form class="lb-search" method="get" action="/student/lessons" role="search">
-            <?php $icon('search', 18); ?>
+        <form class="hx-pagebar-search" method="get" action="/student/lessons" role="search">
+            <?php $icon('search', 16); ?>
             <input type="search" name="q" value="<?= e($filters['q']) ?>" placeholder="جستجو در درسنامه‌ها…" aria-label="جستجو">
             <?php if ($filters['subject']): ?><input type="hidden" name="subject" value="<?= (int) $filters['subject'] ?>"><?php endif; ?>
         </form>
@@ -56,7 +59,8 @@ $marked = array_values(array_filter($rows, static fn ($l) => !empty($states[(int
             <?php foreach ($rows as $i => $l):
                 $st = $states[(int) $l['id']] ?? null;
                 $locked = !empty($l['package_id']) && !isset($held[(int) $l['package_id']]);
-                $progress = (int) ($st['progress'] ?? 0); ?>
+                $pc = $counts[(int) $l['id']] ?? ['pages' => 0, 'sections' => 0];
+                $progress = $pc['pages'] > 0 ? (int) round(($pagesRead[(int) $l['id']] ?? 0) * 100 / $pc['pages']) : (int) ($st['progress'] ?? 0); ?>
                 <a class="lb-card tone-<?= e($l['color']) ?><?= $locked ? ' is-locked' : '' ?> hx-zoom" href="<?= $locked ? '/shop' : '/student/lessons/' . e($l['uuid']) ?>" style="--i: <?= min($i, 12) ?>">
                     <span class="lb-cover">
                         <?php if (!empty($l['cover_path'])): ?>
@@ -72,6 +76,7 @@ $marked = array_values(array_filter($rows, static fn ($l) => !empty($states[(int
                         <?php if (!empty($l['summary'])): ?><span class="lb-sum"><?= e($l['summary']) ?></span><?php endif; ?>
                         <span class="lb-meta">
                             <span><?php $icon('clock', 13); ?> <?= e(fa((string) $l['reading_minutes'])) ?> دقیقه</span>
+                            <?php if ($pc['pages'] > 0): ?><span><?= e(fa((string) $pc['sections'])) ?> زیردرس، <?= e(fa((string) $pc['pages'])) ?> صفحه</span><?php endif; ?>
                             <?php if ($progress > 0 && $progress < 100): ?><span class="lb-prog"><i style="width: <?= $progress ?>%"></i></span><?php endif; ?>
                         </span>
                     </span>

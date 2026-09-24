@@ -232,7 +232,7 @@ final class LessonRepository extends BaseRepository
     {
         $sets = [];
         $params = ['u' => $userId, 'l' => $lessonId];
-        foreach (['highlights', 'progress', 'bookmarked', 'read_at'] as $k) {
+        foreach (['highlights', 'progress', 'bookmarked', 'read_at', 'last_page_id'] as $k) {
             if (array_key_exists($k, $fields)) {
                 $sets[] = "{$k} = :{$k}";
                 $params[$k] = $fields[$k];
@@ -253,5 +253,263 @@ final class LessonRepository extends BaseRepository
             $out[(int) $r['lesson_id']] = $r;
         }
         return $out;
+    }
+
+    /* ============================================ زیردرس‌ها and pages */
+
+    public static function pagesReady(): bool
+    {
+        try {
+            Database::selectOne('SELECT 1 FROM lesson_pages LIMIT 1');
+            return true;
+        } catch (\PDOException) {
+            return false;
+        }
+    }
+
+    /**
+     * The whole outline: زیردرس‌ها in order, each with its pages (no bodies)
+     * and each page's tags; with $userId, whether that student finished it.
+     *
+     * @return list<array{id:int,title:string,sort_order:int,pages:list<array>}>
+     */
+    public function outline(int $lessonId, ?int $userId = null): array
+    {
+        $sections = [];
+        foreach ($this->select('SELECT id, title, sort_order FROM lesson_sections WHERE lesson_id = :l ORDER BY sort_order, id', ['l' => $lessonId]) as $s) {
+            $s['id'] = (int) $s['id'];
+            $s['pages'] = [];
+            $sections[$s['id']] = $s;
+        }
+        $read = $userId === null ? '0 AS is_read' : '(SELECT r.read_at IS NOT NULL FROM lesson_page_reads r WHERE r.page_id = p.id AND r.user_id = :u) AS is_read';
+        $params = ['l' => $lessonId] + ($userId === null ? [] : ['u' => $userId]);
+        $pages = $this->select(
+            "SELECT p.id, p.uuid, p.section_id, p.title, p.reading_minutes, p.sort_order, p.updated_at, {$read}
+             FROM lesson_pages p WHERE p.lesson_id = :l ORDER BY p.sort_order, p.id",
+            $params
+        );
+        $tags = $this->pageTagsFor(array_map('intval', array_column($pages, 'id')));
+        foreach ($pages as $p) {
+            $p['id'] = (int) $p['id'];
+            $p['is_read'] = (int) ($p['is_read'] ?? 0) === 1;
+            $p['tags'] = $tags[$p['id']] ?? [];
+            if (isset($sections[(int) $p['section_id']])) {
+                $sections[(int) $p['section_id']]['pages'][] = $p;
+            }
+        }
+        return array_values($sections);
+    }
+
+    /** Pages in reading order (the outline flattened). */
+    public function pageList(int $lessonId, ?int $userId = null): array
+    {
+        $out = [];
+        foreach ($this->outline($lessonId, $userId) as $s) {
+            foreach ($s['pages'] as $p) {
+                $p['section_title'] = $s['title'];
+                $out[] = $p;
+            }
+        }
+        return $out;
+    }
+
+    public function page(int $lessonId, string $uuid): ?array
+    {
+        return $this->selectOne(
+            'SELECT p.*, s.title AS section_title FROM lesson_pages p JOIN lesson_sections s ON s.id = p.section_id
+             WHERE p.lesson_id = :l AND p.uuid = :u LIMIT 1',
+            ['l' => $lessonId, 'u' => $uuid]
+        );
+    }
+
+    public function selectPageUuid(int $pageId): string
+    {
+        return (string) ($this->selectOne('SELECT uuid FROM lesson_pages WHERE id = :id', ['id' => $pageId])['uuid'] ?? '');
+    }
+
+    public function section(int $lessonId, int $id): ?array
+    {
+        return $this->selectOne('SELECT * FROM lesson_sections WHERE id = :id AND lesson_id = :l', ['id' => $id, 'l' => $lessonId]);
+    }
+
+    public function addSection(int $lessonId, string $title): int
+    {
+        $next = (int) ($this->selectOne('SELECT COALESCE(MAX(sort_order), -1) + 1 AS n FROM lesson_sections WHERE lesson_id = :l', ['l' => $lessonId])['n'] ?? 0);
+        return $this->insert('INSERT INTO lesson_sections (lesson_id, title, sort_order, created_at) VALUES (:l, :t, :o, NOW())',
+            ['l' => $lessonId, 't' => $title, 'o' => $next]);
+    }
+
+    public function renameSection(int $id, string $title): void
+    {
+        $this->execute('UPDATE lesson_sections SET title = :t WHERE id = :id', ['t' => $title, 'id' => $id]);
+    }
+
+    public function deleteSection(int $lessonId, int $id): void
+    {
+        $this->execute('DELETE FROM lesson_sections WHERE id = :id AND lesson_id = :l', ['id' => $id, 'l' => $lessonId]);
+        $this->refresh($lessonId);
+    }
+
+    /** Moves a زیردرس one place up (-1) or down (+1) and renumbers the rest. */
+    public function moveSection(int $lessonId, int $id, int $dir): void
+    {
+        $ids = array_map('intval', array_column($this->select('SELECT id FROM lesson_sections WHERE lesson_id = :l ORDER BY sort_order, id', ['l' => $lessonId]), 'id'));
+        $this->renumber('lesson_sections', $this->swap($ids, $id, $dir));
+    }
+
+    public function movePage(int $lessonId, array $page, int $dir): void
+    {
+        $ids = array_map('intval', array_column($this->select('SELECT id FROM lesson_pages WHERE section_id = :s ORDER BY sort_order, id', ['s' => (int) $page['section_id']]), 'id'));
+        $this->renumber('lesson_pages', $this->swap($ids, (int) $page['id'], $dir));
+    }
+
+    /**
+     * Saves a page. A page moved to another زیردرس goes to its end.
+     *
+     * @param array{section_id:int,title:string,body_html:string,reading_minutes:int} $d
+     */
+    public function savePage(int $lessonId, ?array $page, array $d): int
+    {
+        $params = ['s' => $d['section_id'], 't' => $d['title'], 'b' => $d['body_html'], 'm' => max(1, $d['reading_minutes'])];
+        $moved = $page === null || (int) $page['section_id'] !== (int) $d['section_id'];
+        $order = $moved
+            ? (int) ($this->selectOne('SELECT COALESCE(MAX(sort_order), -1) + 1 AS n FROM lesson_pages WHERE section_id = :s', ['s' => $d['section_id']])['n'] ?? 0)
+            : (int) $page['sort_order'];
+        if ($page !== null) {
+            $this->execute('UPDATE lesson_pages SET section_id = :s, title = :t, body_html = :b, reading_minutes = :m, sort_order = :o, updated_at = NOW() WHERE id = :id',
+                $params + ['o' => $order, 'id' => (int) $page['id']]);
+            $id = (int) $page['id'];
+        } else {
+            $id = $this->insert(
+                'INSERT INTO lesson_pages (uuid, lesson_id, section_id, title, body_html, reading_minutes, sort_order, created_at, updated_at)
+                 VALUES (:u, :l, :s, :t, :b, :m, :o, NOW(), NOW())',
+                $params + ['u' => Str::uuid4(), 'l' => $lessonId, 'o' => $order]
+            );
+        }
+        return $id;
+    }
+
+    public function deletePage(int $lessonId, int $pageId): void
+    {
+        $this->execute('DELETE FROM lesson_pages WHERE id = :id AND lesson_id = :l', ['id' => $pageId, 'l' => $lessonId]);
+        $this->refresh($lessonId);
+    }
+
+    /** @param list<int> $tagIds */
+    public function syncPageTags(int $lessonId, int $pageId, array $tagIds): void
+    {
+        $this->execute('DELETE FROM lesson_page_tags WHERE page_id = :p', ['p' => $pageId]);
+        foreach (array_unique(array_filter(array_map('intval', $tagIds))) as $t) {
+            $this->execute('INSERT IGNORE INTO lesson_page_tags (page_id, tag_id) SELECT :p, id FROM qb_tags WHERE id = :t', ['p' => $pageId, 't' => $t]);
+        }
+        $this->refresh($lessonId);
+    }
+
+    /** @return array<int, list<array{id:int,title:string,color:?string}>> page id => tags */
+    public function pageTagsFor(array $pageIds): array
+    {
+        $pageIds = array_values(array_filter(array_map('intval', $pageIds)));
+        if ($pageIds === []) {
+            return [];
+        }
+        $out = [];
+        foreach ($this->select(
+            'SELECT pt.page_id, t.id, t.title, t.color FROM lesson_page_tags pt JOIN qb_tags t ON t.id = pt.tag_id
+             WHERE pt.page_id IN (' . implode(',', $pageIds) . ') ORDER BY t.sort_order, t.title'
+        ) as $r) {
+            $out[(int) $r['page_id']][] = ['id' => (int) $r['id'], 'title' => $r['title'], 'color' => $r['color']];
+        }
+        return $out;
+    }
+
+    /**
+     * Keeps the درسنامه in step with its pages: its tags are every page's
+     * tags (so the library, the questions' «درسنامه مرتبط» and the exam
+     * advice keep working on the درسنامه as a whole), and its reading time
+     * is the pages' sum.
+     */
+    public function refresh(int $lessonId): void
+    {
+        $this->execute('DELETE FROM lesson_tags WHERE lesson_id = :l', ['l' => $lessonId]);
+        $this->execute(
+            'INSERT IGNORE INTO lesson_tags (lesson_id, tag_id)
+             SELECT DISTINCT p.lesson_id, pt.tag_id FROM lesson_page_tags pt JOIN lesson_pages p ON p.id = pt.page_id WHERE p.lesson_id = :l',
+            ['l' => $lessonId]
+        );
+        $this->execute(
+            'UPDATE lessons SET reading_minutes = GREATEST(1, (SELECT COALESCE(SUM(reading_minutes), 0) FROM lesson_pages WHERE lesson_id = :l1)), updated_at = NOW() WHERE id = :l2',
+            ['l1' => $lessonId, 'l2' => $lessonId]
+        );
+    }
+
+    /** lesson id => [pages, sections] for the library cards. */
+    public function counts(): array
+    {
+        $out = [];
+        foreach ($this->select(
+            'SELECT l.id, (SELECT COUNT(*) FROM lesson_pages p WHERE p.lesson_id = l.id) AS pages,
+                    (SELECT COUNT(*) FROM lesson_sections s WHERE s.lesson_id = l.id) AS sections
+             FROM lessons l WHERE l.deleted_at IS NULL'
+        ) as $r) {
+            $out[(int) $r['id']] = ['pages' => (int) $r['pages'], 'sections' => (int) $r['sections']];
+        }
+        return $out;
+    }
+
+    /** lesson id => pages this student has finished. */
+    public function pagesReadBy(int $userId): array
+    {
+        $out = [];
+        foreach ($this->select(
+            'SELECT p.lesson_id, COUNT(*) AS c FROM lesson_page_reads r JOIN lesson_pages p ON p.id = r.page_id
+             WHERE r.user_id = :u AND r.read_at IS NOT NULL GROUP BY p.lesson_id',
+            ['u' => $userId]
+        ) as $r) {
+            $out[(int) $r['lesson_id']] = (int) $r['c'];
+        }
+        return $out;
+    }
+
+    public function pageState(int $userId, int $pageId): ?array
+    {
+        return $this->selectOne('SELECT * FROM lesson_page_reads WHERE user_id = :u AND page_id = :p', ['u' => $userId, 'p' => $pageId]);
+    }
+
+    public function savePageState(int $userId, int $pageId, array $fields): void
+    {
+        $this->execute(
+            'INSERT INTO lesson_page_reads (user_id, page_id, opened_at, updated_at) VALUES (:u, :p, NOW(), NOW())
+             ON DUPLICATE KEY UPDATE opened_at = NOW()',
+            ['u' => $userId, 'p' => $pageId]
+        );
+        $sets = [];
+        $params = ['u' => $userId, 'p' => $pageId];
+        foreach (['highlights', 'read_at'] as $k) {
+            if (array_key_exists($k, $fields)) {
+                $sets[] = "{$k} = :{$k}";
+                $params[$k] = $fields[$k];
+            }
+        }
+        if ($sets !== []) {
+            $this->execute('UPDATE lesson_page_reads SET ' . implode(', ', $sets) . ', updated_at = NOW() WHERE user_id = :u AND page_id = :p', $params);
+        }
+    }
+
+    /** @param list<int> $ids */
+    private function swap(array $ids, int $id, int $dir): array
+    {
+        $i = array_search($id, $ids, true);
+        $j = $i === false ? false : $i + ($dir < 0 ? -1 : 1);
+        if ($i !== false && $j >= 0 && $j < count($ids)) {
+            [$ids[$i], $ids[$j]] = [$ids[$j], $ids[$i]];
+        }
+        return $ids;
+    }
+
+    private function renumber(string $table, array $ids): void
+    {
+        foreach ($ids as $n => $id) {
+            $this->execute("UPDATE {$table} SET sort_order = :o WHERE id = :id", ['o' => $n, 'id' => $id]);
+        }
     }
 }

@@ -3,6 +3,7 @@
  * @var array $rows
  * @var array $filters
  * @var array $subjects
+ * @var array $counts   lesson id => [pages, sections]
  */
 use HeleXa\Core\View;
 
@@ -14,7 +15,7 @@ $icon = static fn (string $n, int $s = 0) => View::partial('partials.icon', ['na
             <span class="app-ic tone-indigo"><?php $icon('lesson'); ?></span>
             <div>
                 <h3>درسنامه‌ها</h3>
-                <p>درسنامه‌های متنی با ویرایشگر شبیه ورد؛ هر درسنامه زیر یک درس/زیردرس قرار می‌گیرد و با برچسب‌ها به سوال‌ها و بازی با شکل وصل می‌شود.</p>
+                <p>هر درسنامه (مثلاً باکتری‌شناسی) چند زیردرس دارد و هر زیردرس چند صفحه؛ هر صفحه برچسب‌های خودش را دارد — همان برچسب‌های بانک سوال، فلش‌کارت، بازی با شکل و بالین.</p>
             </div>
             <div class="ad-actions">
                 <a class="btn btn-ghost btn-sm" href="/admin/lessons/transfer"><?php $icon('download', 15); ?> JSON</a>
@@ -51,7 +52,7 @@ $icon = static fn (string $n, int $s = 0) => View::partial('partials.icon', ['na
                         <span class="app-ic tone-<?= e($l['color']) ?>"><?php $icon('lesson', 18); ?></span>
                         <span class="ad-row-main">
                             <b><?= e($l['title']) ?></b>
-                            <small><?= e(implode(' › ', array_filter([$l['parent_title'] ?? '', $l['subject_title'] ?? '']))) ?: 'بدون درس' ?> · <?= e(fa((string) $l['reading_minutes'])) ?> دقیقه مطالعه · <?= e(jdate($l['updated_at'] ?? $l['created_at'])) ?></small>
+                            <small><?= e(implode(' › ', array_filter([$l['parent_title'] ?? '', $l['subject_title'] ?? '']))) ?: 'بدون درس' ?> · <?= e(fa((string) ($counts[(int) $l['id']]['sections'] ?? 0))) ?> زیردرس · <?= e(fa((string) ($counts[(int) $l['id']]['pages'] ?? 0))) ?> صفحه · <?= e(fa((string) $l['reading_minutes'])) ?> دقیقه · <?= e(jdate($l['updated_at'] ?? $l['created_at'])) ?></small>
                         </span>
                         <form method="post" action="/admin/lessons/<?= e($l['uuid']) ?>/status">
                             <input type="hidden" name="_token" value="<?= e($csrf_token) ?>">
