@@ -51,8 +51,18 @@ final class SharedTags
     public static function fromRequest(Request $request, string $field = 'tags'): array
     {
         $raw = $request->input($field, []);
-        $ids = is_array($raw) ? array_map('intval', $raw) : [];
-        $typed = preg_split('/[,،\n]+/u', (string) $request->input('new_' . $field, '')) ?: [];
+        return self::fromValues(is_array($raw) ? $raw : [], (string) $request->input('new_' . $field, ''));
+    }
+
+    /**
+     * The same from plain values (a JSON body): ticked ids and typed titles.
+     *
+     * @return list<int>
+     */
+    public static function fromValues(array $raw, string $typedText): array
+    {
+        $ids = array_map('intval', array_filter($raw, 'is_scalar'));
+        $typed = preg_split('/[,،\n]+/u', $typedText) ?: [];
         $repo = new QbTagRepository();
         foreach (array_slice($typed, 0, 12) as $title) {
             $title = trim(mb_substr(preg_replace('/\s+/u', ' ', $title) ?? '', 0, 96));

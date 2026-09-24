@@ -987,6 +987,7 @@ $router->group('/admin', [
     $router->get('/flashcards/deck/{uuid}',           [FcAdminController::class, 'deck'],          $fc);
     $router->post('/flashcards/deck/{uuid}',          [FcAdminController::class, 'updateDeck'],    $fc);
     $router->post('/flashcards/deck/{uuid}/delete',   [FcAdminController::class, 'destroyDeck'],   $fc);
+    $router->post('/flashcards/deck/{uuid}/tags',     [FcAdminController::class, 'deckTags'],      $fc);
     $router->post('/flashcards/deck/{uuid}/cards',    [FcAdminController::class, 'storeCard'],     $fc);
     $router->post('/flashcards/deck/{uuid}/import',   [FcAdminController::class, 'importDeck'],    $fcImport);
     $router->post('/flashcards/card/{uuid}',          [FcAdminController::class, 'updateCard'],    $fc);

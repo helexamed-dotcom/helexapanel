@@ -69,6 +69,8 @@ final class MindmapController extends Controller
             'subjects' => SubjectTree::options(),
             'packages' => $packages,
             'lessons'  => $this->maps->lessonTitles(false),
+            'tagIds'   => \HeleXa\Services\SharedTags::idsFor('mindmap_tags', (int) $map['id']),
+            'allTags'  => \HeleXa\Services\SharedTags::all(),
             'themes'   => MindmapTree::THEMES,
             'layouts'  => MindmapTree::LAYOUTS,
             'tones'    => self::TONES,
@@ -104,6 +106,10 @@ final class MindmapController extends Controller
             'sort_order' => (int) ($body['sort_order'] ?? 0),
         ], (int) Auth::id());
         $this->maps->syncLinks((int) $saved['id'], $tree['lessons']);
+        if (isset($body['tags']) && is_array($body['tags'])) {
+            \HeleXa\Services\SharedTags::sync('mindmap_tags', (int) $saved['id'],
+                \HeleXa\Services\SharedTags::fromValues($body['tags'], mb_substr((string) ($body['new_tags'] ?? ''), 0, 400)));
+        }
         return $this->json(['ok' => true, 'count' => $tree['count'], 'status' => $saved['status'], 'saved_at' => jdate($saved['updated_at'])]);
     }
 

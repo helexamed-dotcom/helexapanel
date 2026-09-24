@@ -4,6 +4,9 @@
  * @var array $lessons    tag id => count
  * @var array $questions
  * @var array $spots
+ * @var array $decks
+ * @var array $balin
+ * @var array $maps
  */
 use HeleXa\Core\View;
 
@@ -14,7 +17,7 @@ $colors = ['chip-gray' => 'خاکستری', 'chip-blue' => 'آبی', 'chip-green
     <section class="ad-card">
         <header class="ad-card-head">
             <span class="app-ic tone-teal"><?php $icon('tag'); ?></span>
-            <div><h3>برچسب‌های مشترک</h3><p>یک برچسب درسنامه‌ها، سوال‌ها و نقطه‌های بازی با شکل را به هم وصل می‌کند؛ دانشجو از هر کدام به بقیه می‌رسد و تحلیل آزمون بر اساس همین برچسب‌ها درسنامه پیشنهاد می‌دهد.</p></div>
+            <div><h3>برچسب‌های مشترک</h3><p>یک برچسب (مثلاً «کلیات باکتری‌شناسی») صفحه‌های درسنامه، سوال‌ها، جلسه‌های فلش‌کارت، شکل‌ها، درس‌های بالین و نقشه‌های ذهنی را به هم وصل می‌کند؛ تحلیل عملکرد دانشجو نقاط قوت و ضعف و برنامه مطالعه را بر اساس همین برچسب‌ها می‌سازد.</p></div>
         </header>
         <form method="post" action="/admin/lesson-tags" class="ad-form-grid">
             <input type="hidden" name="_token" value="<?= e($csrf_token) ?>">
@@ -38,9 +41,12 @@ $colors = ['chip-gray' => 'خاکستری', 'chip-blue' => 'آبی', 'chip-green
                             <label class="hx-switch"><input type="checkbox" name="is_active" value="1" <?= (int) $t['is_active'] === 1 ? 'checked' : '' ?>><span class="hx-switch-ui"></span></label>
                             <button class="btn btn-ghost btn-sm" type="submit">ذخیره</button>
                         </form>
-                        <span class="ad-pill is-info">📘 <?= e(fa((string) ($lessons[$id] ?? 0))) ?></span>
-                        <span class="ad-pill is-info">❓ <?= e(fa((string) ($questions[$id] ?? 0))) ?></span>
-                        <span class="ad-pill is-info">🦴 <?= e(fa((string) ($spots[$id] ?? 0))) ?></span>
+                        <span class="ad-pill is-info" title="صفحه درسنامه">📘 <?= e(fa((string) ($lessons[$id] ?? 0))) ?></span>
+                        <span class="ad-pill is-info" title="سوال">❓ <?= e(fa((string) ($questions[$id] ?? 0))) ?></span>
+                        <span class="ad-pill is-info" title="جلسه فلش‌کارت">🃏 <?= e(fa((string) ($decks[$id] ?? 0))) ?></span>
+                        <span class="ad-pill is-info" title="نقطه بازی با شکل">🦴 <?= e(fa((string) ($spots[$id] ?? 0))) ?></span>
+                        <span class="ad-pill is-info" title="درس بالین">🏝 <?= e(fa((string) ($balin[$id] ?? 0))) ?></span>
+                        <span class="ad-pill is-info" title="نقشه ذهنی">🧠 <?= e(fa((string) ($maps[$id] ?? 0))) ?></span>
                         <form method="post" action="/admin/lesson-tags/<?= $id ?>/delete" data-confirm="این برچسب از همه درسنامه‌ها، سوال‌ها و شکل‌ها برداشته شود؟">
                             <input type="hidden" name="_token" value="<?= e($csrf_token) ?>">
                             <button class="ad-icon-btn is-danger" type="submit" aria-label="حذف"><?php $icon('trash', 17); ?></button>

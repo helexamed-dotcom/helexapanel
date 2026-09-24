@@ -74,6 +74,7 @@ final class LessonController extends Controller
             'created_by' => Auth::id(),
         ]);
 
+        \HeleXa\Services\SharedTags::sync('balin_lesson_tags', $id, \HeleXa\Services\SharedTags::fromRequest($request));
         ActivityLogger::log('balin.lesson.created', Auth::id(), 'balin_lesson', $id,
             ['title' => $data['title']], 'notice', $request);
 
@@ -136,6 +137,7 @@ final class LessonController extends Controller
             return $this->redirect('/admin/balin/lessons/' . $lesson['uuid'] . '/edit');
         }
 
+        \HeleXa\Services\SharedTags::sync('balin_lesson_tags', (int) $lesson['id'], \HeleXa\Services\SharedTags::fromRequest($request));
         ActivityLogger::log('balin.lesson.updated', Auth::id(), 'balin_lesson', (int) $lesson['id'],
             ['title' => $data['title']], 'notice', $request);
         $this->flash('success', 'درس ذخیره شد.');

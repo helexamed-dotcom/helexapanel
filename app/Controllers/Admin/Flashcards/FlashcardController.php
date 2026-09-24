@@ -73,6 +73,16 @@ final class FlashcardController extends Controller
         ]);
     }
 
+    /** The session's shared tags: every review of its cards counts toward them in the analysis. */
+    public function deckTags(Request $request, array $params = []): Response
+    {
+        $deck = $this->deckOr404((string) ($params['uuid'] ?? ''));
+        \HeleXa\Services\SharedTags::sync('fc_deck_tags', (int) $deck['id'], \HeleXa\Services\SharedTags::fromRequest($request));
+        $this->flash('success', 'برچسب‌های جلسه ذخیره شد.');
+
+        return $this->redirect('/admin/flashcards/deck/' . $deck['uuid']);
+    }
+
     public function updateCourse(Request $request, array $params = []): Response
     {
         $course = $this->courseOr404((string) ($params['uuid'] ?? ''));
@@ -161,6 +171,8 @@ final class FlashcardController extends Controller
             'pages'   => max(1, (int) ceil($total / self::CARDS_PER_PAGE)),
             'offset'  => ($page - 1) * self::CARDS_PER_PAGE,
             'maxRows' => CardImporter::maxRows(),
+            'tagIds'  => \HeleXa\Services\SharedTags::idsFor('fc_deck_tags', (int) $deck['id']),
+            'allTags' => \HeleXa\Services\SharedTags::all(),
         ]);
     }
 

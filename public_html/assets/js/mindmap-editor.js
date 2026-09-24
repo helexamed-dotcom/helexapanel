@@ -48,6 +48,13 @@
             title: meta('title'), summary: meta('summary'), status: meta('status'), theme: meta('theme'), layout: meta('layout'),
             subject_id: +meta('subject_id') || 0, package_id: +meta('package_id') || 0, tone: tone, root: map.getData()
         };
+        var tagBox = root.querySelector('[data-meta-tags]');
+        if (tagBox) {
+            body.tags = Array.prototype.map.call(tagBox.querySelectorAll('input[name="tags[]"]:checked'), function (i) { return +i.value; });
+            var typed = tagBox.querySelector('input[name="new_tags"]');
+            body.new_tags = typed ? typed.value : '';
+            if (typed && typed.value) { typed.setAttribute('data-sent', '1'); }
+        }
         fetch(root.getAttribute('data-save'), {
             method: 'POST', credentials: 'same-origin', body: JSON.stringify(body),
             headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': token, 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
@@ -73,6 +80,8 @@
             markDirty();
         });
     });
+    var tagsEl = root.querySelector('[data-meta-tags]');
+    if (tagsEl) { tagsEl.addEventListener('change', function (e) { if (!e.target.matches('[data-tp-filter]')) { markDirty(); } }); }
     root.querySelectorAll('[data-tone]').forEach(function (b) {
         b.addEventListener('click', function () {
             root.querySelectorAll('[data-tone]').forEach(function (x) { x.classList.toggle('is-on', x === b); });

@@ -97,6 +97,14 @@ $action = $lesson === null ? '/admin/balin/lessons' : '/admin/balin/lessons/' . 
             <textarea name="extra_notes" rows="2"><?= $value('extra_notes') ?></textarea>
         </label>
 
+        <div class="field span-2">
+            <?php \HeleXa\Core\View::partial('partials.tag_picker', [
+                'allTags'  => \HeleXa\Services\SharedTags::all(),
+                'selected' => $lesson !== null ? \HeleXa\Services\SharedTags::idsFor('balin_lesson_tags', (int) $lesson['id']) : [],
+                'hint'     => 'پاسخ‌های این درس در جزیره بالین در تحلیل عملکرد زیر همین برچسب‌ها حساب می‌شود.',
+            ]); ?>
+        </div>
+
         <div class="form-actions span-2">
             <button class="btn btn-primary" type="submit">ذخیره</button>
             <a class="btn btn-ghost" href="/admin/balin/lessons">انصراف</a>

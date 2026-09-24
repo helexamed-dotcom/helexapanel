@@ -8,6 +8,8 @@
  * @var int   $pages
  * @var int   $offset
  * @var int   $maxRows
+ * @var list<int> $tagIds
+ * @var array $allTags
  */
 $here = '/admin/flashcards/deck/' . $deck['uuid'];
 $back = $here . ($page > 1 ? '?page=' . $page : '');
@@ -22,6 +24,13 @@ $back = $here . ($page > 1 ? '?page=' . $page : '');
         </div>
         <a class="btn btn-ghost" href="/admin/flashcards/course/<?= e($deck['course_uuid']) ?>" style="position:relative; z-index:1;">بازگشت به درس</a>
     </section>
+
+    <form method="post" action="<?= e($here) ?>/tags" class="fc-panel fc-tags-panel">
+        <input type="hidden" name="_token" value="<?= e($csrf_token) ?>">
+        <?php \HeleXa\Core\View::partial('partials.tag_picker', ['allTags' => $allTags, 'selected' => $tagIds,
+            'hint' => 'مرور کارت‌های این جلسه در تحلیل عملکرد زیر همین برچسب‌ها حساب می‌شود؛ همان برچسب‌های درسنامه و بانک سوال.']); ?>
+        <button class="btn btn-primary btn-sm" type="submit">ذخیره برچسب‌ها</button>
+    </form>
 
     <div class="fc-grid-2">
         <form method="post" action="<?= e($here) ?>/cards" class="fc-panel" id="add">

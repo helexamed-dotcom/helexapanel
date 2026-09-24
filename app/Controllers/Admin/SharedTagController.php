@@ -35,7 +35,10 @@ final class SharedTagController extends Controller
         return $this->page('layouts.app', 'admin.lessons.tags', [
             'title'     => 'برچسب‌های مشترک',
             'tags'      => $tags,
-            'lessons'   => $count('SELECT tag_id, COUNT(*) AS c FROM lesson_tags GROUP BY tag_id'),
+            'lessons'   => $count('SELECT tag_id, COUNT(*) AS c FROM lesson_page_tags GROUP BY tag_id'),
+            'decks'     => $count('SELECT tag_id, COUNT(*) AS c FROM fc_deck_tags GROUP BY tag_id'),
+            'balin'     => $count('SELECT tag_id, COUNT(*) AS c FROM balin_lesson_tags GROUP BY tag_id'),
+            'maps'      => $count('SELECT tag_id, COUNT(*) AS c FROM mindmap_tags GROUP BY tag_id'),
             'questions' => $count('SELECT tag_id, COUNT(*) AS c FROM qb_question_tags GROUP BY tag_id'),
             'spots'     => $count('SELECT tag_id, COUNT(*) AS c FROM figure_spots WHERE tag_id IS NOT NULL GROUP BY tag_id'),
         ]);

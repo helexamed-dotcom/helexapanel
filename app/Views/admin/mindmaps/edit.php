@@ -131,6 +131,10 @@ $boot = [
                         <?php foreach ($subjects as $s): ?><option value="<?= (int) $s['id'] ?>" <?= (int) ($map['subject_id'] ?? 0) === $s['id'] ? 'selected' : '' ?>><?= e($s['label']) ?></option><?php endforeach; ?>
                     </select>
                 </label>
+                <div class="hx-field" data-meta-tags>
+                    <?php \HeleXa\Core\View::partial('partials.tag_picker', ['allTags' => $allTags, 'selected' => $tagIds,
+                        'hint' => 'همان برچسب‌های درسنامه و بانک سوال؛ نقشه در تحلیل و «درسنامه‌های مرتبط» زیر این برچسب‌ها می‌آید.']); ?>
+                </div>
                 <label class="hx-field">فقط برای دارندگان پکیج
                     <select class="input" data-meta="package_id">
                         <option value="0">— همه دانشجوها —</option>
