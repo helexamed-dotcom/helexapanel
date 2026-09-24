@@ -140,6 +140,7 @@ $router->group('/student', [
     $router->get('/exams',     [PlannerController::class, 'exams']);
     $router->get('/midterms',  [PlannerController::class, 'midterms']);
     $router->get('/calendar',  [PlannerController::class, 'calendar']);
+    $router->get('/planner',   [PlannerController::class, 'planner']);
 
     /* ----------------------------------------------- the study suite */
     // «امروز من» and «درس‌های من» live on the home page now; the old

@@ -22,9 +22,50 @@ use HeleXa\Services\StudentSchedule;
  */
 final class PlannerController extends Controller
 {
+    /** Old addresses keep working; they open the matching tab. */
     public function schedule(Request $request, array $params = []): Response
     {
-        return $this->page('layouts.app', 'student.schedule', ['title' => 'برنامه هفتگی'] + $this->scheduleData());
+        return $this->redirect('/student/planner');
+    }
+
+    /**
+     * «برنامه و امتحان»: three tabs where there used to be four pages.
+     *
+     *   هفته من   — my classes, day by day, with today first; everyone's
+     *               full timetable folded underneath
+     *   امتحان‌ها — finals and midterms in one list, nearest first
+     *   تقویم     — the month grid with the chosen day's agenda
+     */
+    public function planner(Request $request, array $params = []): Response
+    {
+        $tab = $request->string('tab', 'week');
+        if (!in_array($tab, ['week', 'exams', 'month'], true)) {
+            $tab = 'week';
+        }
+        $user = Auth::user();
+        $data = ['title' => 'برنامه و امتحان', 'tab' => $tab, 'extraCss' => ['planner']];
+
+        if ($tab === 'week') {
+            $days = [];
+            foreach (Jalali::WEEKDAYS as $index => $label) {
+                $days[$index] = StudentSchedule::forWeekday($user, $index);
+            }
+            $data += ['days' => $days, 'todayIndex' => Jalali::weekdayIndex(time()), 'weekStart' => Jalali::startOfWeek(time())]
+                + $this->scheduleData();
+        } elseif ($tab === 'exams') {
+            $finals   = $this->examData('final');
+            $midterms = $this->examData('midterm');
+            $upcoming = array_merge($finals['upcoming'], $midterms['upcoming']);
+            usort($upcoming, static fn (array $a, array $b): int => strcmp($a['exam_date'] . ($a['start_time'] ?? ''), $b['exam_date'] . ($b['start_time'] ?? '')));
+            $past = array_merge($finals['past'], $midterms['past']);
+            usort($past, static fn (array $a, array $b): int => strcmp($b['exam_date'], $a['exam_date']));
+            $data += ['upcoming' => $upcoming, 'past' => array_slice($past, 0, 12), 'hasTerm' => $finals['hasTerm'],
+                      'kindFilter' => in_array($request->string('kind'), ['final', 'midterm'], true) ? $request->string('kind') : ''];
+        } else {
+            $data += $this->monthData($request);
+        }
+
+        return $this->page('layouts.app', 'student.planner', $data);
     }
 
     /**
@@ -54,36 +95,30 @@ final class PlannerController extends Controller
     }
     public function exams(Request $request, array $params = []): Response
     {
-        return $this->renderExams('final', 'برنامه امتحانات');
+        return $this->redirect('/student/planner?tab=exams&kind=final');
     }
 
     public function midterms(Request $request, array $params = []): Response
     {
-        return $this->renderExams('midterm', 'میان‌ترم‌ها');
+        return $this->redirect('/student/planner?tab=exams&kind=midterm');
     }
 
-    /**
-     * The calendar hub: the month grid, the weekly timetable, finals and
-     * midterms, one tab each. Only the open tab's data is loaded; the other
-     * three pages keep working at their own addresses.
-     */
     public function calendar(Request $request, array $params = []): Response
     {
-        $tab = $request->string('tab', 'month');
-        $tabs = ['month' => 'تقویم ماهانه', 'classes' => 'برنامه کلاسی', 'finals' => 'امتحانات پایان‌ترم', 'midterms' => 'میان‌ترم‌ها'];
-        if (!isset($tabs[$tab])) {
-            $tab = 'month';
+        $tab = $request->string('tab');
+        $map = ['classes' => 'week', 'finals' => 'exams', 'midterms' => 'exams'];
+        $query = ['tab' => $map[$tab] ?? 'month'];
+        foreach (['year', 'month', 'day'] as $k) {
+            if ($request->string($k) !== '') {
+                $query[$k] = $request->string($k);
+            }
         }
+        return $this->redirect('/student/planner?' . http_build_query($query));
+    }
 
-        if ($tab !== 'month') {
-            $data = match ($tab) {
-                'classes'  => ['embed' => 'student.schedule'] + $this->scheduleData(),
-                'finals'   => ['embed' => 'student.exams'] + $this->examData('final'),
-                default    => ['embed' => 'student.exams'] + $this->examData('midterm'),
-            };
-            return $this->page('layouts.app', 'student.calendar_hub', ['title' => 'تقویم', 'tab' => $tab, 'tabs' => $tabs] + $data);
-        }
-
+    /** The month grid, its dots and the chosen day's agenda. */
+    private function monthData(Request $request): array
+    {
         $user    = Auth::user();
         $termIds = AcademicScope::termIds($user);
         $group   = AcademicScope::groupId($user);
@@ -135,10 +170,7 @@ final class PlannerController extends Controller
         [$prevYear, $prevMonth] = Jalali::shiftMonth($year, $month, -1);
         [$nextYear, $nextMonth] = Jalali::shiftMonth($year, $month, 1);
 
-        return $this->page('layouts.app', 'student.calendar', [
-            'title'       => 'تقویم',
-            'tab'         => 'month',
-            'tabs'        => $tabs,
+        return [
             'grid'        => $grid,
             'byDate'      => $byDate,
             'selected'    => $selected,
@@ -148,7 +180,7 @@ final class PlannerController extends Controller
             'prev'        => ['year' => $prevYear, 'month' => $prevMonth],
             'next'        => ['year' => $nextYear, 'month' => $nextMonth],
             'weekdays'    => Jalali::WEEKDAYS,
-        ]);
+        ];
     }
 
     /**
@@ -209,13 +241,8 @@ final class PlannerController extends Controller
     /** Where the choice page returns to: the profile or the calendar. */
     private function returnTo(Request $request): string
     {
-        return $request->string('from') === 'profile' ? '/account/profile#classes' : '/student/calendar?tab=classes';
+        return $request->string('from') === 'profile' ? '/account/edit#classes' : '/student/planner';
     }
-    private function renderExams(string $kind, string $title): Response
-    {
-        return $this->page('layouts.app', 'student.exams', ['title' => $title] + $this->examData($kind));
-    }
-
     private function examData(string $kind): array
     {
         $user    = Auth::user();

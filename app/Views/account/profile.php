@@ -20,7 +20,7 @@
                         : 'هنوز درسی انتخاب نکرده‌اید. از فهرست زیر، هر درسی را که دارید از همان گروه و ترمش تیک بزنید.' ?>
                 </div>
             </div>
-            <a class="btn btn-ghost btn-sm" href="/student/calendar?tab=classes">برنامه هفتگی همه گروه‌ها</a>
+            <a class="btn btn-ghost btn-sm" href="/student/planner">برنامه هفتگی همه گروه‌ها</a>
         </div>
 
         <?php if ($classPlan['custom'] && $classPlan['week'] !== []): ?>
