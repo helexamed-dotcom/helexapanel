@@ -73,13 +73,24 @@
 
             <button class="btn btn-primary btn-block" type="submit">ورود</button>
         </form>
+        <?php if (\HeleXa\Services\Telegram\Bot::enabled() && \HeleXa\Services\Telegram\Bot::username() !== ''): ?>
+            <div class="auth-or"><span>یا</span></div>
+            <a class="btn btn-block tg-btn" href="<?= e(\HeleXa\Services\Telegram\Bot::startLink('login')) ?>" target="_blank" rel="noopener">
+                <?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'send']); ?>
+                <?= \HeleXa\Services\Telegram\TelegramAuth::registrationOpen() ? 'ثبت‌نام یا ورود با تلگرام' : 'رمز را فراموش کرده‌ای؟ از ربات تلگرام' ?>
+            </a>
+            <p class="auth-tg-note">ربات را استارت کن و با دکمه «📱 ارسال شماره من» شماره‌ات را بفرست؛ لینکی می‌گیری که با آن نام کاربری و رمز می‌سازی.
+                رمزت را فراموش کرده‌ای؟ از همان ربات «🔑 تعیین رمز تازه» را بزن.</p>
+        <?php endif; ?>
         <?php if (\HeleXa\Services\Settings::bool('registration_enabled', false)): ?>
             <a class="auth-register-link" href="/register">حساب نداری؟ ثبت‌نام کن</a>
         <?php endif; ?>
     </div>
 
     <p class="auth-sub auth-foot">
+        <?php if (!\HeleXa\Services\Telegram\Bot::enabled()): ?>
         رمز عبورت را فراموش کرده‌ای؟ با پشتیبانی تماس بگیر تا رمز تازه برایت صادر شود.<br>
+        <?php endif; ?>
         هر حساب تنها روی یک دستگاه فعال می‌ماند.<br>
         با «مرا به خاطر بسپار» تا ۳۰ روز روی همین دستگاه وارد می‌مانید.
     </p>

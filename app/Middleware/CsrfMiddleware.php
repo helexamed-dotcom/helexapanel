@@ -24,6 +24,13 @@ final class CsrfMiddleware implements MiddlewareInterface
             return $next($request);
         }
 
+        // Telegram's webhook cannot carry our token; it is authenticated by
+        // the secret Telegram repeats in X-Telegram-Bot-Api-Secret-Token,
+        // checked in TelegramAuthController::webhook. Nothing else is exempt.
+        if ($request->path() === '/telegram/webhook' && $request->header('X-Telegram-Bot-Api-Secret-Token') !== null) {
+            return $next($request);
+        }
+
         $token = $request->header('X-CSRF-Token') ?? $request->string('_token');
 
         if (!Csrf::verify($token)) {

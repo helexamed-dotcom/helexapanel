@@ -265,6 +265,12 @@ foreach (['/api/sync/study', '/api/sync/status', '/shop/cart', '/shop/checkout',
         'HTTP ' . $response['status']);
 }
 
+// The Telegram webhook answers only Telegram (its secret header).
+$tg = request($base . '/telegram/webhook', 'POST', ['update_id' => 1]);
+result('telegram webhook refuses a request without its secret',
+    in_array($tg['status'], [403, 404, 419], true),
+    'HTTP ' . $tg['status']);
+
 // The payment return address must never mark anything paid on its own.
 $cb = request($base . '/shop/pay/callback?order=00000000-0000-4000-8000-000000000000&Authority=A0000000000000000000000000000000000&Status=OK');
 result('payment callback without a real order does nothing',

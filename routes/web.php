@@ -134,6 +134,16 @@ $router->get('/account/avatar/{uuid}',  [AccountController::class, 'avatar'],   
 $router->get('/account/edit',           [AccountController::class, 'showEdit'],      [AuthenticateMiddleware::class]);
 $router->get('/account/sessions',       [StudentSecurity::class, 'sessions'],        [AuthenticateMiddleware::class]);
 
+/* ------------------------------------------------ ورود با تلگرام
+   The webhook is authenticated by Telegram's secret header, not a session
+   (see CsrfMiddleware); the one-time links open a page for guests. */
+$router->post('/telegram/webhook', [\HeleXa\Controllers\TelegramAuthController::class, 'webhook'],
+    [ThrottleMiddleware::class . ':telegram_webhook,600,60']);
+$router->get('/auth/telegram/{token}',  [\HeleXa\Controllers\TelegramAuthController::class, 'show'],
+    [GuestMiddleware::class, ThrottleMiddleware::class . ':telegram_link,60,600']);
+$router->post('/auth/telegram/{token}', [\HeleXa\Controllers\TelegramAuthController::class, 'store'],
+    [GuestMiddleware::class, ThrottleMiddleware::class . ':telegram_link_post,20,600']);
+
 /* The header's pop-up panels, fetched when opened. */
 $router->get('/hub/bell',     [\HeleXa\Controllers\HubController::class, 'bell'],
     [AuthenticateMiddleware::class, ThrottleMiddleware::class . ':hub,240,60']);
@@ -595,6 +605,12 @@ $router->group('/admin', [
     $router->post('/courses/{uuid}/contents/{content}',       [ContentController::class, 'updateContent'],  $content);
     $router->post('/courses/{uuid}/contents/{content}/delete',[ContentController::class, 'destroyContent'], $content);
     $router->post('/courses/{uuid}/contents/{content}/move',  [ContentController::class, 'moveContent'],    $content);
+
+    /* ------------------------------------------------ ورود با تلگرام */
+    $tgs = [PermissionMiddleware::class . ':manage_settings'];
+    $router->get('/telegram',          [\HeleXa\Controllers\Admin\TelegramController::class, 'index'],   $tgs);
+    $router->post('/telegram',         [\HeleXa\Controllers\Admin\TelegramController::class, 'save'],    $tgs);
+    $router->post('/telegram/webhook', [\HeleXa\Controllers\Admin\TelegramController::class, 'webhook'], $tgs);
 
     /* ------------------------------------------- 🏆 امتیاز، لیگ و پست‌ها */
     $pts = [PermissionMiddleware::class . ':points.manage'];
