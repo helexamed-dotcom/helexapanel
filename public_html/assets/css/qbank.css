@@ -601,3 +601,28 @@ html[dir="rtl"] .qs-card-play .ic { transform: scaleX(-1); }
     .qb-sheet-scrim { position: fixed; inset: 0; z-index: 1250; background: rgba(9, 15, 28, .4); -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px); animation: hx-fade .3s ease both; }
     html.qb-sheet-open, html.qb-sheet-open body { overflow: hidden; }
 }
+
+/* =====================================================================
+   The exam's reading advice: plan, strengths / weaknesses, درسنامه‌ها.
+   ===================================================================== */
+.xa-plan { background: linear-gradient(135deg, color-mix(in srgb, #6366f1 10%, var(--surface)), color-mix(in srgb, #06b6d4 8%, var(--surface))); }
+.xa-steps { margin: 0; padding-inline-start: 1.4em; display: grid; gap: 8px; line-height: 2; font-size: 14px; }
+.xa-steps li::marker { font-weight: 800; color: #6366f1; }
+.xa-sw { display: grid; gap: 16px; grid-template-columns: 1fr 1fr; }
+@media (max-width: 760px) { .xa-sw { grid-template-columns: 1fr; } }
+.xa-col { display: flex; flex-wrap: wrap; gap: 8px; align-content: start; }
+.xa-col .hx-card-head { flex-basis: 100%; }
+.xa-chip { display: inline-flex; align-items: center; gap: 8px; padding: 7px 12px; border-radius: 14px; font-size: 13px; }
+.xa-chip span { font-weight: 800; font-size: 12px; }
+.xa-chip.is-good { background: color-mix(in srgb, #10b981 12%, var(--surface)); color: #047857; }
+.xa-chip.is-bad { background: color-mix(in srgb, #ef4444 10%, var(--surface)); color: #b91c1c; }
+.xa-lessons { display: grid; gap: 8px; }
+.xa-lesson { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 12px; border-radius: 18px; background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--line); }
+.xa-lesson.is-top { background: linear-gradient(135deg, color-mix(in srgb, #8b5cf6 12%, var(--surface)), color-mix(in srgb, #ec4899 8%, var(--surface))); box-shadow: inset 0 0 0 1.5px color-mix(in srgb, #8b5cf6 35%, transparent); }
+.xa-rank { width: 34px; height: 34px; border-radius: 12px; display: grid; place-items: center; font-weight: 800; color: #fff; background: linear-gradient(135deg, #8b5cf6, #6366f1); }
+.xa-lesson-main { flex: 1 1 220px; display: grid; min-width: 0; }
+.xa-lesson-main a { font-weight: 800; }
+.xa-lesson-main small { color: var(--ink-3); font-size: 12px; }
+.xa-skip { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 14px; font-size: 13px; }
+.xa-qlinks { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.xa-qlinks a { font-size: 12.5px; font-weight: 700; padding: 6px 12px; border-radius: 12px; background: var(--blue-soft); color: var(--blue); }

@@ -136,12 +136,15 @@ final class MyExamController extends Controller
             ]);
         }
 
+        $performance = $this->exams->performance($userId, (int) $exam['id']);
+
         return $this->page('layouts.app', 'student.myexams.result', [
             'title'        => 'کارنامه — ' . $exam['title'],
             'exam'         => $exam,
             'questions'    => $questions,
             'answers'      => $answers,
-            'performance'  => $this->exams->performance($userId, (int) $exam['id']),
+            'performance'  => $performance,
+            'advice'       => \HeleXa\Services\ExamAdvisor::advise($questions, $answers, $performance),
             'difficulties' => QbQuestionRepository::DIFFICULTY_LABELS,
         ]);
     }
@@ -245,6 +248,10 @@ final class MyExamController extends Controller
                 QbXp::award($userId, (int) $question['id'], (string) $question['difficulty']);
             }
         }
+
+        // Finishing an exam is worth something in itself, once per exam.
+        \HeleXa\Services\Points::award($userId, \HeleXa\Services\Points::amount('exam_finished', 20), 'exam_finished',
+            'qb_my_exam', (int) $exam['id'], 'exam_finished:' . $userId . ':' . $exam['id']);
     }
 
     private function expired(array $exam, int $grace = 0): bool

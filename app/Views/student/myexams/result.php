@@ -8,6 +8,7 @@
  * @var array $questions    with options and is_correct
  * @var array $answers
  * @var array $performance  this exam only, weakest first
+ * @var array $advice       ExamAdvisor::advise()
  * @var array $difficulties
  */
 $letters = ['الف', 'ب', 'ج', 'د', 'ه', 'و', 'ز', 'ح'];
@@ -63,9 +64,62 @@ $practiceUrl = static function (array $g): string {
         </div>
     </section>
 
+    <?php if ($advice['plan'] !== [] && ((int) $exam['wrong_count'] + (int) $exam['blank_count']) > 0): ?>
+        <section class="hx-card xa-plan">
+            <div class="hx-card-head"><h3>🧭 برنامه بعدی تو</h3></div>
+            <ol class="xa-steps">
+                <?php foreach ($advice['plan'] as $step): ?><li><?= e($step) ?></li><?php endforeach; ?>
+            </ol>
+        </section>
+    <?php endif; ?>
+
+    <?php if ($advice['strong'] !== [] || $advice['weak'] !== []): ?>
+        <div class="xa-sw">
+            <section class="hx-card xa-col is-good">
+                <div class="hx-card-head"><h3>💪 نقاط قوت</h3></div>
+                <?php if ($advice['strong'] === []): ?><p class="hx-muted">هنوز بخشی با ۸۰٪ یا بیشتر نیست.</p><?php endif; ?>
+                <?php foreach ($advice['strong'] as $g): ?>
+                    <div class="xa-chip is-good"><b><?= e($g['title']) ?></b><span><?= e(fa((string) $g['percent'])) ?>٪</span></div>
+                <?php endforeach; ?>
+            </section>
+            <section class="hx-card xa-col is-bad">
+                <div class="hx-card-head"><h3>🎯 نقاط ضعف</h3></div>
+                <?php if ($advice['weak'] === []): ?><p class="hx-muted">بخش ضعیفی نداری 👏</p><?php endif; ?>
+                <?php foreach ($advice['weak'] as $g): ?>
+                    <a class="xa-chip is-bad" href="<?= e($practiceUrl($g)) ?>"><b><?= e($g['title']) ?></b><span><?= e(fa((string) $g['percent'])) ?>٪</span></a>
+                <?php endforeach; ?>
+            </section>
+        </div>
+    <?php endif; ?>
+
+    <?php if ($advice['read'] !== []): ?>
+        <section class="hx-card">
+            <div class="hx-card-head"><h3>📘 درسنامه‌های پیشنهادی</h3><span class="hx-muted">به ترتیب اهمیت برای همین آزمون</span></div>
+            <div class="xa-lessons">
+                <?php foreach ($advice['read'] as $i => $r): $l = $r['lesson']; ?>
+                    <div class="xa-lesson<?= $i === 0 ? ' is-top' : '' ?>">
+                        <span class="xa-rank"><?= e(fa((string) ($i + 1))) ?></span>
+                        <div class="xa-lesson-main">
+                            <a href="/student/lessons/<?= e($l['uuid']) ?>"><?= e($l['title']) ?></a>
+                            <small><?= e(fa((string) $r['missed'])) ?> سوال از دست‌رفته را توضیح می‌دهد · سوال‌های <?= e(implode('، ', array_map(static fn ($n) => fa((string) $n), array_slice($r['numbers'], 0, 8)))) ?></small>
+                        </div>
+                        <?php \HeleXa\Core\View::partial('partials.study_mark_button', ['kind' => 'lesson', 'refId' => (int) $l['id'], 'title' => '📘 ' . $l['title'], 'url' => '/student/lessons/' . $l['uuid']]); ?>
+                        <a class="btn btn-primary btn-sm" href="/student/lessons/<?= e($l['uuid']) ?>">بخوان</a>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+            <?php if ($advice['skip'] !== []): ?>
+                <div class="xa-skip">
+                    <b>فعلاً لازم نیست بخوانی:</b>
+                    <?php foreach ($advice['skip'] as $l): ?><a class="xa-chip is-good" href="/student/lessons/<?= e($l['uuid']) ?>"><?= e($l['title']) ?></a><?php endforeach; ?>
+                </div>
+            <?php endif; ?>
+        </section>
+    <?php endif; ?>
+
     <?php if ($performance !== []): ?>
         <section class="hx-card">
-            <div class="hx-card-head"><h3>🎯 چی بخونم، چی نخونم؟</h3></div>
+            <div class="hx-card-head"><h3>🎯 چی بخونم، چی نخونم؟ — بخش به بخش</h3></div>
             <div class="hx-topics">
                 <?php foreach ($performance as $g):
                     $t = $g['percent'] >= 80 ? 'good' : ($g['percent'] >= 50 ? 'mid' : 'bad');
@@ -142,6 +196,13 @@ $practiceUrl = static function (array $g): string {
                             <figure class="qb-figure"><img src="<?= e($img($q['explanation_image'])) ?>" alt="تصویر پاسخ تشریحی" loading="lazy"></figure>
                         <?php endif; ?>
                     </details>
+                <?php endif; ?>
+                <?php if ($state !== 'right' && !empty($advice['perQuestion'][(int) $q['id']])): ?>
+                    <div class="xa-qlinks">
+                        <?php foreach ($advice['perQuestion'][(int) $q['id']] as $l): ?>
+                            <a href="/student/lessons/<?= e($l['uuid']) ?>">📘 <?= e($l['title']) ?></a>
+                        <?php endforeach; ?>
+                    </div>
                 <?php endif; ?>
                 <div class="qb-tools">
                     <button type="button" class="qb-tool qb-tool-lesson" data-qb-lesson data-url="/student/qbank/lesson/<?= e($q['uuid']) ?>">📘 درسنامه</button>
