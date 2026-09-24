@@ -6,6 +6,7 @@
  * @var array $langs
  */
 ?>
+<?php \HeleXa\Core\View::partial('partials.profile_tabs', ['currentPath' => $currentPath ?? '', 'currentUser' => $currentUser ?? []]); ?>
 <form method="post" action="/account/settings" class="prefs-page" data-prefs-form>
     <input type="hidden" name="_token" value="<?= e($csrf_token) ?>">
 

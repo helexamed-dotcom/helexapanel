@@ -67,6 +67,9 @@ final class SupportController extends Controller
         $hasUpload = $upload !== null && (int) ($upload['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_NO_FILE;
 
         if ($body === '' && !$hasUpload) {
+            if ($request->isAjax()) {
+                return $this->json(['ok' => false, 'message' => 'پیام خالی است.'], 422);
+            }
             $this->flash('error', 'پیام خالی است. متنی بنویس یا تصویری انتخاب کن.');
             return $this->redirect('/student/support');
         }
@@ -83,6 +86,9 @@ final class SupportController extends Controller
             try {
                 $attachment = (new SupportAttachmentStorage())->store($upload);
             } catch (\RuntimeException $e) {
+                if ($request->isAjax()) {
+                    return $this->json(['ok' => false, 'message' => $e->getMessage()], 422);
+                }
                 $this->flash('error', $e->getMessage());
                 return $this->redirect('/student/support');
             }
@@ -96,6 +102,9 @@ final class SupportController extends Controller
         $this->tickets->addMessage($ticketId, 'student', $userId, $body === '' ? null : $body, $attachment);
 
         ActivityLogger::log('support.student_message', $userId, 'support_ticket', $ticketId, [], 'info', $request);
+        if ($request->isAjax()) {
+            return $this->json(['ok' => true]);
+        }
         $this->flash('success', 'پیام شما ثبت شد. پشتیبانی به‌زودی پاسخ می‌دهد.');
 
         return $this->redirect('/student/support');

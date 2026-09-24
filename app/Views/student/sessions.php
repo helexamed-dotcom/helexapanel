@@ -19,6 +19,7 @@ foreach ($flags as $flag) {
     $flagDays[(string) $flag['flag_day']] = true;
 }
 ?>
+<?php \HeleXa\Core\View::partial('partials.profile_tabs', ['currentPath' => $currentPath ?? '', 'currentUser' => $currentUser ?? []]); ?>
 <?php if ($flags !== []): ?>
     <div class="alert alert-error" role="alert" style="margin-bottom:16px; line-height:2;">
         <?php /* One wrapper: .alert is a flex row, and loose text nodes would

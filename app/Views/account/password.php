@@ -8,6 +8,7 @@
 $creating  = !empty($creating);
 $minLength = (int) ($minLength ?? 10);
 ?>
+<?php \HeleXa\Core\View::partial('partials.profile_tabs', ['currentPath' => $currentPath ?? '', 'currentUser' => $currentUser ?? []]); ?>
 <div class="card" style="max-width:520px;">
     <h3 class="card-title"><?= $creating ? 'ایجاد رمز عبور' : 'تغییر رمز عبور' ?></h3>
 

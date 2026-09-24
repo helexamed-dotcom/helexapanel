@@ -1,3 +1,4 @@
+<?php \HeleXa\Core\View::partial('partials.profile_tabs', ['currentPath' => $currentPath ?? '', 'currentUser' => $currentUser ?? []]); ?>
 <?php if (!empty($tier)): ?>
     <div style="margin-bottom:16px;">
         <?php \HeleXa\Core\View::partial('partials.tier_card', ['tier' => $tier, 'self' => true]); ?>

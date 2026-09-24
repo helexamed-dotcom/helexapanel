@@ -113,6 +113,14 @@ $router->post('/account/avatar',        [AccountController::class, 'uploadAvatar
     [AuthenticateMiddleware::class, ThrottleMiddleware::class . ':avatar,10,600']);
 $router->post('/account/avatar/delete', [AccountController::class, 'removeAvatar'],  [AuthenticateMiddleware::class]);
 $router->get('/account/avatar/{uuid}',  [AccountController::class, 'avatar'],        [AuthenticateMiddleware::class]);
+$router->get('/account/edit',           [AccountController::class, 'showEdit'],      [AuthenticateMiddleware::class]);
+$router->get('/account/sessions',       [StudentSecurity::class, 'sessions'],        [AuthenticateMiddleware::class]);
+
+/* The header's pop-up panels, fetched when opened. */
+$router->get('/hub/bell',     [\HeleXa\Controllers\HubController::class, 'bell'],
+    [AuthenticateMiddleware::class, ThrottleMiddleware::class . ':hub,240,60']);
+$router->get('/hub/activate', [\HeleXa\Controllers\HubController::class, 'activate'],
+    [AuthenticateMiddleware::class, RoleMiddleware::class . ':student', ThrottleMiddleware::class . ':hub,240,60']);
 
 /* ------------------------------------------------------------- student */
 $router->group('/student', [

@@ -39,6 +39,9 @@ final class InboxController extends Controller
     public function readAllNotifications(Request $request, array $params = []): Response
     {
         $count = (new NotificationRepository())->markAllRead((int) Auth::id());
+        if ($request->isAjax()) {
+            return $this->json(['ok' => true, 'count' => $count]);
+        }
         $this->flash('success', sprintf('%d اطلاعیه خوانده‌شده علامت خورد.', $count));
 
         return $this->redirect('/student/notifications');

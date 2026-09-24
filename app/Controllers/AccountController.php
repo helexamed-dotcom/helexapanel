@@ -21,6 +21,12 @@ final class AccountController extends Controller
 {
     public function showProfile(Request $request, array $params = []): Response
     {
+        return $this->showEdit($request, $params);
+    }
+
+    /** «ویرایش مشخصات»: name, contact, avatar, classes and level. */
+    public function showEdit(Request $request, array $params = []): Response
+    {
         $user = Auth::user();
 
         $academic  = new AcademicRepository();
