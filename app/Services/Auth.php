@@ -215,6 +215,13 @@ final class Auth
 
     private static function establishSession(array $user, string $deviceHash, Request $request, SessionRepository $sessions): void
     {
+        // A remembered sign-in often runs right after the expired session was
+        // ended (forget() destroys it) in the same request; there is then no
+        // session to regenerate, and the sign-in would store an empty id.
+        // Open a fresh one first.
+        if (session_status() !== PHP_SESSION_ACTIVE && !headers_sent()) {
+            session_start();
+        }
         // New session id on privilege change defeats session fixation.
         session_regenerate_id(true);
         Csrf::rotate();
