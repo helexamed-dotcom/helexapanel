@@ -31,7 +31,8 @@ final class StageController extends Controller
     private const STALE = 'این بلوک توسط مدیر دیگری تغییر کرده است. صفحه را دوباره بارگذاری کن.';
 
     /** Block types that carry their own text rather than pointing elsewhere. */
-    private const TEXT_BLOCKS = ['chat', 'text', 'finding', 'hint', 'warning', 'system'];
+    private const TEXT_BLOCKS = ['chat', 'text', 'finding', 'hint', 'warning', 'system',
+                                 'vitals', 'lab', 'pearl', 'ddx', 'reference'];
 
     public function __construct(
         private readonly BalinStageRepository $stages = new BalinStageRepository(),
@@ -54,6 +55,7 @@ final class StageController extends Controller
             'questions'  => (new BalinQuestionRepository())->forLesson((int) $stage['lesson_id']),
             'media'      => (new BalinMediaRepository())->all(),
             'exams'      => (new BalinCheckpointRepository())->forLesson((int) $stage['lesson_id']),
+            'clinical'   => (new \HeleXa\Services\Balin\BalinTransfer())->clinicalReady(),
         ]);
     }
 
@@ -267,6 +269,11 @@ final class StageController extends Controller
     {
         $allowed = ['chat', 'question', 'image', 'audio', 'video', 'text', 'finding',
                     'hint', 'warning', 'system', 'divider', 'checkpoint_anchor'];
+        // The clinical types need their migration; without it MySQL would
+        // reject the value, so they are offered only once it has run.
+        if ((new \HeleXa\Services\Balin\BalinTransfer())->clinicalReady()) {
+            array_push($allowed, 'vitals', 'lab', 'pearl', 'ddx', 'reference');
+        }
 
         if (!in_array($type, $allowed, true)) {
             return 'نوع بلوک معتبر نیست.';

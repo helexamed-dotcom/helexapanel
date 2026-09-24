@@ -214,6 +214,11 @@ final class UserRepository extends BaseRepository
         $orderBy  = $sortable[$sortKey] ?? $sortable['created_at'];
         $direction = ($filters['direction'] ?? 'desc') === 'asc' ? 'ASC' : 'DESC';
 
+        // Ids to lift to the top — students with an unresolved suspicious
+        // sign-in. Cast to int before they touch the SQL.
+        $priority = array_values(array_filter(array_map('intval', $filters['priority_ids'] ?? []), static fn (int $i): bool => $i > 0));
+        $lead     = $priority !== [] ? '(u.id IN (' . implode(',', $priority) . ')) DESC, ' : '';
+
         $rows = $this->select(
             'SELECT ' . self::LIST_COLUMNS . ',
                     t.title AS term_title, g.title AS group_title,
@@ -223,7 +228,7 @@ final class UserRepository extends BaseRepository
              LEFT JOIN terms t ON t.id = u.term_id
              LEFT JOIN student_groups g ON g.id = u.group_id
              WHERE ' . $where . '
-             ORDER BY ' . $orderBy . ' ' . $direction . '
+             ORDER BY ' . $lead . $orderBy . ' ' . $direction . '
              LIMIT ' . (int) $perPage . ' OFFSET ' . (int) $offset,
             $params
         );

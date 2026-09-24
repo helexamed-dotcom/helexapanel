@@ -37,6 +37,8 @@ final class SettingsController extends Controller
         'print_protection_enabled',
         'viewer_local_font',
         'viewer_allow_external_fonts',
+        // Lets students open an account themselves from /register.
+        'registration_enabled',
     ];
 
     public function index(Request $request, array $params = []): Response

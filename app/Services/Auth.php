@@ -262,6 +262,10 @@ final class Auth
             'issued_at'   => time(),
             'rotated_at'  => time(),
         ];
+
+        // Every way in — password, remember-me — passes through here, so the
+        // multi-network check sees all of them. It never throws.
+        IpWatch::afterSignIn((int) $user['id'], (string) $user['role_slug']);
     }
 
     // ------------------------------------------------------- remember me

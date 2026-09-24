@@ -47,6 +47,7 @@ final class BalinController extends Controller
         $profile = (new ProfileService())->forStudent($userId);
 
         return $this->page('layouts.app', 'student.balin.island', [
+            'balinGame' => true,
             'title'   => 'جزیره بالین',
             'lessons' => $this->lessons->publishedForStudent($userId),
             'profile' => $profile,
@@ -57,7 +58,7 @@ final class BalinController extends Controller
     public function lesson(Request $request, array $params = []): Response
     {
         $userId = (int) Auth::id();
-        $lesson = $this->publishedLesson((string) ($params['uuid'] ?? ''));
+        $lesson = $this->publishedLesson((string) ($params['uuid'] ?? ''), $userId);
 
         $stages = $this->gate->annotate(
             $userId,
@@ -65,12 +66,18 @@ final class BalinController extends Controller
             $this->stages->forLesson((int) $lesson['id'], true)
         );
 
+        $user = Auth::user();
+
         return $this->page('layouts.app', 'student.balin.lesson', [
-            'title'   => $lesson['title'],
-            'lesson'  => $lesson,
-            'stages'  => $stages,
-            'exams'   => $this->examsByAnchor((int) $lesson['id'], $userId),
-            'summary' => $this->stageService->lessonSummary($userId, (int) $lesson['id']),
+            'title'     => $lesson['title'],
+            'balinGame' => true,
+            'balinMap'  => true,
+            'lesson'    => $lesson,
+            'stages'    => $stages,
+            'exams'     => $this->examsByAnchor((int) $lesson['id'], $userId),
+            'summary'   => $this->stageService->lessonSummary($userId, (int) $lesson['id']),
+            'avatar'    => \HeleXa\Services\Balin\BalinSettings::avatarFor($user['gender'] ?? null),
+            'player'    => (string) ($user['full_name'] ?? ''),
         ]);
     }
 
@@ -88,6 +95,7 @@ final class BalinController extends Controller
         return $this->page('layouts.app', 'student.balin.stage', [
             'title'        => $stage['title'],
             'balinScript'  => true,
+            'balinGame'    => true,
             'lesson'       => $lesson,
             'stage'        => $stage,
             'blocks'       => $this->stageService->playableBlocks($userId, $stage),
@@ -187,6 +195,7 @@ final class BalinController extends Controller
         $lesson = $this->lessons->findById((int) $stage['lesson_id']);
 
         return $this->page('layouts.app', 'student.balin.complete', [
+            'balinGame' => true,
             'title'   => 'مرحله کامل شد',
             'stage'   => $stage,
             'lesson'  => $lesson,
@@ -198,11 +207,14 @@ final class BalinController extends Controller
 
     // ------------------------------------------------------------- helpers
 
-    private function publishedLesson(string $uuid): array
+    private function publishedLesson(string $uuid, int $userId): array
     {
         $lesson = $this->lessons->findByUuid($uuid);
 
-        if ($lesson === null || $lesson['status'] !== 'published') {
+        // A lesson closed for this student answers exactly like one that does
+        // not exist, so the URL reveals nothing either way.
+        if ($lesson === null || $lesson['status'] !== 'published'
+            || $this->lessons->isBlockedFor($userId, (int) $lesson['id'])) {
             throw HttpException::notFound();
         }
 
@@ -225,7 +237,8 @@ final class BalinController extends Controller
         }
 
         $lesson = $this->lessons->findById((int) $stage['lesson_id']);
-        if ($lesson === null || $lesson['status'] !== 'published') {
+        if ($lesson === null || $lesson['status'] !== 'published'
+            || $this->lessons->isBlockedFor($userId, (int) $lesson['id'])) {
             throw HttpException::notFound();
         }
 

@@ -45,15 +45,106 @@ final class AccountController extends Controller
         return $this->page('layouts.app', 'account.profile', [
             'title'     => 'پروفایل',
             'profile'   => $user,
+            // Only students have a tier; an admin's profile shows none.
+            'tier'      => ($user['role_slug'] ?? '') === 'student'
+                ? \HeleXa\Services\StudentTier::forStudent((int) $user['id'])
+                : null,
             'termNames' => $termNames,
             'groupName' => $group['title'] ?? null,
             'errors'    => [],
             'sessions'  => (new SessionRepository())->activeForUser((int) $user['id']),
+            'levelCard' => ($user['role_slug'] ?? '') === 'student' ? $this->levelCard((int) $user['id']) : null,
+            'classPlan' => ($user['role_slug'] ?? '') === 'student' ? $this->classPlan($user) : null,
         ]);
+    }
+
+    /** The classes the student has taken, for the profile card. */
+    private function classPlan(array $user): ?array
+    {
+        try {
+            if (!\HeleXa\Services\StudentSchedule::canChoose($user)) {
+                return null;
+            }
+            return [
+                'custom'   => \HeleXa\Services\StudentSchedule::isCustom($user),
+                'week'     => \HeleXa\Services\StudentSchedule::week($user),
+                'choices'  => \HeleXa\Services\StudentSchedule::choices($user),
+                'weekdays' => \HeleXa\Services\Jalali::WEEKDAYS,
+            ];
+        } catch (\Throwable $e) {
+            error_log('[profile classes] ' . $e->getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * One level for the whole site: Balin island and the question bank pay
+     * into the same XP ledger. Never allowed to break the profile page.
+     */
+    private function levelCard(int $userId): ?array
+    {
+        try {
+            $balin = new \HeleXa\Services\Balin\ProfileService();
+            $stats = (new \HeleXa\Models\Balin\BalinStatsRepository())->findOrEmpty($userId);
+            $level = \HeleXa\Services\Balin\Level::progress((int) $stats['total_xp']);
+            $board = (new \HeleXa\Models\Balin\BalinLeaderboardRepository())->rankFor($userId, 'overall_xp', null);
+            $streak = (new \HeleXa\Models\Balin\BalinStreakRepository())->state($userId);
+
+            return [
+                'level'  => $level,
+                'rank'   => $balin->rankFor($level['level']),
+                'stats'  => $stats,
+                'place'  => $board !== null ? (int) $board['rank_position'] : null,
+                'streak' => (int) ($streak['current_streak'] ?? 0),
+                'qbank'  => (new \HeleXa\Models\QuestionBank\QbPracticeRepository())->totalsFor($userId),
+            ];
+        } catch (\Throwable $e) {
+            error_log('[profile level] ' . $e->getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Saves the classes a student has taken. Posted to /account/profile with
+     * section=classes, so it needs no route of its own.
+     */
+    private function saveClasses(Request $request): Response
+    {
+        $user = Auth::user();
+        if (($user['role_slug'] ?? '') !== 'student' || !\HeleXa\Models\ScheduleRepository::choiceReady()) {
+            return $this->redirect('/account/profile');
+        }
+
+        $ids = [];
+        if (!$request->bool('reset')) {
+            $raw = $request->input('units', []);
+            foreach (is_array($raw) ? $raw : [] as $value) {
+                foreach (explode(',', is_scalar($value) ? (string) $value : '') as $id) {
+                    if (ctype_digit(trim($id))) {
+                        $ids[] = (int) $id;
+                    }
+                }
+            }
+        }
+
+        $result = \HeleXa\Services\StudentSchedule::save($user, array_slice(array_values(array_unique($ids)), 0, 500));
+
+        $this->flash('success', $result['saved'] === 0
+            ? 'انتخاب‌ها پاک شد؛ در تقویم و داشبورد برنامه گروه خودتان نمایش داده می‌شود.'
+            : 'درس‌های اخذشده ذخیره شد؛ تقویم و داشبورد فقط همین کلاس‌ها را نشان می‌دهند.');
+        if ($result['clashes'] !== []) {
+            $this->flash('error', 'این کلاس‌ها هم‌زمان‌اند: ' . implode(' — ', $result['clashes']));
+        }
+
+        return $this->redirect('/account/profile#classes');
     }
 
     public function updateProfile(Request $request, array $params = []): Response
     {
+        if ($request->string('section') === 'classes') {
+            return $this->saveClasses($request);
+        }
+
         $user   = Auth::user();
         $users  = new UserRepository();
         $errors = [];

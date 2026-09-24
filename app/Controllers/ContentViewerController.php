@@ -50,6 +50,9 @@ final class ContentViewerController extends Controller
             'heartbeatInt' => Settings::int('heartbeat_interval', 25),
             'offlineEnabled'   => \HeleXa\Services\OfflineAccess::isEnabled(),
             'highlightEnabled' => Settings::bool('highlight_enabled', true),
+            'inkEnabled'   => Auth::isStudent() && Settings::bool('ink_enabled', true),
+            'notesEnabled' => Auth::isStudent() && Settings::bool('notes_enabled', true),
+            'pdfjs'        => \HeleXa\Controllers\Student\NoteController::pdfJsAvailable(),
             'studiedSecs'  => $alreadyStudied,
             'studiedClock' => \HeleXa\Services\StudyAnalytics::clock($alreadyStudied),
         ]);
@@ -105,7 +108,8 @@ final class ContentViewerController extends Controller
             ? $this->highlightsFor((int) $user['id'], (int) $content['id'])
             : [];
 
-        $payload = ViewerPayload::build($user, $content, $state, $this->origin($request), $highlights);
+        $payload = ViewerPayload::build($user, $content, $state, $this->origin($request), $highlights,
+            $this->inkAndNotes((int) $user['id'], (int) $content['id']));
 
         $fileSize = (int) filesize($absolute);
         $etag     = '"' . substr(Str::hash(implode('|', [
@@ -306,6 +310,31 @@ final class ContentViewerController extends Controller
             echo '</body></html>';
         }
         fclose($handle);
+    }
+
+    /**
+     * The student's handwriting and note pins for this lesson. A missing
+     * table (migration not run yet) must never stop the lesson from opening.
+     */
+    private function inkAndNotes(int $userId, int $contentId): array
+    {
+        $ink   = Auth::isStudent() && Settings::bool('ink_enabled', true);
+        $notes = Auth::isStudent() && Settings::bool('notes_enabled', true);
+        $out   = ['ink' => ['enabled' => false], 'notes' => ['enabled' => false]];
+
+        try {
+            if ($ink) {
+                $out['ink'] = ['enabled' => true, 'strokes' => (new \HeleXa\Models\InkRepository())->strokesFor($userId, $contentId)];
+            }
+            if ($notes) {
+                $out['notes'] = ['enabled' => true, 'items' => (new \HeleXa\Models\NoteRepository())->pinsFor($userId, $contentId)];
+            }
+        } catch (\PDOException $e) {
+            \HeleXa\Core\Logger::error('Ink/notes unavailable', ['error' => $e->getMessage()]);
+            return ['ink' => ['enabled' => false], 'notes' => ['enabled' => false]];
+        }
+
+        return $out;
     }
 
     private function origin(Request $request): string

@@ -109,6 +109,24 @@
         if (label) {
             label.textContent = shown === 0 ? 'شروع چت' : 'ادامه چت';
         }
+        paintProgress();
+    }
+
+    /* The level HUD: how much of the scene has been played. */
+    var bar     = document.querySelector('[data-stage-progress]');
+    var percent = document.querySelector('[data-stage-percent]');
+
+    function paintProgress() {
+        if (!bar || !steps.length) { return; }
+        var value = isReplay ? 100 : Math.round(Math.min(shown, steps.length) * 100 / steps.length);
+        // The last answer still owed keeps the bar just short of full.
+        if (value === 100 && blocked()) { value = 99; }
+        var fill = bar.querySelector('i');
+        if (fill) { fill.style.width = value + '%'; }
+        bar.setAttribute('aria-valuenow', String(value));
+        if (percent) {
+            percent.textContent = String(value).replace(/[0-9]/g, function (d) { return '۰۱۲۳۴۵۶۷۸۹'[d]; }) + '٪';
+        }
     }
 
     function next() {

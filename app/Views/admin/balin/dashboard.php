@@ -63,6 +63,42 @@ $states = [
     <?php endif; ?>
 </div>
 
+<?php
+/* The ranking section: its own card, because it decides what every student
+   sees about everyone else. */
+$rankMode  = \HeleXa\Services\Balin\MyRank::mode();
+$rankModes = [
+    'off'    => ['خاموش', 'بخش رتبه‌بندی برای دانشجویان کاملاً غیرفعال است: نه لینکی، نه صفحه‌ای، نه رتبه‌ای در «امروز من».', 'chip-red'],
+    'self'   => ['فقط رتبه خود دانشجو', 'هر دانشجو فقط جایگاه خودش را می‌بیند — «امروز سوم از ۴۲ نفر» — بر اساس زمان مطالعه و XP، بدون نام دیگران.', 'chip-blue'],
+    'public' => ['جدول عمومی', 'جدول کامل رتبه‌بندی با نام همه دانشجویان نمایش داده می‌شود.', 'chip-green'],
+];
+?>
+<div class="card" id="ranking">
+    <div class="card-head">
+        <h3 class="card-title" style="margin:0;">🏅 رتبه‌بندی دانشجویان</h3>
+        <span class="stat-chip <?= e($rankModes[$rankMode][2]) ?>"><?= e($rankModes[$rankMode][0]) ?></span>
+    </div>
+    <?php if (can('balin.manage_settings')): ?>
+        <form method="post" action="/admin/balin/ranking" class="balin-status-form">
+            <input type="hidden" name="_token" value="<?= e($csrf_token) ?>">
+            <div class="balin-status-options">
+                <?php foreach ($rankModes as $value => [$label, $help]): ?>
+                    <label class="balin-status-option<?= $rankMode === $value ? ' is-current' : '' ?>">
+                        <input type="radio" name="ranking_mode" value="<?= e($value) ?>" <?= $rankMode === $value ? 'checked' : '' ?>>
+                        <span>
+                            <strong><?= e($label) ?></strong>
+                            <span class="leaf-meta"><?= e($help) ?></span>
+                        </span>
+                    </label>
+                <?php endforeach; ?>
+            </div>
+            <button class="btn btn-primary" type="submit">ذخیره رتبه‌بندی</button>
+        </form>
+    <?php else: ?>
+        <div class="empty">برای تغییر به دسترسی تنظیمات جزیره نیاز داری.</div>
+    <?php endif; ?>
+</div>
+
 <div class="stat-grid">
     <div class="stat-card"><span class="stat-value"><?= e(fa((int) ($totals['lessons'] ?? 0))) ?></span><span class="stat-label">درس منتشرشده</span></div>
     <div class="stat-card"><span class="stat-value"><?= e(fa((int) ($totals['stages'] ?? 0))) ?></span><span class="stat-label">مرحله</span></div>
@@ -100,6 +136,41 @@ $states = [
 </div>
 
 <?php if (can('balin.manage_settings')): ?>
+<div class="card" id="avatars">
+    <div class="card-head">
+        <h3 class="card-title" style="margin:0;">🧭 آواتار بازیکن روی نقشه</h3>
+    </div>
+    <p class="muted" style="font-size:12.5px; margin:-6px 0 14px; line-height:2;">
+        این تصویر روی نقشه مارپیچ هر درس، بالای مرحله‌ای که دانشجو در آن است می‌ایستد و بعد از هر مرحله به مرحله بعد راه می‌رود.
+        برای دانشجویان پسر و دختر جدا انتخاب کنید. PNG شفاف (بدون پس‌زمینه) یا SVG، مربعی، حدود ۲۵۶×۲۵۶ بهترین نتیجه را می‌دهد.
+    </p>
+    <form method="post" action="/admin/balin/avatars" enctype="multipart/form-data" class="bgame-avatar-admin">
+        <input type="hidden" name="_token" value="<?= e($csrf_token) ?>">
+        <?php foreach (['male' => 'دانشجوی پسر', 'female' => 'دانشجوی دختر'] as $g => $label):
+            $av = $avatars[$g] ?? ['image' => null, 'emoji' => '🧑‍⚕️']; ?>
+            <div class="bgame-avatar-slot">
+                <div class="bgame-avatar-preview">
+                    <?php if ($av['image']): ?>
+                        <img src="/assets/<?= e($av['image']) ?>" alt="">
+                    <?php else: ?>
+                        <span><?= e($av['emoji']) ?></span>
+                    <?php endif; ?>
+                </div>
+                <div>
+                    <strong><?= e($label) ?></strong>
+                    <input class="input" type="file" name="avatar_<?= e($g) ?>" accept="image/png,image/webp,image/svg+xml,image/jpeg" style="margin-top:6px;">
+                    <?php if ($av['image']): ?>
+                        <label class="remember-row"><input type="checkbox" name="remove_<?= e($g) ?>" value="1"><span>حذف و استفاده از اموجی پیش‌فرض</span></label>
+                    <?php else: ?>
+                        <small class="muted">الان اموجی پیش‌فرض نمایش داده می‌شود.</small>
+                    <?php endif; ?>
+                </div>
+            </div>
+        <?php endforeach; ?>
+        <div class="form-actions"><button class="btn btn-primary" type="submit" data-lock-on-submit>ذخیره آواتارها</button></div>
+    </form>
+</div>
+
 <div class="card">
     <div class="card-head">
         <h3 class="card-title" style="margin:0;">تنظیمات</h3>
@@ -107,6 +178,7 @@ $states = [
 
     <form method="post" action="/admin/balin/settings" class="form-grid">
         <input type="hidden" name="_token" value="<?= e($csrf_token) ?>">
+
 
         <label class="field span-2">
             <span>متن صفحه «به‌زودی»</span>

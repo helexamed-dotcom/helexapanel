@@ -76,6 +76,22 @@ $action = $lesson === null ? '/admin/balin/lessons' : '/admin/balin/lessons/' . 
             <?php endif; ?>
         </label>
 
+        <?php $mode = (string) ($old['access_mode'] ?? $lesson['access_mode'] ?? 'granted'); ?>
+        <label class="field span-2">
+            <span>چه کسانی این درس را ببینند؟</span>
+            <select name="access_mode">
+                <option value="granted" <?= $mode !== 'open' ? 'selected' : '' ?>>
+                    فقط دانشجویانی که انتخاب می‌کنم (پیشنهادی)
+                </option>
+                <option value="open" <?= $mode === 'open' ? 'selected' : '' ?>>
+                    همه دانشجویانی که به جزیره دسترسی دارند
+                </option>
+            </select>
+            <small>
+                با گزینه اول، درس تا وقتی که از «دسترسی‌ها» یا از یک پکیج به دانشجویی داده نشود برای هیچ‌کس باز نمی‌شود.
+            </small>
+        </label>
+
         <label class="field span-2">
             <span>یادداشت داخلی</span>
             <textarea name="extra_notes" rows="2"><?= $value('extra_notes') ?></textarea>

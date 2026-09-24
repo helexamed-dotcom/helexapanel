@@ -21,6 +21,9 @@
     </script>
     <link rel="stylesheet" href="/assets/css/app.css">
     <link rel="stylesheet" href="/assets/css/pwa.css">
+    <?php if (!empty($inkEnabled) || !empty($notesEnabled)): ?>
+        <link rel="stylesheet" href="<?= asset('/assets/css/notes.css') ?>">
+    <?php endif; ?>
     <?php if ((int) $content['is_printable'] === 0): ?>
         <style>@media print { body { display: none !important; } }</style>
     <?php endif; ?>
@@ -29,6 +32,13 @@
 <?php
 $backUrl     = '/student/courses/' . $content['course_uuid'];
 $showTools   = $isStudent && $highlightEnabled;
+$inkEnabled   = !empty($inkEnabled);
+$notesEnabled = !empty($notesEnabled);
+$anyTools     = $showTools || $inkEnabled || $notesEnabled;
+$inkColors    = [
+    '#111827' => 'مشکی', '#2563eb' => 'آبی', '#dc2626' => 'قرمز', '#16a34a' => 'سبز',
+    '#ea580c' => 'نارنجی', '#7c3aed' => 'بنفش', '#facc15' => 'زرد', '#ec4899' => 'صورتی',
+];
 $colors      = \HeleXa\Controllers\HighlightController::COLORS;
 $colorNames  = [
     'yellow' => 'زرد', 'green' => 'سبز', 'blue' => 'آبی',
@@ -46,8 +56,9 @@ $colorNames  = [
             <div class="vbar-course"><?= e($content['course_title']) ?></div>
         </div>
 
-        <?php if ($showTools): ?>
-            <div class="vbar-tools" role="toolbar" aria-label="ابزار هایلایت">
+        <?php if ($anyTools): ?>
+            <div class="vbar-tools" role="toolbar" aria-label="ابزار جزوه">
+                <?php if ($showTools): ?>
                 <button class="vbar-btn tool-btn" type="button" data-tool="pen"
                         aria-pressed="false" title="قلم هایلایت">
                     <?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'pen']); ?>
@@ -67,6 +78,21 @@ $colorNames  = [
                  */
                 ?>
                 <span class="vbar-hint" data-selection-hint hidden>برای هایلایت، قلم را بزن</span>
+                <?php endif; ?>
+
+                <?php if ($inkEnabled): ?>
+                    <?php if ($showTools): ?><span class="vbar-sep" aria-hidden="true"></span><?php endif; ?>
+                    <button class="vbar-btn tool-btn" type="button" data-tool="draw"
+                            aria-pressed="false" title="نوشتن با قلم" aria-label="نوشتن با قلم">
+                        <?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'pencil']); ?>
+                        <i class="tool-dot draw-dot" data-draw-dot></i>
+                    </button>
+                <?php endif; ?>
+                <?php if ($notesEnabled): ?>
+                    <button class="vbar-btn" type="button" data-note-add title="افزودن یادداشت" aria-label="افزودن یادداشت">
+                        <?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'note-plus']); ?>
+                    </button>
+                <?php endif; ?>
 
                 <span class="vbar-sep" aria-hidden="true"></span>
 
@@ -105,6 +131,24 @@ $colorNames  = [
                     </button>
                     <div class="vmenu-sep"></div>
                 <?php endif; ?>
+
+                <?php if ($notesEnabled): ?>
+                    <button class="vmenu-row" type="button" data-note-add>
+                        <span class="row-icon"><?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'note-plus']); ?></span>
+                        <span>افزودن یادداشت روی جزوه</span>
+                    </button>
+                    <a class="vmenu-row" href="/student/notes" target="_blank" rel="noopener">
+                        <span class="row-icon"><?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'note']); ?></span>
+                        <span>همه یادداشت‌های من</span>
+                    </a>
+                <?php endif; ?>
+                <?php if ($inkEnabled): ?>
+                    <button class="vmenu-row" type="button" data-ink-clear>
+                        <span class="row-icon"><?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'trash']); ?></span>
+                        <span>پاک کردن نوشته‌های قلم</span>
+                    </button>
+                <?php endif; ?>
+                <?php if ($notesEnabled || $inkEnabled): ?><div class="vmenu-sep"></div><?php endif; ?>
 
                 <?php if ($showTools): ?>
                     <button class="vmenu-row" type="button" id="btn-highlights">
@@ -156,6 +200,42 @@ $colorNames  = [
         </div>
     <?php endif; ?>
 
+    <?php if ($inkEnabled): ?>
+        <div class="vpalette ink-palette" data-ink-palette hidden role="toolbar" aria-label="تنظیمات قلم">
+            <div class="ink-group" role="group" aria-label="ابزار">
+                <button class="ink-btn" type="button" data-ink-mode="pen" title="قلم" aria-label="قلم">
+                    <?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'pencil']); ?>
+                </button>
+                <button class="ink-btn" type="button" data-ink-mode="marker" title="ماژیک" aria-label="ماژیک">
+                    <?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'marker']); ?>
+                </button>
+                <button class="ink-btn" type="button" data-ink-mode="eraser" title="پاک‌کن نوشته" aria-label="پاک‌کن نوشته">
+                    <?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'eraser']); ?>
+                </button>
+            </div>
+            <span class="ink-sep" aria-hidden="true"></span>
+            <div class="ink-group ink-colors" role="group" aria-label="رنگ">
+                <?php foreach ($inkColors as $hex => $label): ?>
+                    <button class="ink-color" type="button" data-ink-color="<?= e($hex) ?>" style="--c: <?= e($hex) ?>;"
+                            title="<?= e($label) ?>" aria-label="<?= e($label) ?>"></button>
+                <?php endforeach; ?>
+            </div>
+            <span class="ink-sep" aria-hidden="true"></span>
+            <div class="ink-group" role="group" aria-label="ضخامت">
+                <?php foreach ([[1.8, 'نازک', 4], [3, 'متوسط', 8], [5.5, 'ضخیم', 12]] as [$sz, $label, $px]): ?>
+                    <button class="ink-size" type="button" data-ink-size="<?= e((string) $sz) ?>" title="<?= e($label) ?>" aria-label="<?= e($label) ?>">
+                        <i style="width: <?= (int) $px ?>px; height: <?= (int) $px ?>px;"></i>
+                    </button>
+                <?php endforeach; ?>
+            </div>
+            <span class="ink-sep" aria-hidden="true"></span>
+            <button class="ink-btn ink-finger" type="button" data-ink-finger aria-pressed="true"
+                    title="نوشتن با انگشت (خاموش: انگشت صفحه را جابه‌جا می‌کند)" aria-label="نوشتن با انگشت">
+                <?php \HeleXa\Core\View::partial('partials.icon', ['name' => 'hand']); ?>
+            </button>
+        </div>
+    <?php endif; ?>
+
     <aside class="hl-drawer" id="hl-drawer" hidden aria-label="فهرست هایلایت‌ها">
         <div class="hl-drawer-head">
             <strong>هایلایت‌های من</strong>
@@ -192,6 +272,13 @@ $colorNames  = [
         </div>
     </div>
 
+    <?php if ($notesEnabled): ?>
+        <div class="note-scrim" data-note-scrim hidden></div>
+        <aside class="note-sheet" data-note-sheet hidden aria-label="یادداشت">
+            <div class="note-sheet-body" data-note-host></div>
+        </aside>
+    <?php endif; ?>
+
     <div class="vtoast" data-toast hidden role="status" aria-live="polite"></div>
 </div>
 
@@ -202,12 +289,24 @@ $colorNames  = [
 <?php if ($isStudent && $offlineEnabled): ?>
     <script src="/assets/js/offline-manager.js" nonce="<?= e($cspNonce ?? '') ?>"></script>
 <?php endif; ?>
-<script src="/assets/js/viewer.js"
+<script src="<?= asset('/assets/js/viewer.js') ?>"
         nonce="<?= e($cspNonce ?? '') ?>"
         data-content="<?= e($content['uuid']) ?>"
         data-heartbeat="<?= (int) $heartbeatInt ?>"
         data-studied="<?= (int) $studiedSecs ?>"
         data-highlight="<?= $showTools ? '1' : '0' ?>"
+        data-ink="<?= $inkEnabled ? '1' : '0' ?>"
+        data-notes="<?= $notesEnabled ? '1' : '0' ?>"
         data-tracking="<?= $isStudent ? '1' : '0' ?>"></script>
+<?php if ($inkEnabled || $notesEnabled): ?>
+    <script src="<?= asset('/assets/js/ink.js') ?>" nonce="<?= e($cspNonce ?? '') ?>"></script>
+    <?php if ($notesEnabled): ?>
+        <script src="<?= asset('/assets/js/notes.js') ?>" nonce="<?= e($cspNonce ?? '') ?>"></script>
+    <?php endif; ?>
+    <script src="<?= asset('/assets/js/viewer-ink.js') ?>" nonce="<?= e($cspNonce ?? '') ?>"
+            data-ink="<?= $inkEnabled ? '1' : '0' ?>"
+            data-notes="<?= $notesEnabled ? '1' : '0' ?>"
+            data-pdfjs="<?= !empty($pdfjs) ? '1' : '0' ?>"></script>
+<?php endif; ?>
 </body>
 </html>

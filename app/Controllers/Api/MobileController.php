@@ -13,7 +13,6 @@ use HeleXa\Models\EnrollmentRepository;
 use HeleXa\Models\ExamRepository;
 use HeleXa\Models\MessageRepository;
 use HeleXa\Models\NotificationRepository;
-use HeleXa\Models\ScheduleRepository;
 use HeleXa\Models\SectionRepository;
 use HeleXa\Services\AcademicScope;
 use HeleXa\Services\Auth;
@@ -83,16 +82,10 @@ final class MobileController extends Controller
         // 0 = شنبه, matching the schedule table's own convention.
         $weekday = Jalali::weekdayIndex(time());
 
-        $today = [];
-        foreach ((new ScheduleRepository())->forStudentTerms($termIds, $groupId) as $entry) {
-            foreach ((new ScheduleRepository())->items((int) $entry['schedule']['id']) as $item) {
-                if ((int) $item['weekday'] !== $weekday) {
-                    continue;
-                }
-                $today[] = $this->scheduleItem($item);
-            }
-        }
-        usort($today, static fn (array $a, array $b): int => strcmp($a['start'], $b['start']));
+        $today = array_map(
+            fn (array $item): array => $this->scheduleItem($item),
+            \HeleXa\Services\StudentSchedule::forWeekday($user, $weekday)
+        );
 
         $exams = array_map(
             fn (array $e): array => $this->exam($e),
@@ -191,15 +184,11 @@ final class MobileController extends Controller
     /** The whole week, grouped by day. */
     public function schedule(Request $request, array $params = []): Response
     {
-        $user    = Auth::user();
-        $termIds = AcademicScope::termIds($user);
-        $groupId = $user['group_id'] !== null ? (int) $user['group_id'] : null;
+        $user = Auth::user();
+        $days = array_fill(0, 7, []);
 
-        $repository = new ScheduleRepository();
-        $days       = array_fill(0, 7, []);
-
-        foreach ($repository->forStudentTerms($termIds, $groupId) as $entry) {
-            foreach ($repository->items((int) $entry['schedule']['id']) as $item) {
+        foreach (\HeleXa\Services\StudentSchedule::blocks($user) as $block) {
+            foreach ($block['items'] as $item) {
                 $weekday = (int) $item['weekday'];
                 if ($weekday < 0 || $weekday > 6) {
                     continue;
@@ -335,6 +324,7 @@ final class MobileController extends Controller
             'teacher'  => $item['teacher'] !== null ? (string) $item['teacher'] : null,
             'location' => $item['location'] !== null ? (string) $item['location'] : null,
             'color'    => $item['color'] !== null ? (string) $item['color'] : null,
+            'group'    => isset($item['group_title']) && $item['group_title'] !== null ? (string) $item['group_title'] : null,
         ];
     }
 

@@ -1,6 +1,7 @@
 <div class="card">
     <div class="card-head">
         <h3 class="card-title" style="margin:0;">دانشجویان (<?= e(fa((string) $total)) ?>)</h3>
+        <a class="btn btn-ghost btn-sm" href="/admin/students/transfer">ورود / خروج JSON</a>
         <a class="btn btn-primary btn-sm" href="/admin/students/create">+ افزودن دانشجو</a>
     </div>
 
@@ -37,9 +38,20 @@
                 </tr>
                 </thead>
                 <tbody>
-                <?php foreach ($students as $student): ?>
-                    <tr>
-                        <td><?= e($student['full_name']) ?></td>
+                <?php foreach ($students as $student):
+                    $isFlagged = isset($flagged[(int) $student['id']]);
+                ?>
+                    <tr<?= $isFlagged ? ' class="is-flagged"' : '' ?>>
+                        <td>
+                            <?= e($student['full_name']) ?>
+                            <?php if ($isFlagged): ?>
+                                <div><a class="flag-chip" href="/admin/security/flags">⚠ ورود مشکوک</a></div>
+                            <?php endif; ?>
+                            <?php $t = $tiers[(int) $student['id']] ?? null; ?>
+                            <?php if ($t !== null): ?>
+                                <div><span class="tier-badge tier-<?= e($t['tier']) ?>" title="<?= e($t['label']) ?>"><?= e($t['icon'] . ' ' . $t['label']) ?></span></div>
+                            <?php endif; ?>
+                        </td>
                         <?php
                         /* The number is now the identifier students actually sign in
                            with, so it leads; the username stays underneath because
@@ -86,6 +98,7 @@
                         <td><?= e(jdate($student['created_at'])) ?></td>
                         <td><?= e(jdate($student['last_login_at'])) ?></td>
                         <td class="row-actions">
+                            <a class="btn btn-primary btn-sm" href="/admin/students/<?= e($student['uuid']) ?>/access">دسترسی‌ها</a>
                             <a class="btn btn-ghost btn-sm" href="/admin/students/<?= e($student['uuid']) ?>/edit">ویرایش</a>
                             <form method="post" action="/admin/students/<?= e($student['uuid']) ?>/reset-password"
                                   data-confirm="رمز موقت جدید ساخته شود و همه نشست‌های کاربر بسته شود؟">

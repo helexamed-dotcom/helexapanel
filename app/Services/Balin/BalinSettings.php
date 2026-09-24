@@ -133,6 +133,26 @@ final class BalinSettings
         return max(5, Settings::int('balin_preview_ttl_minutes', 60));
     }
 
+    /**
+     * The player's token on the lesson map, per gender. An uploaded image
+     * (path under public_html/assets/) or, without one, a fitting emoji.
+     *
+     * @return array{image:?string, emoji:string}
+     */
+    public static function avatarFor(?string $gender): array
+    {
+        $key   = $gender === 'female' ? 'balin_avatar_female' : 'balin_avatar_male';
+        $image = trim((string) Settings::get($key, ''));
+        if ($image === '' && $gender === null) {
+            $image = trim((string) Settings::get('balin_avatar_male', ''));
+        }
+
+        return [
+            'image' => $image !== '' && preg_match('~^images/[A-Za-z0-9/_.-]+$~', $image) === 1 ? $image : null,
+            'emoji' => $gender === 'female' ? '👩‍⚕️' : '👨‍⚕️',
+        ];
+    }
+
     public static function mediaMaxBytes(string $kind): int
     {
         $megabytes = match ($kind) {

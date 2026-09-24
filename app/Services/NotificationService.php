@@ -133,6 +133,76 @@ final class NotificationService
     }
 
     /**
+     * A lesson was published inside a course.
+     *
+     * One announcement with the course as its audience: the fan-out reaches
+     * exactly the students whose enrolment is active right now — which
+     * includes everyone who holds the course through a package, because a
+     * package activation creates those enrolments.
+     *
+     * Drafts never announce. The key is tied to the content, so hiding a
+     * lesson and publishing it again does not announce it a second time.
+     */
+    public static function contentPublished(array $course, array $content, ?int $actorId): array
+    {
+        if (($course['status'] ?? '') !== 'published') {
+            // Nobody can open an unpublished course; announcing into it would
+            // be a link to a closed door.
+            return ['created' => false, 'id' => null];
+        }
+
+        return self::publish([
+            'title'           => '📚 محتوای جدید در «' . $course['title'] . '»',
+            'body'            => sprintf("«%s» به دوره «%s» اضافه شد.", (string) $content['title'], (string) $course['title']),
+            'notif_type'      => 'content',
+            'related_type'    => 'content',
+            'related_id'      => (int) $content['id'],
+            'idempotency_key' => 'content_published:' . (int) $content['id'],
+            'audience'        => 'course',
+            'course_id'       => (int) $course['id'],
+            'link_url'        => '/content/' . $content['uuid'],
+            'created_by'      => $actorId,
+        ]);
+    }
+
+    /** A course went from draft to published; everyone already enrolled hears about it once. */
+    public static function coursePublished(array $course, ?int $actorId): array
+    {
+        return self::publish([
+            'title'           => '🎓 دوره «' . $course['title'] . '» در دسترس قرار گرفت',
+            'body'            => 'این دوره اکنون منتشر شده و می‌توانید مطالعه‌اش را شروع کنید.',
+            'notif_type'      => 'course',
+            'related_type'    => 'course',
+            'related_id'      => (int) $course['id'],
+            'idempotency_key' => 'course_published:' . (int) $course['id'],
+            'audience'        => 'course',
+            'course_id'       => (int) $course['id'],
+            'link_url'        => '/student/courses/' . $course['uuid'],
+            'created_by'      => $actorId,
+        ]);
+    }
+
+    /**
+     * A course was added to a package and handed to its current holders.
+     * Addressed to the package audience, so it reaches exactly those holders.
+     */
+    public static function packageCourseAdded(array $package, array $course, ?int $actorId): array
+    {
+        return self::publish([
+            'title'           => '➕ دوره جدید در پکیج «' . $package['title'] . '»',
+            'body'            => sprintf("دوره «%s» به پکیج شما اضافه شد و برایتان فعال است.", (string) $course['title']),
+            'notif_type'      => 'package',
+            'related_type'    => 'package',
+            'related_id'      => (int) $package['id'],
+            'idempotency_key' => sprintf('package_course_added:%d:%d', (int) $package['id'], (int) $course['id']),
+            'audience'        => 'package',
+            'package_id'      => (int) $package['id'],
+            'link_url'        => '/student/courses/' . $course['uuid'],
+            'created_by'      => $actorId,
+        ]);
+    }
+
+    /**
      * A whole package became available.
      *
      * Deliberately one announcement, not one per course: a student who was just

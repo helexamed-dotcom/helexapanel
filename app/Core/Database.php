@@ -95,6 +95,13 @@ final class Database
     public static function transaction(callable $callback): mixed
     {
         $pdo = self::connection();
+
+        // Re-entrant: a transaction opened inside another joins it, and any
+        // failure still reaches the outer call, which rolls the whole unit back.
+        if ($pdo->inTransaction()) {
+            return $callback($pdo);
+        }
+
         $pdo->beginTransaction();
         try {
             $result = $callback($pdo);

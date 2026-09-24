@@ -14,12 +14,27 @@ use HeleXa\Models\SectionRepository;
 use HeleXa\Services\ActivityLogger;
 use HeleXa\Services\Auth;
 use HeleXa\Services\ContentStorage;
+use HeleXa\Services\NotificationService;
 
 /** Sections (the tree) and contents (the HTML lessons) for one course. */
 final class ContentController extends Controller
 {
     private const CONTENT_TYPES = ['full_notes', 'summary_notes', 'question_bank', 'chat_learn', 'mind_map', 'custom'];
     private const SECTION_TYPES = ['folder', 'full_notes', 'summary_notes', 'question_bank', 'chat_learn', 'mind_map', 'custom'];
+
+    /**
+     * The Persian name of each content type. The same six labels were already
+     * spelled out inline in the builder and the content form; keeping a third
+     * copy in the new index would guarantee the three drift apart.
+     */
+    public const TYPE_LABELS = [
+        'full_notes'    => 'جزوه کامل',
+        'summary_notes' => 'خلاصه',
+        'question_bank' => 'بانک تست',
+        'chat_learn'    => 'Chat Learn',
+        'mind_map'      => 'Mind Map',
+        'custom'        => 'سفارشی',
+    ];
 
     private CourseRepository $courses;
     private SectionRepository $sections;
@@ -30,6 +45,55 @@ final class ContentController extends Controller
         $this->courses  = new CourseRepository();
         $this->sections = new SectionRepository();
         $this->contents = new ContentRepository();
+    }
+
+    /* ------------------------------------------------------------- index */
+
+    /**
+     * Every lesson in the system, across every course, with search.
+     *
+     * The sidebar has linked to /admin/content since the menu was regrouped,
+     * but the route never existed — all content pages were nested under a
+     * course id, so the entry 404'd. An admin who wants to find one lesson
+     * had to remember which course it was in and walk that course's builder.
+     *
+     * The filters are deliberately narrow — text, course, type, status — and
+     * anything out of range falls back to "no filter" rather than erroring,
+     * because a hand-edited query string should not be able to produce a
+     * stack trace on a listing page.
+     */
+    public function index(Request $request, array $params = []): Response
+    {
+        $type = $request->string('type');
+        if (!in_array($type, self::CONTENT_TYPES, true)) {
+            $type = '';
+        }
+
+        $status = $request->string('status');
+        if (!in_array($status, ['draft', 'published', 'hidden'], true)) {
+            $status = '';
+        }
+
+        $courseId = $request->int('course_id');
+        $term     = trim($request->string('q'));
+
+        return $this->page('layouts.app', 'admin.content.index', [
+            'title'    => 'محتوای آموزشی',
+            'contents' => $this->contents->searchAll([
+                'q'         => $term,
+                'course_id' => $courseId,
+                'type'      => $type,
+                'status'    => $status,
+            ]),
+            'courses'  => $this->courses->all(),
+            'filters'  => [
+                'q'         => $term,
+                'course_id' => $courseId,
+                'type'      => $type,
+                'status'    => $status,
+            ],
+            'typeLabels' => self::TYPE_LABELS,
+        ]);
     }
 
     /* ---------------------------------------------------------- sections */
@@ -149,6 +213,10 @@ final class ContentController extends Controller
             'hosts'  => $stored['report']['unknown_hosts'],
         ], 'notice', $request);
 
+        if ($data['status'] === 'published') {
+            NotificationService::contentPublished($course, ['id' => $id, 'uuid' => $uuid, 'title' => $data['title']], Auth::id());
+        }
+
         $this->flash('success', $this->uploadSummary($stored['report']));
 
         return $this->redirect('/admin/courses/' . $course['uuid'] . '/builder');
@@ -193,6 +261,13 @@ final class ContentController extends Controller
         }
 
         $this->contents->updateMeta((int) $content['id'], $data);
+
+        // Announced on the transition only, and right after the status is
+        // saved: from here the lesson is visible to students whether or not
+        // the optional file replacement below succeeds.
+        if ($data['status'] === 'published' && $content['status'] !== 'published') {
+            NotificationService::contentPublished($course, ['id' => (int) $content['id'], 'uuid' => $content['uuid'], 'title' => $data['title']], Auth::id());
+        }
 
         // Replacing the source is optional; the metadata form works on its own.
         if ($this->hasNewSource($request)) {

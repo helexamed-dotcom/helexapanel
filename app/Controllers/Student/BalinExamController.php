@@ -40,6 +40,7 @@ final class BalinExamController extends Controller
         $exam   = $this->publishedExam((string) ($params['uuid'] ?? ''));
 
         return $this->page('layouts.app', 'student.balin.exam_intro', [
+            'balinGame' => true,
             'title'    => $exam['title'],
             'exam'     => $exam,
             'lesson'   => $this->lessons->findById((int) $exam['lesson_id']),
@@ -96,6 +97,7 @@ final class BalinExamController extends Controller
         }
 
         return $this->page('layouts.app', 'student.balin.exam_attempt', [
+            'balinGame' => true,
             'title'   => $exam['title'],
             'exam'    => $exam,
             'lesson'  => $this->lessons->findById((int) $exam['lesson_id']),
@@ -135,6 +137,7 @@ final class BalinExamController extends Controller
             ['score' => $result['score_percent'], 'passed' => $result['passed']], 'info', $request);
 
         return $this->page('layouts.app', 'student.balin.exam_result', [
+            'balinGame' => true,
             'title'   => 'نتیجه آزمون',
             'exam'    => $exam,
             'lesson'  => $this->lessons->findById((int) $exam['lesson_id']),
@@ -172,6 +175,7 @@ final class BalinExamController extends Controller
         }
 
         return $this->page('layouts.app', 'student.balin.exam_result', [
+            'balinGame' => true,
             'title'  => 'نتیجه آزمون',
             'exam'   => $exam,
             'lesson' => $this->lessons->findById((int) $exam['lesson_id']),
@@ -203,7 +207,8 @@ final class BalinExamController extends Controller
         }
 
         $lesson = $this->lessons->findById((int) $exam['lesson_id']);
-        if ($lesson === null || $lesson['status'] !== 'published') {
+        if ($lesson === null || $lesson['status'] !== 'published'
+            || $this->lessons->isBlockedFor((int) Auth::id(), (int) $lesson['id'])) {
             throw HttpException::notFound();
         }
 

@@ -9,7 +9,6 @@ use HeleXa\Core\Response;
 use HeleXa\Models\ContentStatusRepository;
 use HeleXa\Models\EnrollmentRepository;
 use HeleXa\Models\ExamRepository;
-use HeleXa\Models\ScheduleRepository;
 use HeleXa\Services\AcademicScope;
 use HeleXa\Services\Auth;
 use HeleXa\Services\Jalali;
@@ -29,22 +28,8 @@ final class DashboardController extends Controller
         $termIds = AcademicScope::termIds($user);
         $groupId = AcademicScope::groupId($user);
 
-        $schedules    = new ScheduleRepository();
-        $todayIndex   = Jalali::weekdayIndex(time());
-        $todayClasses = [];
-
-        foreach ($schedules->forStudentTerms($termIds, $groupId) as $entry) {
-            if ($entry['schedule'] === null) {
-                continue;
-            }
-            foreach ($schedules->itemsForWeekday((int) $entry['schedule']['id'], $todayIndex) as $item) {
-                $item['term_title'] = $entry['term_title'];
-                $todayClasses[]     = $item;
-            }
-        }
-
-        // Across terms the classes arrive grouped by schedule, so sort by clock.
-        usort($todayClasses, static fn (array $a, array $b): int => strcmp((string) $a['start_time'], (string) $b['start_time']));
+        // The classes this student attends today, in every term, by clock.
+        $todayClasses = \HeleXa\Services\StudentSchedule::forWeekday($user, Jalali::weekdayIndex(time()));
 
         $upcomingExams = (new ExamRepository())->forStudentTerms($termIds, $groupId, null, true);
 
@@ -59,6 +44,22 @@ final class DashboardController extends Controller
             'lastWeekTotal' => $lastWeek['total'],
             'todayClasses'  => $todayClasses,
             'upcomingExams' => array_slice($upcomingExams, 0, 4),
+            'securityFlags' => \HeleXa\Services\IpWatch::recentForUser($userId, 7),
+            'tier'          => \HeleXa\Services\StudentTier::forStudent($userId),
+            'fcDue'         => $this->flashcardsDue($userId),
+            'showBalin'     => \HeleXa\Services\Balin\Access::menuVisible(),
+            'showQbank'     => \HeleXa\Services\QuestionBank\QbAccess::menuVisible(),
         ]);
+    }
+
+    /** Cards due now, or 0 if the flashcards module is not installed yet. */
+    private function flashcardsDue(int $userId): int
+    {
+        try {
+            $ids = \HeleXa\Services\Flashcards\FcAccess::allDeckIds($userId);
+            return array_sum(array_column((new \HeleXa\Models\Flashcards\FcStudyRepository())->deckStats($userId, $ids), 'due'));
+        } catch (\PDOException) {
+            return 0;
+        }
     }
 }

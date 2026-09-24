@@ -1,0 +1,80 @@
+/* =====================================================================
+   Accent themes (Settings → Appearance) and LTR support for English.
+   Each theme only re-points the accent tokens, so every component that
+   already uses var(--blue) / var(--purple) follows automatically.
+   ===================================================================== */
+:root[data-accent="orange"] { --blue: #ea580c; --blue-soft: #fff1e8; --purple: #f59e0b; --purple-soft: #fff6e0; --accent-hover: #c2410c; --accent-rgb: 234, 88, 12; }
+:root[data-accent="orange"][data-theme="dark"] { --blue: #fb923c; --blue-soft: #3a2213; --purple: #fbbf24; --purple-soft: #3a2e12; }
+:root[data-accent="cherry"] { --blue: #be123c; --blue-soft: #ffe8ee; --purple: #e11d48; --purple-soft: #ffe4ea; --accent-hover: #9f1239; --accent-rgb: 190, 18, 60; }
+:root[data-accent="cherry"][data-theme="dark"] { --blue: #fb7185; --blue-soft: #3d1720; --purple: #f472b6; --purple-soft: #3a1830; }
+:root[data-accent="banana"] { --blue: #b7791f; --blue-soft: #fff7db; --purple: #eab308; --purple-soft: #fffadf; --accent-hover: #975a16; --accent-rgb: 183, 121, 31; }
+:root[data-accent="banana"][data-theme="dark"] { --blue: #facc15; --blue-soft: #3a3212; --purple: #fde047; --purple-soft: #37320f; }
+:root[data-accent="black"] { --blue: #111827; --blue-soft: #eef0f3; --purple: #4b5563; --purple-soft: #f1f2f4; --accent-hover: #000000; --accent-rgb: 17, 24, 39; }
+:root[data-accent="black"][data-theme="dark"] { --blue: #d1d5db; --blue-soft: #262b33; --purple: #9ca3af; --purple-soft: #2a2f38; }
+:root[data-accent="cream"] { --blue: #a47148; --blue-soft: #f6ece1; --purple: #c08457; --purple-soft: #f8efe4; --accent-hover: #8a5a36; --accent-rgb: 164, 113, 72; }
+:root[data-accent="cream"][data-theme="dark"] { --blue: #d6b48c; --blue-soft: #35291d; --purple: #e7c9a0; --purple-soft: #3a2d20; }
+:root[data-accent="mint"] { --blue: #059669; --blue-soft: #e3f7ef; --purple: #14b8a6; --purple-soft: #dff7f3; --accent-hover: #047857; --accent-rgb: 5, 150, 105; }
+:root[data-accent="mint"][data-theme="dark"] { --blue: #34d399; --blue-soft: #113328; --purple: #2dd4bf; --purple-soft: #123531; }
+:root[data-accent="grape"] { --blue: #7c3aed; --blue-soft: #f1eafe; --purple: #a855f7; --purple-soft: #f5e9ff; --accent-hover: #6d28d9; --accent-rgb: 124, 58, 237; }
+:root[data-accent="grape"][data-theme="dark"] { --blue: #a78bfa; --blue-soft: #281f45; --purple: #c084fc; --purple-soft: #2e1f47; }
+:root[data-accent="sky"] { --blue: #0284c7; --blue-soft: #e3f3fc; --purple: #06b6d4; --purple-soft: #dff6fb; --accent-hover: #0369a1; --accent-rgb: 2, 132, 199; }
+:root[data-accent="sky"][data-theme="dark"] { --blue: #38bdf8; --blue-soft: #11293a; --purple: #22d3ee; --purple-soft: #10313a; }
+:root[data-accent="rose"] { --blue: #db2777; --blue-soft: #fde8f2; --purple: #f472b6; --purple-soft: #fdeef6; --accent-hover: #be185d; --accent-rgb: 219, 39, 119; }
+:root[data-accent="rose"][data-theme="dark"] { --blue: #f472b6; --blue-soft: #3a1a2c; --purple: #f9a8d4; --purple-soft: #3b1f31; }
+:root[data-accent="pistachio"] { --blue: #65a30d; --blue-soft: #eef7df; --purple: #84cc16; --purple-soft: #f1f9e1; --accent-hover: #4d7c0f; --accent-rgb: 101, 163, 13; }
+:root[data-accent="pistachio"][data-theme="dark"] { --blue: #a3e635; --blue-soft: #26331a; --purple: #bef264; --purple-soft: #2b3718; }
+
+/* Cream and black also warm / neutralise the page itself in light mode. */
+:root[data-accent="cream"]:not([data-theme="dark"]) { --canvas: #f7f1e8; --surface-2: #fbf7f0; --line: #eee3d3; }
+:root[data-accent="black"]:not([data-theme="dark"]) { --canvas: #f3f4f6; --line: #e5e7eb; }
+/* Light accents in dark mode need dark text on filled buttons. */
+:root[data-theme="dark"][data-accent="banana"] .btn-primary,
+:root[data-theme="dark"][data-accent="black"] .btn-primary,
+:root[data-theme="dark"][data-accent="cream"] .btn-primary,
+:root[data-theme="dark"][data-accent="pistachio"] .btn-primary { color: #111827; }
+:root[data-accent]:not([data-accent="blueberry"]) .btn-primary { box-shadow: 0 6px 16px -6px rgba(var(--accent-rgb, 47, 107, 255), .55); }
+:root[data-accent]:not([data-accent="blueberry"]) .btn-primary:hover { background: var(--accent-hover, var(--blue)); }
+:root[data-accent]:not([data-accent="blueberry"])[data-theme="dark"] .btn-primary:hover { background: var(--blue); filter: brightness(1.08); }
+
+/* ---------------------------------------------------------------- settings */
+.prefs-page { display: grid; gap: 16px; max-width: 900px; }
+.accent-grid { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); margin-top: 12px; }
+.accent-opt { position: relative; display: grid; justify-items: center; gap: 6px; padding: 12px 6px; border-radius: 16px;
+    border: 1.5px solid var(--line); background: var(--surface); cursor: pointer; transition: border-color .15s, transform .15s; }
+.accent-opt:hover { transform: translateY(-2px); }
+.accent-opt input { position: absolute; opacity: 0; pointer-events: none; }
+.accent-swatch { width: 38px; height: 38px; border-radius: 50%; background: var(--sw);
+    box-shadow: inset 0 0 0 3px rgba(255,255,255,.55), 0 4px 12px -4px var(--sw); }
+:root[data-theme="dark"] .accent-swatch { background: var(--sw-dark); box-shadow: inset 0 0 0 3px rgba(0,0,0,.35); }
+.accent-name { font-size: 12.5px; font-weight: 600; }
+.accent-opt:has(input:checked) { border-color: var(--blue); box-shadow: 0 0 0 3px var(--blue-soft); }
+.accent-opt:has(input:focus-visible) { outline: 2px solid var(--blue); outline-offset: 2px; }
+.prefs-preview { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
+.seg-pick { display: flex; gap: 6px; padding: 4px; border-radius: 14px; background: var(--surface-2); border: 1px solid var(--line); }
+.seg-pick label { flex: 1; position: relative; cursor: pointer; }
+.seg-pick input { position: absolute; opacity: 0; }
+.seg-pick span { display: block; text-align: center; padding: 9px 8px; border-radius: 10px; font-size: 13px; font-weight: 600; color: var(--ink-2); }
+.seg-pick input:checked + span { background: var(--blue); color: #fff; box-shadow: var(--shadow); }
+.seg-pick input:focus-visible + span { outline: 2px solid var(--blue); }
+:root[data-theme="dark"][data-accent="banana"] .seg-pick input:checked + span,
+:root[data-theme="dark"][data-accent="black"] .seg-pick input:checked + span,
+:root[data-theme="dark"][data-accent="cream"] .seg-pick input:checked + span,
+:root[data-theme="dark"][data-accent="pistachio"] .seg-pick input:checked + span { color: #111827; }
+
+/* ---------------------------------------------------------------- English / LTR
+   The stylesheet was written right-to-left; logical properties already flip.
+   These are the physical rules that must mirror. */
+html[dir="ltr"] body { font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, IRANSansWeb, sans-serif; }
+html[dir="ltr"] .alert-error,
+html[dir="ltr"] .alert-success { border-right-width: 1px; border-left: 3px solid; }
+html[dir="ltr"] .alert-error { border-left-color: var(--red); }
+html[dir="ltr"] .alert-success { border-left-color: var(--green); }
+html[dir="ltr"] .skip-link { right: auto; left: -9999px; }
+html[dir="ltr"] .skip-link:focus { left: 12px; }
+html[dir="ltr"] .vmenu { left: auto; right: 0; }
+html[dir="ltr"] .sidebar { border-left: 0; border-right: 1px solid var(--line); }
+html[dir="ltr"] .pager-total { margin-right: 0; margin-left: auto; }
+@media (max-width: 900px) {
+    html[dir="ltr"] .sidebar { right: auto; left: 0; border-right: 0; border-radius: 0 22px 22px 0; transform: translateX(-100%); }
+    html[dir="ltr"] .sidebar.is-open { transform: translateX(0); }
+}

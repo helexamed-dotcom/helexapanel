@@ -31,6 +31,15 @@ $types = [
     'divider'           => 'جداکننده',
     'checkpoint_anchor' => 'ارجاع به آزمون',
 ];
+if (!empty($clinical)) {
+    $types += [
+        'vitals'    => 'علائم حیاتی',
+        'lab'       => 'نتایج آزمایش',
+        'ddx'       => 'تشخیص افتراقی',
+        'pearl'     => 'نکته کلیدی',
+        'reference' => 'منبع',
+    ];
+}
 
 /** Renders the shared body of a block form; used for both add and edit. */
 $fields = static function (array $block, array $characters, array $questions, array $media, array $exams, array $types): void { ?>
@@ -61,6 +70,11 @@ $fields = static function (array $block, array $characters, array $questions, ar
     <label class="field span-2">
         <span>متن</span>
         <textarea name="body" rows="3"><?= e((string) ($block['body'] ?? '')) ?></textarea>
+        <small class="muted" style="font-size:11px; line-height:1.9;">
+            علائم حیاتی: هر سطر «نام | مقدار | واحد | normal/high/low/critical» ·
+            آزمایش: هر سطر «تست | نتیجه | واحد | محدوده طبیعی | وضعیت» ·
+            تشخیص افتراقی و منبع: هر مورد در یک سطر
+        </small>
     </label>
 
     <label class="field">

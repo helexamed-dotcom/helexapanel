@@ -18,7 +18,8 @@ final class ViewerPayload
         array $content,
         array $clientState,
         string $parentOrigin,
-        array $highlights = []
+        array $highlights = [],
+        array $extras = []
     ): string {
         $json = static fn (mixed $value): string => (string) json_encode(
             $value,
@@ -43,6 +44,16 @@ final class ViewerPayload
             'state'      => (object) $clientState,
             'watermark'  => $watermarkOn ? $watermarkText : '',
             'blockPrint' => $printBlock,
+            // Handwriting on the lesson and note pins. Both are optional and
+            // both are drawn by this frame; the parent does the saving.
+            'ink'        => [
+                'enabled' => !empty($extras['ink']['enabled']),
+                'strokes' => $extras['ink']['strokes'] ?? [],
+            ],
+            'notes'      => [
+                'enabled' => !empty($extras['notes']['enabled']),
+                'items'   => $extras['notes']['items'] ?? [],
+            ],
             'highlight'  => [
                 'enabled' => Settings::bool('highlight_enabled', true),
                 'colors'  => \HeleXa\Controllers\HighlightController::COLORS,
@@ -69,6 +80,18 @@ CSS : '';
             ? '<link rel="stylesheet" href="' . htmlspecialchars($parentOrigin, ENT_QUOTES, 'UTF-8') . '/assets/css/lesson-fonts.css">'
             : '';
 
+        // The pen engine is embedded rather than linked: the frame is on an
+        // opaque origin, and an offline copy of the lesson must still draw.
+        $inkScript = '';
+        if (!empty($extras['ink']['enabled']) || !empty($extras['notes']['enabled'])) {
+            static $inkSource = null;
+            if ($inkSource === null) {
+                $file = PUBLIC_PATH . '/assets/js/ink.js';
+                $inkSource = is_file($file) ? str_ireplace('</script', '<\/script', (string) file_get_contents($file)) : '';
+            }
+            $inkScript = $inkSource !== '' ? "<script>\n" . $inkSource . "\n</script>" : '';
+        }
+
         return <<<HTML
 {$fontLink}
 <meta name="referrer" content="no-referrer">
@@ -94,9 +117,24 @@ html, body {
   gap:120px 60px; overflow:hidden;
   -webkit-user-select:none !important; user-select:none !important;
 }
+/* Two colours, not one. The navy tag is invisible on a lesson with a dark
+   background, and plenty of the uploaded notes have one — which meant the
+   watermark silently did nothing on exactly the pages it was there for.
+   Alternating navy and white means at least one of the two always reads,
+   whatever the page underneath is, without needing to know anything about
+   that page. The white tag carries a faint dark shadow and vice versa, so
+   neither disappears on a mid-grey background where both are low contrast. */
 #helexa-watermark span{
   transform:rotate(-30deg); font:600 15px/1.4 system-ui,-apple-system,'Segoe UI',Tahoma,sans-serif;
-  color:rgba(23,59,103,.075); white-space:nowrap; letter-spacing:.4px;
+  white-space:nowrap; letter-spacing:.4px;
+}
+#helexa-watermark span.hlx-wm-dark{
+  color:rgba(23,59,103,.075);
+  text-shadow:0 0 1px rgba(255,255,255,.05);
+}
+#helexa-watermark span.hlx-wm-light{
+  color:rgba(255,255,255,.085);
+  text-shadow:0 0 1px rgba(0,0,0,.05);
 }
 #helexa-print-shield{
   position:fixed; inset:0; background:#fff; z-index:2147483600; display:none;
@@ -127,7 +165,40 @@ mark.hlx.is-flash{ animation:hlx-flash 1.1s ease; }
 }
 @media (prefers-reduced-motion: reduce){ mark.hlx.is-flash{ animation:none; } }
 @media print{ mark.hlx{background:transparent!important} }
+
+/* Handwriting layer and note pins. Above the lesson, below the watermark,
+   and never in the way of a click unless a tool asks for it. */
+.hlx-ink-svg{position:absolute;left:0;top:0;overflow:visible;pointer-events:none;z-index:2147482000}
+.hlx-ink-svg .hlx-ink-marker{mix-blend-mode:multiply}
+html body.hlx-draw, html body.hlx-draw *{
+  -webkit-user-select:none !important; user-select:none !important; -webkit-touch-callout:none !important;
+}
+body.hlx-draw{cursor:crosshair}
+body.hlx-draw.hlx-finger, body.hlx-draw.hlx-finger *{touch-action:none !important}
+#helexa-notes{position:absolute;left:0;top:0;width:0;height:0;z-index:2147482400}
+.hlx-pin{
+  position:absolute;width:36px;height:36px;margin:-18px 0 0 -18px;padding:0;border:0;border-radius:12px;
+  display:grid;place-items:center;cursor:grab;touch-action:none;-webkit-user-select:none;user-select:none;
+  background:#facc15;color:#422006;box-shadow:0 6px 16px rgba(15,23,42,.28),inset 0 0 0 1.5px rgba(255,255,255,.55);
+  transition:transform .15s ease,box-shadow .15s ease;
+}
+.hlx-pin svg{width:19px;height:19px;pointer-events:none}
+.hlx-pin:hover{transform:scale(1.08)}
+.hlx-pin:focus-visible{outline:3px solid #2563eb;outline-offset:2px}
+.hlx-pin.is-drag{cursor:grabbing;transform:scale(1.18);box-shadow:0 12px 26px rgba(15,23,42,.35)}
+.hlx-pin[data-color="green"] {background:#4ade80;color:#052e16}
+.hlx-pin[data-color="blue"]  {background:#60a5fa;color:#082f49}
+.hlx-pin[data-color="pink"]  {background:#f472b6;color:#500724}
+.hlx-pin[data-color="purple"]{background:#a78bfa;color:#2e1065}
+.hlx-pin[data-color="gray"]  {background:#cbd5e1;color:#0f172a}
+.hlx-pin.is-new{animation:hlx-pop .45s cubic-bezier(.2,1.5,.4,1)}
+.hlx-pin.is-flash{animation:hlx-ring 1.2s ease}
+@keyframes hlx-pop{from{transform:scale(.2);opacity:0}to{transform:none;opacity:1}}
+@keyframes hlx-ring{0%,100%{box-shadow:0 6px 16px rgba(15,23,42,.28)}40%{box-shadow:0 0 0 8px rgba(37,99,235,.35)}}
+@media (prefers-reduced-motion: reduce){ .hlx-pin.is-new,.hlx-pin.is-flash{animation:none} }
+@media print{ .hlx-ink-svg,#helexa-notes,.hlx-ink-live{display:none!important} }
 </style>
+{$inkScript}
 <script>
 (function () {
   'use strict';
@@ -173,8 +244,12 @@ mark.hlx.is-flash{ animation:hlx-flash 1.1s ease; }
     var layer = document.createElement('div');
     layer.id = 'helexa-watermark';
     layer.setAttribute('aria-hidden', 'true');
+    // Alternating rather than all-dark: see the stylesheet above. Odd tags
+    // are light so the two colours interleave across the grid instead of
+    // banding into a dark half and a light half.
     for (var i = 0; i < 28; i++) {
       var tag = document.createElement('span');
+      tag.className = (i % 2 === 0) ? 'hlx-wm-dark' : 'hlx-wm-light';
       tag.textContent = CFG.watermark;
       layer.appendChild(tag);
     }
@@ -288,7 +363,7 @@ mark.hlx.is-flash{ animation:hlx-flash 1.1s ease; }
     var parent = node.parentNode;
     while (parent && parent !== document.body) {
       var tag = parent.nodeName;
-      if (tag === 'SCRIPT' || tag === 'STYLE' || parent.id === 'helexa-watermark') { return false; }
+      if (tag === 'SCRIPT' || tag === 'STYLE' || parent.id === 'helexa-watermark' || parent.id === 'helexa-notes') { return false; }
       parent = parent.parentNode;
     }
     return parent === document.body;
@@ -496,9 +571,10 @@ mark.hlx.is-flash{ animation:hlx-flash 1.1s ease; }
   /* ------------------------------------------------------------- history */
 
   function reportState() {
+    var inkMode = tool === 'draw' && INK.board;
     send('highlight-state', {
-      canUndo: undoStack.length > 0,
-      canRedo: redoStack.length > 0,
+      canUndo: inkMode ? INK.board.canUndo() : undoStack.length > 0,
+      canRedo: inkMode ? INK.board.canRedo() : redoStack.length > 0,
       total:   Object.keys(items).length
     });
   }
@@ -709,7 +785,7 @@ mark.hlx.is-flash{ animation:hlx-flash 1.1s ease; }
 
   /** The mouse path: the tool is already armed, so releasing applies it. */
   function capture() {
-    if (tool === 'off' || !HL.enabled) { return; }
+    if ((tool !== 'pen' && tool !== 'eraser') || !HL.enabled) { return; }
 
     if (applyTo(tool, readSelection())) {
       // Collapsing clears the handles, so the next gesture starts clean
@@ -724,7 +800,7 @@ mark.hlx.is-flash{ animation:hlx-flash 1.1s ease; }
      so the parent can fall back to simply arming the tool.
    */
   function applySelection(which) {
-    if (!HL.enabled) { return false; }
+    if (!HL.enabled || (which !== 'pen' && which !== 'eraser')) { return false; }
 
     var range = readSelection() || lastSelection;
     if (!range) { return false; }
@@ -817,10 +893,14 @@ mark.hlx.is-flash{ animation:hlx-flash 1.1s ease; }
   }
 
   function setTool(next) {
-    tool = (next === 'pen' || next === 'eraser') ? next : 'off';
+    tool = (next === 'pen' || next === 'eraser' || (next === 'draw' && INK.board)) ? next : 'off';
     document.body.classList.toggle('hlx-pen', tool === 'pen');
     document.body.classList.toggle('hlx-eraser', tool === 'eraser');
+    document.body.classList.toggle('hlx-draw', tool === 'draw');
+    document.body.classList.toggle('hlx-finger', tool === 'draw' && INK.finger);
+    if (tool === 'draw') { clearSelection(); }
     cancelCapture();
+    reportState();
   }
 
   /* The parent's toolbar drives the engine from here. */
@@ -850,8 +930,10 @@ mark.hlx.is-flash{ animation:hlx-flash 1.1s ease; }
       return;
     }
 
-    if (data.type === 'undo') { undo(); return; }
-    if (data.type === 'redo') { redo(); return; }
+    if (data.type === 'undo') { if (tool === 'draw' && INK.board) { INK.board.undo(); } else { undo(); } return; }
+    if (data.type === 'redo') { if (tool === 'draw' && INK.board) { INK.board.redo(); } else { redo(); } return; }
+
+    if (inkMessage(data)) { return; }
 
     // Deleting from the list in the parent, for a highlight whose text has
     // scrolled away or can no longer be found in the page.
@@ -882,6 +964,237 @@ mark.hlx.is-flash{ animation:hlx-flash 1.1s ease; }
   });
 
 
+  /* ---------------------------------------------------------- handwriting
+     The student writes straight on the lesson. Strokes live in a vector
+     layer that scrolls with the page; the parent saves them. */
+  var INK = { board: null, finger: true, saveTimer: null, layer: null };
+
+  function docWidth() { return document.documentElement.clientWidth || window.innerWidth; }
+
+  function sizeLayers() {
+    var svg = INK.board ? INK.board.svg : null;
+    if (svg) { svg.style.height = '0px'; }
+    var h = Math.max(document.documentElement.scrollHeight, document.body ? document.body.scrollHeight : 0);
+    var w = Math.max(document.documentElement.scrollWidth, docWidth());
+    if (svg) {
+      svg.style.width = w + 'px';
+      svg.style.height = h + 'px';
+      INK.board.refresh();
+    }
+    placePins();
+  }
+
+  function wireInk() {
+    var cfg = CFG.ink || {};
+    if (!cfg.enabled || !window.HlxInk) { return; }
+
+    INK.board = new window.HlxInk.Board({
+      input: document,
+      host: document.body,
+      refWidth: docWidth,
+      active: function () { return tool === 'draw'; },
+      accept: function (e) {
+        return !(e.target && e.target.closest && e.target.closest('.hlx-pin'));
+      },
+      onChange: function (board) {
+        if (INK.saveTimer) { clearTimeout(INK.saveTimer); }
+        INK.saveTimer = setTimeout(function () {
+          send('ink-save', { strokes: board.data() });
+        }, 700);
+      },
+      onHistory: function () { if (tool === 'draw') { reportState(); } },
+      onPen: function () { send('pen-detected', {}); }
+    });
+    INK.board.load(cfg.strokes || []);
+    sizeLayers();
+
+    if (window.ResizeObserver) {
+      var ro = new ResizeObserver(function () { sizeLayers(); });
+      ro.observe(document.documentElement);
+      if (document.body) { ro.observe(document.body); }
+    } else {
+      window.addEventListener('resize', sizeLayers);
+    }
+    window.addEventListener('load', sizeLayers);
+
+    // While writing, a tap must not follow a link or press a quiz button.
+    document.addEventListener('click', function (e) {
+      if (tool !== 'draw') { return; }
+      if (e.target && e.target.closest && e.target.closest('.hlx-pin')) { return; }
+      e.preventDefault();
+      e.stopPropagation();
+    }, true);
+
+    window.addEventListener('beforeunload', function () {
+      if (INK.saveTimer) { clearTimeout(INK.saveTimer); send('ink-save', { strokes: INK.board.data() }); }
+    });
+  }
+
+  /* ---------------------------------------------------------- note pins */
+  var NOTES = { items: {}, layer: null };
+  var PIN_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+    '<path d="M6 3.5h9l4.5 4.5v11a1.5 1.5 0 0 1-1.5 1.5H6A1.5 1.5 0 0 1 4.5 19V5A1.5 1.5 0 0 1 6 3.5z"/>' +
+    '<path d="M14.5 3.5V8h4.5M8 12.5h8M8 16h5"/></svg>';
+  var NOTE_COLORS = ['yellow', 'green', 'blue', 'pink', 'purple', 'gray'];
+
+  function wireNotes() {
+    var cfg = CFG.notes || {};
+    if (!cfg.enabled) { return; }
+    var layer = document.createElement('div');
+    layer.id = 'helexa-notes';
+    document.body.appendChild(layer);
+    NOTES.layer = layer;
+    (cfg.items || []).forEach(function (item) { addPin(item, false); });
+    if (!INK.board) {
+      window.addEventListener('resize', placePins);
+      window.addEventListener('load', placePins);
+    }
+  }
+
+  function pinScale(item) { return docWidth() / (item.w || docWidth()); }
+
+  function placePin(item) {
+    if (!item.el) { return; }
+    var k = pinScale(item);
+    var maxX = docWidth() - 20;
+    item.el.style.left = Math.max(20, Math.min(maxX, item.x * k)) + 'px';
+    item.el.style.top = Math.max(20, item.y * k) + 'px';
+  }
+
+  function placePins() {
+    Object.keys(NOTES.items).forEach(function (id) { placePin(NOTES.items[id]); });
+  }
+
+  function labelFor(item) {
+    return item.title ? ('یادداشت: ' + item.title) : 'یادداشت';
+  }
+
+  function addPin(raw, isNew) {
+    if (!NOTES.layer || !raw || !isUuid(raw.uuid) || NOTES.items[raw.uuid]) { return null; }
+    var item = {
+      uuid: raw.uuid,
+      x: +raw.x || 40, y: +raw.y || 40, w: +raw.w || docWidth(),
+      color: NOTE_COLORS.indexOf(raw.color) !== -1 ? raw.color : 'yellow',
+      title: String(raw.title || '').slice(0, 120)
+    };
+    var pin = document.createElement('button');
+    pin.type = 'button';
+    pin.className = 'hlx-pin' + (isNew ? ' is-new' : '');
+    pin.setAttribute('data-color', item.color);
+    pin.setAttribute('aria-label', labelFor(item));
+    pin.title = labelFor(item);
+    pin.innerHTML = PIN_ICON;
+    item.el = pin;
+    NOTES.items[item.uuid] = item;
+    NOTES.layer.appendChild(pin);
+    placePin(item);
+
+    var drag = null, suppress = false;
+    pin.addEventListener('pointerdown', function (e) {
+      if (e.pointerType === 'mouse' && e.button !== 0) { return; }
+      e.preventDefault();
+      e.stopPropagation();
+      var k = pinScale(item);
+      drag = { id: e.pointerId, sx: e.clientX, sy: e.clientY, ox: item.x * k, oy: item.y * k, moved: false };
+      try { pin.setPointerCapture(e.pointerId); } catch (x) {}
+    });
+    pin.addEventListener('pointermove', function (e) {
+      if (!drag || e.pointerId !== drag.id) { return; }
+      var dx = e.clientX - drag.sx, dy = e.clientY - drag.sy;
+      if (!drag.moved && dx * dx + dy * dy < 36) { return; }
+      drag.moved = true;
+      pin.classList.add('is-drag');
+      pin.style.left = Math.max(20, Math.min(docWidth() - 20, drag.ox + dx)) + 'px';
+      pin.style.top = Math.max(20, drag.oy + dy) + 'px';
+      // Scroll along when the pin is carried to an edge of the screen.
+      if (e.clientY > window.innerHeight - 40) { window.scrollBy(0, 12); drag.oy += 12; }
+      else if (e.clientY < 40) { window.scrollBy(0, -12); drag.oy -= 12; }
+    });
+    function finish(e) {
+      if (!drag || e.pointerId !== drag.id) { return; }
+      var moved = drag.moved;
+      drag = null;
+      pin.classList.remove('is-drag');
+      if (!moved) { return; }
+      suppress = true;
+      setTimeout(function () { suppress = false; }, 350);
+      item.w = docWidth();
+      item.x = parseFloat(pin.style.left) || item.x;
+      item.y = parseFloat(pin.style.top) || item.y;
+      send('note-move', { uuid: item.uuid, x: Math.round(item.x), y: Math.round(item.y), w: Math.round(item.w) });
+    }
+    pin.addEventListener('pointerup', finish);
+    pin.addEventListener('pointercancel', finish);
+    pin.addEventListener('click', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (suppress) { return; }
+      send('note-open', { uuid: item.uuid });
+    });
+    return item;
+  }
+
+  function newPin(data) {
+    if (!NOTES.layer || !isUuid(data.uuid)) { return; }
+    var origin = NOTES.layer.getBoundingClientRect();
+    var item = addPin({
+      uuid: data.uuid,
+      x: window.innerWidth / 2 - origin.left,
+      y: window.innerHeight / 2 - origin.top,
+      w: docWidth(),
+      color: data.color
+    }, true);
+    if (item) {
+      send('note-created', { uuid: item.uuid, x: Math.round(item.x), y: Math.round(item.y), w: Math.round(item.w), color: item.color });
+    }
+  }
+
+  function inkMessage(data) {
+    switch (data.type) {
+      case 'ink-options':
+        if (INK.board) {
+          INK.board.setOptions(data.options || {});
+          INK.finger = !!(data.options && data.options.finger);
+          document.body.classList.toggle('hlx-finger', tool === 'draw' && INK.finger);
+        }
+        return true;
+      case 'ink-clear':
+        if (INK.board) { INK.board.clear(); }
+        return true;
+      case 'ink-load':
+        if (INK.board) { INK.board.load(data.strokes || []); reportState(); }
+        return true;
+      case 'note-add':
+        newPin(data);
+        return true;
+      case 'note-update':
+        var item = NOTES.items[data.uuid];
+        if (item && item.el) {
+          if (NOTE_COLORS.indexOf(data.color) !== -1) { item.color = data.color; item.el.setAttribute('data-color', data.color); }
+          if (typeof data.title === 'string') {
+            item.title = data.title.slice(0, 120);
+            item.el.title = labelFor(item);
+            item.el.setAttribute('aria-label', labelFor(item));
+          }
+        }
+        return true;
+      case 'note-remove':
+        var gone = NOTES.items[data.uuid];
+        if (gone && gone.el && gone.el.parentNode) { gone.el.parentNode.removeChild(gone.el); }
+        delete NOTES.items[data.uuid];
+        return true;
+      case 'note-focus':
+        var target = NOTES.items[data.uuid];
+        if (target && target.el) {
+          target.el.scrollIntoView({ block: 'center' });
+          target.el.classList.remove('is-flash');
+          void target.el.offsetWidth;
+          target.el.classList.add('is-flash');
+        }
+        return true;
+    }
+    return false;
+  }
   /* ------------------------------- lifecycle to the parent ----------- */
   function ping(kind) {
     try {
@@ -896,6 +1209,8 @@ mark.hlx.is-flash{ animation:hlx-flash 1.1s ease; }
   function boot() {
     paintWatermark();
     wireHighlights();
+    wireInk();
+    wireNotes();
     ping('ready');
     // The watermark is re-attached if the page or a user script removes it.
     if (CFG.watermark && window.MutationObserver) {

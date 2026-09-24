@@ -79,7 +79,8 @@ final class CatalogController extends Controller
 
         $saved = $repository->update((int) $character['id'], $this->collectCharacter($request) + [
             'name'     => $name,
-            'svg_path' => $this->storeSvg($request) ?? $character['svg_path'],
+            'svg_path' => $this->storeSvg($request)
+                ?? ($request->bool('remove_image') ? null : $character['svg_path']),
         ], $request->int('version'));
 
         $this->flash($saved ? 'success' : 'error', $saved ? 'شخصیت ذخیره شد.' : self::STALE);
@@ -469,7 +470,7 @@ final class CatalogController extends Controller
         try {
             return ImageAssetStorage::storeUploaded($file, 'balin');
         } catch (\Throwable $e) {
-            $this->flash('error', 'آپلود آیکون ناموفق بود: ' . $e->getMessage());
+            $this->flash('error', 'آپلود عکس شخصیت ناموفق بود: ' . $e->getMessage());
             return null;
         }
     }

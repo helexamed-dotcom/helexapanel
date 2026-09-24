@@ -122,9 +122,18 @@
             <?php endif; ?>
         </div>
 
-        <div style="display:flex; gap:10px; margin-top:8px;">
+        <div style="display:flex; gap:10px; margin-top:8px; flex-wrap:wrap;">
             <button class="btn btn-primary" type="submit"><?= $student === null ? 'ثبت دانشجو' : 'ذخیره تغییرات' ?></button>
             <a class="btn btn-ghost" href="/admin/students">انصراف</a>
+            <?php if ($student !== null): ?>
+                <a class="btn btn-primary" href="/admin/students/<?= e($student['uuid']) ?>/access">همه دسترسی‌ها و سطح کاربر</a>
+            <?php endif; ?>
+            <?php if ($student !== null && can('qbank.manage_students')): ?>
+                <a class="btn btn-ghost" href="/admin/qbank/access/<?= e($student['uuid']) ?>">دسترسی بانک سوال</a>
+            <?php endif; ?>
+            <?php if ($student !== null && can('flashcards.manage_students')): ?>
+                <a class="btn btn-ghost" href="/admin/flashcards/access/<?= e($student['uuid']) ?>">دسترسی فلش‌کارت</a>
+            <?php endif; ?>
         </div>
     </form>
 </div>

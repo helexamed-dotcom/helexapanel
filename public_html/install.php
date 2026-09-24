@@ -71,7 +71,27 @@ function connectWith(array $db): PDO
  */
 const FRESH_INSTALL_MIGRATIONS = [
     '2026_09_13_balin_island.sql',
+
+    // phone_auth is still run, then undone, rather than dropped from this
+    // list. It does two unrelated things: it builds the SMS/OTP tables and
+    // settings, and it adds users.phone_verified_at and
+    // users.registration_source — columns UserRepository, the mobile API and
+    // two admin pages still read. Running the pair leaves a fresh install in
+    // exactly the state an upgraded install reaches, which is the property
+    // that keeps the two kinds of installation from drifting apart.
     '2026_09_14_phone_auth.sql',
+    '2026_09_16_drop_sms_otp.sql',
+    '2026_09_16_question_bank.sql',
+    '2026_09_17_flashcards.sql',
+    '2026_09_18_student_access.sql',
+    '2026_09_18_ip_watch.sql',
+    '2026_09_19_library_prefs.sql',
+    '2026_09_20_ink_notes.sql',
+    '2026_09_21_schedule_choice.sql',
+    '2026_09_22_balin_clinical_blocks.sql',
+    '2026_09_23_access_and_packages.sql',
+    '2026_09_24_registration_free_packages.sql',
+    '2026_09_25_study_suite.sql',
 ];
 
 /** Splits the schema on semicolons at end of line; the file contains no procedures. */
@@ -82,12 +102,43 @@ function runSchema(PDO $pdo, string $sqlFile): void
         throw new RuntimeException('فایل schema.sql خوانده نشد.');
     }
     $sql = preg_replace('/^\s*--.*$/m', '', $sql) ?? $sql;
+    // Normalise Windows line endings, or the split below finds no statements.
+    $sql = str_replace("\r\n", "\n", $sql);
     foreach (array_filter(array_map('trim', explode(";\n", $sql))) as $statement) {
         $statement = trim($statement, " \t\n\r\0\x0B;");
-        if ($statement !== '') {
+        if ($statement === '') {
+            continue;
+        }
+        // Re-runnable: a step that failed half-way can simply be run again.
+        // Tables that exist are kept, and a change that was already applied
+        // is skipped rather than stopping the install.
+        $statement = (string) preg_replace('/^CREATE TABLE (?!IF NOT EXISTS)/i', 'CREATE TABLE IF NOT EXISTS ', $statement);
+        try {
             $pdo->exec($statement);
+        } catch (PDOException $e) {
+            if (!alreadyApplied($e, $statement)) {
+                throw $e;
+            }
         }
     }
+}
+
+/**
+ * True for the errors that only mean "this was done on an earlier run":
+ * table / column / index / constraint already there, a row already seeded,
+ * or a column already gone.
+ */
+function alreadyApplied(PDOException $e, string $statement): bool
+{
+    $code = (int) ($e->errorInfo[1] ?? 0);
+    if (in_array($code, [1050, 1060, 1061, 1062, 1068, 1091, 1826], true)) {
+        return true;
+    }
+    // A foreign key that already exists surfaces as 1005 "errno: 121" on an
+    // ALTER. On a CREATE TABLE it is a real clash of constraint names — with
+    // IF NOT EXISTS an existing table never gets that far — so it is reported.
+    return $code === 1005 && str_contains($e->getMessage(), 'errno: 121')
+        && stripos(ltrim($statement), 'CREATE TABLE') !== 0;
 }
 
 function writeConfig(array $db, string $appKey, string $appUrl): void

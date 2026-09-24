@@ -17,6 +17,7 @@ $names = ['published' => 'منتشرشده', 'draft' => 'پیش‌نویس', 'ar
             <span aria-hidden="true"><?= e($lesson['icon'] ?: '🩺') ?></span> <?= e($lesson['title']) ?>
         </h3>
         <div class="row-actions">
+            <a class="btn btn-ghost btn-sm" href="/admin/balin/transfer/export?lesson=<?= e($lesson['uuid']) ?>">خروجی JSON</a>
             <?php if (can('balin.edit')): ?>
                 <a class="btn btn-ghost btn-sm" href="/admin/balin/lessons/<?= e($lesson['uuid']) ?>/edit">ویرایش</a>
             <?php endif; ?>

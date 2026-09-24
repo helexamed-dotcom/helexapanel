@@ -13,6 +13,7 @@ use HeleXa\Models\PackageRepository;
 use HeleXa\Models\UserRepository;
 use HeleXa\Services\ActivationService;
 use HeleXa\Services\Auth;
+use HeleXa\Services\PackageAccess;
 
 final class PackageController extends Controller
 {
@@ -64,7 +65,7 @@ final class PackageController extends Controller
         return $this->redirect('/admin/packages/' . $package['uuid']);
     }
 
-    /** The package workbench: its courses and its members. */
+    /** The package workbench: what is inside it, and who holds it. */
     public function show(Request $request, array $params = []): Response
     {
         $package = $this->find((string) ($params['uuid'] ?? ''));
@@ -81,9 +82,39 @@ final class PackageController extends Controller
             'package'   => $package,
             'courses'   => $inside,
             'available' => $available,
+            'catalogue' => PackageAccess::catalogue(),
+            'chosen'    => $this->packages->itemsByType((int) $package['id']),
             'members'   => $this->packages->members((int) $package['id']),
+            'groups'    => (new \HeleXa\Models\AcademicRepository())->groups(),
+            'terms'     => (new \HeleXa\Models\AcademicRepository())->terms(),
             'students'  => (new UserRepository())->paginate(['role' => 'student', 'status' => 'active'], 500, 0),
         ]);
+    }
+
+    /**
+     * Saves the question bank subjects, Balin lessons and flashcard courses
+     * inside the package. Students who already hold it keep what they have;
+     * a new choice reaches them the next time the package is activated for
+     * them — taking something back silently is not what a tick box means.
+     */
+    public function saveItems(Request $request, array $params = []): Response
+    {
+        $package = $this->find((string) ($params['uuid'] ?? ''));
+
+        foreach (PackageRepository::ITEM_TYPES as $type) {
+            $raw = $request->input($type);
+            $this->packages->syncItems(
+                (int) $package['id'],
+                $type,
+                is_array($raw) ? array_map('intval', $raw) : []
+            );
+        }
+
+        \HeleXa\Services\ActivityLogger::log('package.items_updated', Auth::id(), 'package', (int) $package['id'],
+            [], 'notice', $request);
+        $this->flash('success', 'محتوای پکیج ذخیره شد.');
+
+        return $this->redirect('/admin/packages/' . $package['uuid'] . '#contents');
     }
 
     public function update(Request $request, array $params = []): Response
@@ -97,7 +128,36 @@ final class PackageController extends Controller
         }
 
         $this->packages->update((int) $package['id'], $data);
-        $this->flash('success', 'پکیج به‌روزرسانی شد.');
+
+        // Marking a package free is a promise to every student, so it is kept
+        // at once rather than waiting for each of them to sign up again.
+        $becameFree = (int) ($package['is_free'] ?? 0) !== 1 && $data['is_free'] === 1 && $data['status'] === 'published';
+        if ($becameFree) {
+            $fresh = $this->packages->findById((int) $package['id']) ?? $package;
+            $count = PackageAccess::grantToEveryone($fresh, Auth::id());
+            $this->flash('success', sprintf('پکیج رایگان شد و برای %s دانشجو فعال شد.', fa((string) $count)));
+        } else {
+            $this->flash('success', 'پکیج به‌روزرسانی شد.');
+        }
+
+        return $this->redirect('/admin/packages/' . $package['uuid']);
+    }
+
+    /**
+     * "Give it to everyone": activates a free package for every active
+     * student, and brings what is inside it up to date for those who hold it.
+     */
+    public function grantEveryone(Request $request, array $params = []): Response
+    {
+        $package = $this->find((string) ($params['uuid'] ?? ''));
+
+        if ((int) ($package['is_free'] ?? 0) !== 1) {
+            $this->flash('error', 'این دکمه فقط برای پکیج رایگان است.');
+            return $this->redirect('/admin/packages/' . $package['uuid']);
+        }
+
+        $count = PackageAccess::grantToEveryone($package, Auth::id());
+        $this->flash('success', sprintf('پکیج رایگان برای %s دانشجو فعال یا به‌روز شد.', fa((string) $count)));
 
         return $this->redirect('/admin/packages/' . $package['uuid']);
     }
@@ -165,8 +225,8 @@ final class PackageController extends Controller
             $this->flash('error', 'دانشجوی انتخاب‌شده معتبر نیست.');
             return $this->redirect('/admin/packages/' . $package['uuid']);
         }
-        if ($this->packages->courseIds((int) $package['id']) === []) {
-            $this->flash('error', 'این پکیج هنوز دوره‌ای ندارد.');
+        if ($this->isEmptyPackage($package)) {
+            $this->flash('error', 'این پکیج هنوز هیچ محتوایی ندارد.');
             return $this->redirect('/admin/packages/' . $package['uuid']);
         }
 
@@ -177,11 +237,49 @@ final class PackageController extends Controller
         ], Auth::id());
 
         $this->flash('success', sprintf(
-            '%s دوره برای %s فعال شد.%s',
-            (string) $result['courses'],
+            'پکیج برای %s فعال شد: %s.%s',
             (string) $student['full_name'],
-            $result['notified'] ? ' یک اطلاعیه هم برای او ثبت شد.' : ' اطلاعیه قبلاً ثبت شده بود و تکرار نشد.'
+            PackageAccess::summarise($result),
+            $result['notified'] ? ' یک اطلاعیه هم برای او ثبت شد.' : ''
         ));
+
+        return $this->redirect('/admin/packages/' . $package['uuid']);
+    }
+
+    /**
+     * Activates the package for a whole group (or a whole term) at once —
+     * «پکیج باکتری برای همه گروه ۲۴».
+     */
+    public function activateGroup(Request $request, array $params = []): Response
+    {
+        $package = $this->find((string) ($params['uuid'] ?? ''));
+        $groupId = $request->int('group_id');
+        $termId  = $request->int('term_id');
+
+        if ($groupId <= 0 && $termId <= 0) {
+            $this->flash('error', 'گروه یا ترم را انتخاب کنید.');
+            return $this->redirect('/admin/packages/' . $package['uuid']);
+        }
+        if ($this->isEmptyPackage($package)) {
+            $this->flash('error', 'این پکیج هنوز هیچ محتوایی ندارد.');
+            return $this->redirect('/admin/packages/' . $package['uuid']);
+        }
+
+        $filters  = ['role' => 'student', 'status' => 'active'] + ($groupId > 0 ? ['group_id' => $groupId] : ['term_id' => $termId]);
+        $students = (new UserRepository())->paginate($filters, 5000, 0);
+        $window   = [
+            'status'    => 'active',
+            'starts_at' => $this->date($request->string('starts_at')),
+            'ends_at'   => $this->date($request->string('ends_at'), true),
+        ];
+
+        foreach ($students as $student) {
+            ActivationService::activatePackage($student, $package, $window, Auth::id());
+        }
+
+        \HeleXa\Services\ActivityLogger::log('package.group_activated', Auth::id(), 'package', (int) $package['id'],
+            ['group' => $groupId ?: null, 'term' => $termId ?: null, 'students' => count($students)], 'notice', $request);
+        $this->flash('success', sprintf('پکیج برای %s دانشجو فعال شد.', fa((string) count($students))));
 
         return $this->redirect('/admin/packages/' . $package['uuid']);
     }
@@ -217,6 +315,24 @@ final class PackageController extends Controller
         return $package;
     }
 
+    /** A package with nothing in it has nothing to activate. */
+    private function isEmptyPackage(array $package): bool
+    {
+        if ((int) ($package['is_full_access'] ?? 0) === 1) {
+            return false;
+        }
+        if ($this->packages->courseIds((int) $package['id']) !== []) {
+            return false;
+        }
+        foreach ($this->packages->itemsByType((int) $package['id']) as $ids) {
+            if ($ids !== []) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+
     private function collect(Request $request): array
     {
         $status = $request->string('status', 'published');
@@ -231,8 +347,16 @@ final class PackageController extends Controller
                 ? $request->string('color') : null,
             'status'                 => $status,
             'auto_grant_new_courses' => $request->bool('auto_grant_new_courses') ? 1 : 0,
+            'is_full_access'         => $request->bool('is_full_access') ? 1 : 0,
+            'is_free'                => $request->bool('is_free') ? 1 : 0,
             'sort_order'             => $request->int('sort_order'),
         ];
+    }
+
+    /** The package page borrows the question bank's checklist styles. */
+    protected function page(string $layout, string $template, array $data = [], int $status = 200): Response
+    {
+        return parent::page($layout, $template, $data + ['qbank' => true], $status);
     }
 
     private function date(string $value, bool $endOfDay = false): ?string

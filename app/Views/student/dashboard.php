@@ -1,7 +1,23 @@
 <?php use HeleXa\Services\StudyAnalytics; ?>
 
-<h2 class="greet">سلام <?= e($currentUser['full_name'] ?? '') ?> 👋</h2>
-<p class="greet-sub"><?= e($todayText) ?></p>
+<?php if (!empty($securityFlags)): ?>
+    <div class="alert alert-error" role="alert" style="margin-bottom:14px;">
+        <div>⚠ در روزهای اخیر به حساب شما از چند شبکه‌ی مختلف وارد شده‌اند.
+        <a href="/student/sessions">جزئیات ورودها را ببینید</a>.</div>
+    </div>
+<?php endif; ?>
+<div class="dash-top">
+    <div class="dash-greet">
+        <h2 class="greet">سلام <?= e($currentUser['full_name'] ?? '') ?> 👋
+            <?php if (!empty($tier)): ?>
+                <a class="tier-badge tier-<?= e($tier['tier']) ?>" href="/account/profile" style="font-size:12px; text-decoration:none;"><?= e($tier['icon'] . ' ' . $tier['label']) ?></a>
+            <?php endif; ?>
+        </h2>
+        <p class="greet-sub"><?= e($todayText) ?></p>
+    </div>
+    <?php \HeleXa\Core\View::partial('partials.flipclock', ['dateText' => '']); ?>
+    <?php \HeleXa\Core\View::partial('partials.quick_tiles', ['fcDue' => $fcDue ?? 0, 'showBalin' => $showBalin ?? false, 'showQbank' => $showQbank ?? false]); ?>
+</div>
 
 <?php
 $weekTotal = (int) $week['total'];

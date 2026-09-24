@@ -8,6 +8,7 @@ $typeLabel = [
     'deadline' => 'مهلت', 'reminder' => 'یادآوری', 'event' => 'رویداد', 'custom' => 'سایر',
 ];
 ?>
+<?php \HeleXa\Core\View::partial('partials.cal_tabs', ['tabs' => $tabs, 'tab' => $tab]); ?>
 <div class="card">
     <div class="card-head">
         <h3 class="card-title" style="margin:0;">

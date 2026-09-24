@@ -7,7 +7,19 @@
     <form method="post" action="/admin/settings">
         <input type="hidden" name="_token" value="<?= e($csrf_token) ?>">
 
-        <h4 class="card-title">سیاست تک‌دستگاه</h4>
+        <h4 class="card-title">ثبت‌نام دانشجو</h4>
+        <label class="switch-row">
+            <input type="checkbox" name="registration_enabled" value="1" <?= $values['registration_enabled'] ? 'checked' : '' ?>>
+            <span>
+                دانشجو بتواند خودش از صفحه ورود ثبت‌نام کند
+                <span style="display:block; color:var(--ink-3); font-size:11.5px;">
+                    با روشن شدن، دکمه «ثبت‌نام» زیر فرم ورود نمایش داده می‌شود. دانشجو دانشگاه، رشته، ترم و گروهش را
+                    انتخاب می‌کند، رمز می‌سازد و وارد پنل می‌شود. پکیج‌های رایگان خودکار برایش فعال می‌شوند.
+                </span>
+            </span>
+        </label>
+
+        <h4 class="card-title" style="margin-top:24px;">سیاست تک‌دستگاه</h4>
         <label class="switch-row">
             <input type="checkbox" name="single_device_enabled" value="1" <?= $values['single_device_enabled'] ? 'checked' : '' ?>>
             <span>فعال بودن محدودیت یک نشست فعال برای هر دانشجو</span>

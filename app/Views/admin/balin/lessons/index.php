@@ -7,6 +7,7 @@ $names = ['published' => 'منتشرشده', 'draft' => 'پیش‌نویس', 'ar
     <div class="card-head">
         <h3 class="card-title" style="margin:0;">درس‌های بالینی</h3>
         <?php if (can('balin.create')): ?>
+            <a class="btn btn-ghost btn-sm" href="/admin/balin/transfer">ورود / خروج JSON</a>
             <a class="btn btn-primary btn-sm" href="/admin/balin/lessons/create">+ درس جدید</a>
         <?php endif; ?>
     </div>
@@ -35,6 +36,12 @@ $names = ['published' => 'منتشرشده', 'draft' => 'پیش‌نویس', 'ar
                             <span class="stat-chip <?= e($chips[$lesson['status']] ?? 'chip-gray') ?>">
                                 <?= e($names[$lesson['status']] ?? $lesson['status']) ?>
                             </span>
+                            <?php /* Who the lesson is for — the second half of "is it visible". */ ?>
+                            <div style="margin-top:4px;">
+                                <span class="stat-chip <?= ($lesson['access_mode'] ?? 'open') === 'open' ? 'chip-blue' : 'chip-amber' ?>">
+                                    <?= ($lesson['access_mode'] ?? 'open') === 'open' ? 'برای همه' : 'انتخابی' ?>
+                                </span>
+                            </div>
                         </td>
                         <td><?= e(fa((int) $lesson['stage_count'])) ?></td>
                         <td><?= e(fa((int) $lesson['question_count'])) ?></td>

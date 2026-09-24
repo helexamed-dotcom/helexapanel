@@ -76,6 +76,10 @@ final class LessonController extends Controller
 
         ActivityLogger::log('balin.lesson.created', Auth::id(), 'balin_lesson', $id,
             ['title' => $data['title']], 'notice', $request);
+
+        // Students on a full-access package get it straight away; everyone
+        // else is given it from the access page or from a package.
+        \HeleXa\Services\PackageAccess::contentAdded('balin_lesson', $id, Auth::id());
         $this->flash('success', 'درس ساخته شد. حالا مرحله‌ها را اضافه کن.');
 
         return $this->redirect('/admin/balin/lessons/' . $this->lessons->findById($id)['uuid']);
@@ -256,6 +260,9 @@ final class LessonController extends Controller
         return [
             'title'             => $title,
             'slug'              => $slug !== '' ? Str::slug($slug) : Str::slug($title),
+            // Who the lesson is for: everyone who has the island, or only the
+            // students it is handed to one by one (the default for new ones).
+            'access_mode'       => $request->string('access_mode') === 'open' ? 'open' : 'granted',
             'description'       => trim($request->string('description')) ?: null,
             'icon'              => trim($request->string('icon')) ?: null,
             'color'             => trim($request->string('color')) ?: null,

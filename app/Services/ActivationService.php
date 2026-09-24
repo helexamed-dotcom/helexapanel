@@ -54,15 +54,19 @@ final class ActivationService
     }
 
     /**
-     * Activates a package and every course inside it.
+     * Activates a package: every course inside it, plus the question bank
+     * subjects, Balin lessons and flashcard courses it carries. A package
+     * marked "full access" carries the whole catalogue.
      *
-     * @return array{courses:int, granted:int, notified:bool, activation:array}
+     * @return array{courses:int, granted:int, items:array<string,int>, notified:bool, activation:array}
      */
     public static function activatePackage(array $user, array $package, array $window, ?int $actorId): array
     {
         $packages    = new PackageRepository();
         $enrollments = new EnrollmentRepository();
-        $courseIds   = $packages->courseIds((int) $package['id']);
+        $courseIds   = (int) ($package['is_full_access'] ?? 0) === 1
+            ? PackageAccess::allCourseIds()
+            : $packages->courseIds((int) $package['id']);
 
         $activation = Database::transaction(
             static function () use ($packages, $enrollments, $user, $package, $window, $actorId, $courseIds): array {
@@ -87,9 +91,16 @@ final class ActivationService
             }
         );
 
+        // The rest of the package — everything that is not a course — is
+        // granted after the enrolments, through the modules' own tables.
+        $items = ($window['status'] ?? 'active') === 'active'
+            ? PackageAccess::apply($user, $package, $actorId)
+            : ['qbank_subject' => 0, 'balin_lesson' => 0, 'flashcard_course' => 0];
+
         ActivityLogger::log('package.activated', $actorId, 'package', (int) $package['id'], [
             'student' => (int) $user['id'],
             'courses' => count($courseIds),
+            'items'   => $items,
         ], 'notice');
 
         // One announcement for the package, never one per course inside it.
@@ -106,6 +117,7 @@ final class ActivationService
         return [
             'courses'    => count($courseIds),
             'granted'    => count($courseIds),
+            'items'      => $items,
             'notified'   => $notified,
             'activation' => $activation,
         ];
@@ -144,6 +156,9 @@ final class ActivationService
             'students' => count($members),
         ], 'notice');
 
+        // After the commit, like every other announcement here.
+        NotificationService::packageCourseAdded($package, $course, $actorId);
+
         return count($members);
     }
 
@@ -156,7 +171,10 @@ final class ActivationService
     {
         $packages    = new PackageRepository();
         $enrollments = new EnrollmentRepository();
-        $courseIds   = $packages->courseIds((int) $package['id']);
+        $courseIds   = (int) ($package['is_full_access'] ?? 0) === 1
+            ? PackageAccess::allCourseIds()
+            : $packages->courseIds((int) $package['id']);
+        $student     = ['id' => (int) $activation['user_id']];
 
         $affected = Database::transaction(static function () use ($packages, $enrollments, $activation, $courseIds, $status): int {
             $packages->setActivationStatus((int) $activation['id'], $status);
@@ -173,10 +191,18 @@ final class ActivationService
             );
         });
 
+        // The rest of the package follows the same decision: suspending hands
+        // it back, re-activating gives it again — but only what this package
+        // granted and no other live package of theirs also grants.
+        $items = $status === 'active'
+            ? PackageAccess::apply($student, $package, $actorId)
+            : PackageAccess::withdraw($student, $package, $actorId);
+
         ActivityLogger::log('package.status_changed', $actorId, 'package', (int) $package['id'], [
             'student'  => (int) $activation['user_id'],
             'status'   => $status,
             'affected' => $affected,
+            'items'    => $items,
         ], 'warning');
     }
 }

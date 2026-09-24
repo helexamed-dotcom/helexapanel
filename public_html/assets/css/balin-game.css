@@ -1,0 +1,720 @@
+/* =====================================================================
+   🏝️ Balin island — game look: the lesson map and the stage player.
+   ===================================================================== */
+
+.bgame { --road: #f5deb3; --road-edge: #c89b5c; --done: #fbbf24; }
+
+/* --------------------------------------------------------------- HUD */
+
+.bgame-hud {
+    --lesson-accent: var(--blue);
+    position: relative; overflow: hidden; border-radius: 24px; padding: 16px 18px 14px;
+    color: #fff;
+    background:
+        radial-gradient(circle at 12% 0%, rgba(255, 255, 255, .28), transparent 42%),
+        linear-gradient(135deg, var(--lesson-accent), color-mix(in srgb, var(--lesson-accent) 55%, #1e1b4b));
+    box-shadow: 0 14px 30px -14px color-mix(in srgb, var(--lesson-accent) 70%, transparent), inset 0 -4px 0 rgba(0, 0, 0, .12);
+}
+.bgame-hud-main { display: flex; align-items: center; gap: 14px; }
+.bgame-hud-icon {
+    flex: 0 0 58px; width: 58px; height: 58px; border-radius: 18px; display: grid; place-items: center;
+    font-size: 32px; background: rgba(255, 255, 255, .2); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .35), 0 6px 0 rgba(0, 0, 0, .12);
+}
+.bgame-hud-text { flex: 1 1 auto; min-width: 0; }
+.bgame-hud-text h2 { margin: 0 0 3px; font-size: 19px; text-shadow: 0 2px 0 rgba(0, 0, 0, .15); }
+.bgame-hud-text p { margin: 0; font-size: 12.5px; line-height: 1.9; opacity: .92;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+.bgame-ring {
+    --p: 0; flex: 0 0 66px; width: 66px; height: 66px; border-radius: 50%; display: grid; place-items: center;
+    background: conic-gradient(#fde047 calc(var(--p) * 1%), rgba(255, 255, 255, .22) 0);
+    box-shadow: 0 5px 0 rgba(0, 0, 0, .14);
+}
+.bgame-ring span {
+    width: 50px; height: 50px; border-radius: 50%; display: grid; place-items: center;
+    background: color-mix(in srgb, var(--lesson-accent) 70%, #0f172a); font-weight: 800; font-size: 14px;
+}
+.bgame-bar { height: 12px; border-radius: 99px; background: rgba(0, 0, 0, .2); overflow: hidden; margin: 14px 0 10px;
+    box-shadow: inset 0 2px 0 rgba(0, 0, 0, .15); }
+.bgame-bar i {
+    display: block; height: 100%; border-radius: inherit; min-width: 12px;
+    background: linear-gradient(90deg, #fde047, #f59e0b);
+    background-image: repeating-linear-gradient(-45deg, rgba(255, 255, 255, .28) 0 8px, transparent 8px 16px), linear-gradient(90deg, #fde047, #f59e0b);
+    animation: bgame-stripes 1.2s linear infinite;
+}
+@keyframes bgame-stripes { to { background-position: 32px 0, 0 0; } }
+.bgame-hud-stats { display: flex; flex-wrap: wrap; gap: 6px; }
+.bgame-hud-stats span {
+    padding: 4px 10px; border-radius: 99px; font-size: 12px; font-weight: 600;
+    background: rgba(255, 255, 255, .18); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .22);
+}
+
+/* ------------------------------------------------------------- world */
+
+.bgame-world {
+    position: relative; overflow: hidden; border-radius: 28px; padding: 0 0 36px;
+    background:
+        radial-gradient(circle at 20px 20px, rgba(255, 255, 255, .16) 0 2px, transparent 3px) 0 0 / 46px 46px,
+        radial-gradient(circle at 10px 30px, rgba(21, 128, 61, .18) 0 3px, transparent 4px) 0 0 / 58px 58px,
+        linear-gradient(90deg, #38bdf8 0 5%, #fde68a 5% 7.5%, transparent 7.5% 92.5%, #fde68a 92.5% 95%, #38bdf8 95%),
+        linear-gradient(180deg, #86efac, #4ade80 45%, #22c55e);
+    box-shadow: inset 0 0 0 4px rgba(255, 255, 255, .35), 0 20px 40px -24px rgba(15, 23, 42, .5);
+}
+.bgame-sky {
+    position: relative; height: 120px; overflow: hidden;
+    background: linear-gradient(180deg, #7dd3fc, #bae6fd 70%, #d9f99d);
+    border-bottom: 6px solid #a3e635;
+}
+.bgame-sun {
+    position: absolute; top: 18px; inset-inline-end: 26px; width: 54px; height: 54px; border-radius: 50%;
+    background: radial-gradient(circle, #fef08a, #facc15 60%, #f59e0b);
+    box-shadow: 0 0 0 10px rgba(254, 240, 138, .35), 0 0 40px rgba(250, 204, 21, .8);
+}
+.bgame-cloud {
+    position: absolute; width: 90px; height: 28px; border-radius: 99px; background: #fff; opacity: .92;
+    box-shadow: 22px -12px 0 -2px #fff, 46px 0 0 -4px #fff;
+    animation: bgame-drift 26s linear infinite;
+}
+.bgame-cloud.c1 { top: 20px; left: -20%; }
+.bgame-cloud.c2 { top: 56px; left: -40%; transform: scale(.7); animation-duration: 34s; animation-delay: -12s; }
+.bgame-cloud.c3 { top: 12px; left: -60%; transform: scale(.55); animation-duration: 40s; animation-delay: -24s; }
+@keyframes bgame-drift { to { left: 120%; } }
+.bgame-start {
+    position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%);
+    padding: 5px 14px; border-radius: 99px; font-size: 12.5px; font-weight: 800; color: #14532d;
+    background: #fff; box-shadow: 0 4px 0 #bbf7d0, 0 8px 16px rgba(0, 0, 0, .12);
+}
+
+/* the road, drawn by balin-map.js */
+.bgame-road { position: absolute; left: 0; top: 0; pointer-events: none; overflow: visible; }
+.bgame-road path { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.bgame-road-edge { stroke: var(--road-edge); stroke-width: 34; }
+.bgame-road-fill { stroke: var(--road); stroke-width: 26; }
+.bgame-road-dash { stroke: #fff; stroke-width: 3; stroke-dasharray: 10 12; opacity: .85; }
+.bgame-road-done { stroke: var(--done); stroke-width: 12; opacity: .9; filter: drop-shadow(0 0 6px rgba(250, 204, 21, .8)); }
+
+/* ------------------------------------------------------------- steps */
+
+.bgame-track { position: relative; list-style: none; margin: 0; padding: 26px 0 0; }
+.bgame-step { position: relative; height: 104px; }
+.bgame-step.kind-exam { height: 94px; }
+
+.bgame-node {
+    --n1: #93c5fd; --n2: #2563eb; --n3: #1e3a8a;
+    position: absolute; top: 18px; left: calc(var(--x) * 1%); width: 76px; height: 76px; margin-inline: 0;
+    transform: translateX(-50%); border-radius: 50%; display: grid; place-items: center; text-decoration: none;
+    color: #fff; z-index: 2; cursor: pointer; -webkit-tap-highlight-color: transparent;
+    background:
+        radial-gradient(ellipse 45% 30% at 35% 25%, rgba(255, 255, 255, .75), rgba(255, 255, 255, 0) 70%),
+        linear-gradient(160deg, var(--n1), var(--n2) 70%);
+    box-shadow: 0 10px 0 var(--n3), 0 18px 18px rgba(0, 0, 0, .28), inset 0 -5px 0 rgba(0, 0, 0, .14), inset 0 0 0 3px rgba(255, 255, 255, .35);
+    transition: transform .12s ease, box-shadow .12s ease;
+}
+.bgame-node::before { /* the ground shadow the node stands on */
+    content: ''; position: absolute; left: 50%; bottom: -26px; width: 92px; height: 20px; border-radius: 50%;
+    transform: translateX(-50%); background: rgba(0, 0, 0, .18); filter: blur(2px); z-index: -1;
+}
+a.bgame-node:hover { transform: translateX(-50%) translateY(-3px); }
+a.bgame-node:active { transform: translateX(-50%) translateY(8px); box-shadow: 0 2px 0 var(--n3), 0 6px 8px rgba(0, 0, 0, .25), inset 0 -3px 0 rgba(0, 0, 0, .14); }
+a.bgame-node:focus-visible { outline: 4px solid #fff; outline-offset: 6px; }
+.bgame-node-face { display: grid; place-items: center; filter: drop-shadow(0 2px 0 rgba(0, 0, 0, .25)); }
+.bgame-node-face b { font-size: 28px; font-weight: 900; }
+.bgame-node-face .ic { stroke-width: 3; }
+.bgame-node-emoji { font-size: 34px; line-height: 1; }
+.bgame-crown { position: absolute; top: -20px; font-size: 24px; filter: drop-shadow(0 3px 2px rgba(0, 0, 0, .3)); }
+.bgame-stars { position: absolute; bottom: -8px; inset-inline-end: -6px; font-size: 20px; filter: drop-shadow(0 2px 1px rgba(0, 0, 0, .3)); }
+
+.bgame-step.is-completed .bgame-node { --n1: #fef08a; --n2: #f59e0b; --n3: #b45309; }
+.bgame-step.is-locked .bgame-node { --n1: #f1f5f9; --n2: #94a3b8; --n3: #64748b; color: #f8fafc; cursor: not-allowed; }
+.bgame-step.kind-exam .bgame-node { --n1: #ddd6fe; --n2: #7c3aed; --n3: #4c1d95; width: 66px; height: 66px; border-radius: 22px; }
+.bgame-step.kind-exam.is-passed .bgame-node { --n1: #99f6e4; --n2: #0d9488; --n3: #115e59; }
+.bgame-step.kind-goal .bgame-node { --n1: #fde68a; --n2: #d97706; --n3: #92400e; width: 92px; height: 92px; }
+.bgame-step.kind-goal.is-ahead .bgame-node { --n1: #e2e8f0; --n2: #94a3b8; --n3: #475569; }
+.bgame-step.kind-goal .bgame-node-emoji { font-size: 44px; }
+.bgame-step.is-final:not(.is-completed):not(.is-locked) .bgame-node { --n1: #fecaca; --n2: #dc2626; --n3: #7f1d1d; }
+
+/* the stage to play now */
+.bgame-step.is-current .bgame-node { animation: bgame-bob 2.2s ease-in-out infinite; }
+.bgame-step.is-current .bgame-node::after {
+    content: ''; position: absolute; inset: -12px; border-radius: 50%;
+    border: 4px solid rgba(255, 255, 255, .9); animation: bgame-pulse 1.8s ease-out infinite;
+}
+@keyframes bgame-bob { 50% { transform: translateX(-50%) translateY(-5px); } }
+@keyframes bgame-pulse { from { transform: scale(.9); opacity: 1; } to { transform: scale(1.35); opacity: 0; } }
+
+/* The map carries badges only — no titles beside the road. */
+
+/* sea life in the side strips */
+.bgame-sea { position: absolute; top: 40px; font-size: 20px; animation: bgame-float 4s ease-in-out infinite; }
+.bgame-sea.at-left { left: .6%; }
+.bgame-sea.at-right { right: .6%; }
+@keyframes bgame-float { 50% { transform: translateY(-8px) rotate(-6deg); } }
+
+/* ------------------------------------------------------------ avatar */
+
+.bgame-avatar {
+    position: absolute; left: 0; top: 0; z-index: 5; text-decoration: none;
+    transition: none; will-change: transform;
+}
+.bgame-avatar-body {
+    position: absolute; left: 0; top: 0; display: grid; justify-items: center; gap: 2px;
+    transform: translate(-50%, calc(-100% - 20px));
+}
+.bgame-avatar-img {
+    width: 66px; height: 66px; display: grid; place-items: center;
+    filter: drop-shadow(0 6px 4px rgba(0, 0, 0, .3));
+}
+.bgame-avatar-img img { width: 100%; height: 100%; object-fit: contain; }
+.bgame-avatar-img > span {
+    width: 58px; height: 58px; border-radius: 50%; display: grid; place-items: center; font-size: 34px;
+    background: radial-gradient(circle at 35% 30%, #fff, #e0f2fe); box-shadow: 0 0 0 4px #fff, 0 5px 0 4px #0ea5e9;
+}
+.bgame-avatar-tag {
+    position: relative; white-space: nowrap; padding: 3px 10px; border-radius: 99px;
+    font-size: 11px; font-weight: 800; color: #0f172a; background: #fff;
+    box-shadow: 0 3px 0 #e2e8f0, 0 6px 12px rgba(0, 0, 0, .15);
+    animation: bgame-tag 2.6s ease-in-out infinite;
+}
+.bgame-avatar-tag::after {
+    content: ''; position: absolute; bottom: -5px; left: 50%; width: 10px; height: 10px;
+    background: #fff; transform: translateX(-50%) rotate(45deg); border-radius: 2px;
+}
+@keyframes bgame-tag { 50% { transform: translateY(-3px); } }
+.bgame-avatar-shadow {
+    position: absolute; left: 0; top: -24px; width: 44px; height: 10px; border-radius: 50%;
+    background: rgba(0, 0, 0, .25); transform: translateX(-50%); filter: blur(1px);
+}
+.bgame-avatar.is-walking .bgame-avatar-img { animation: bgame-hop .38s ease-in-out infinite; }
+.bgame-avatar.is-walking .bgame-avatar-tag { opacity: 0; }
+@keyframes bgame-hop { 50% { transform: translateY(-12px) rotate(-4deg); } }
+.bgame-avatar.is-arrived .bgame-avatar-img { animation: bgame-land .5s cubic-bezier(.2, 1.6, .4, 1); }
+@keyframes bgame-land { 0% { transform: scale(1.15, .85); } 100% { transform: none; } }
+
+/* ------------------------------------------------------ phones */
+
+@media (max-width: 560px) {
+    .bgame-step { height: 98px; }
+    .bgame-node { width: 64px; height: 64px; top: 16px; }
+    .bgame-node-face b { font-size: 24px; }
+    .bgame-step.kind-exam .bgame-node { width: 56px; height: 56px; }
+    .bgame-step.kind-goal .bgame-node { width: 78px; height: 78px; }
+
+    .bgame-hud-text p { display: none; }
+    .bgame-avatar-img { width: 54px; height: 54px; }
+    .bgame-avatar-img > span { width: 48px; height: 48px; font-size: 28px; }
+}
+
+/* ------------------------------------------------------- night mode */
+
+:root[data-theme="dark"] .bgame { --road: #a8906a; --road-edge: #5b4630; }
+:root[data-theme="dark"] .bgame-world {
+    background:
+        radial-gradient(circle at 20px 20px, rgba(255, 255, 255, .05) 0 2px, transparent 3px) 0 0 / 46px 46px,
+        linear-gradient(90deg, #0c4a6e 0 5%, #78716c 5% 7.5%, transparent 7.5% 92.5%, #78716c 92.5% 95%, #0c4a6e 95%),
+        linear-gradient(180deg, #14532d, #166534 50%, #14532d);
+}
+:root[data-theme="dark"] .bgame-sky {
+    background:
+        radial-gradient(circle at 15% 30%, #fff 0 1px, transparent 2px),
+        radial-gradient(circle at 40% 15%, #fff 0 1px, transparent 2px),
+        radial-gradient(circle at 70% 45%, #fff 0 1px, transparent 2px),
+        radial-gradient(circle at 85% 20%, #fff 0 1.5px, transparent 2.5px),
+        radial-gradient(circle at 55% 70%, #fff 0 1px, transparent 2px),
+        linear-gradient(180deg, #0b1026, #1e293b 80%, #14532d);
+    border-bottom-color: #166534;
+}
+:root[data-theme="dark"] .bgame-sun { background: radial-gradient(circle at 35% 35%, #f8fafc, #cbd5e1); box-shadow: 0 0 30px rgba(226, 232, 240, .6); }
+:root[data-theme="dark"] .bgame-cloud { opacity: .15; }
+
+
+@media (prefers-reduced-motion: reduce) {
+    .bgame-cloud, .bgame-sea, .bgame-bar i, .bgame-avatar-tag,
+    .bgame-step.is-current .bgame-node, .bgame-step.is-current .bgame-node::after { animation: none; }
+}
+
+/* =====================================================================
+   The stage player, dressed as a game level
+   ===================================================================== */
+
+.bgame-stage {
+    position: relative; padding: 14px; border-radius: 28px;
+    background:
+        radial-gradient(circle at 16px 16px, rgba(37, 99, 235, .06) 0 2px, transparent 3px) 0 0 / 34px 34px,
+        linear-gradient(180deg, color-mix(in srgb, var(--blue) 8%, var(--surface)), var(--surface-2));
+    box-shadow: inset 0 0 0 1px var(--line);
+}
+.bgame-stage .balin-crumb { padding: 0 4px; }
+.bgame-level-hud {
+    position: sticky; top: 8px; z-index: 20; display: grid; gap: 8px; padding: 12px 14px; border-radius: 20px;
+    color: #fff;
+    background: linear-gradient(135deg, #2563eb, #7c3aed);
+    box-shadow: 0 8px 0 #1e3a8a, 0 16px 26px -12px rgba(30, 58, 138, .6);
+}
+.bgame-level-top { display: flex; align-items: center; gap: 10px; }
+.bgame-level-back {
+    flex: 0 0 40px; width: 40px; height: 40px; border-radius: 14px; display: grid; place-items: center;
+    background: rgba(255, 255, 255, .2); color: #fff; text-decoration: none; font-size: 18px;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .3), 0 3px 0 rgba(0, 0, 0, .15);
+}
+.bgame-level-title { flex: 1 1 auto; min-width: 0; }
+.bgame-level-title small { display: block; font-size: 11px; opacity: .85; }
+.bgame-level-title strong { display: block; font-size: 15.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bgame-level-xp {
+    flex: 0 0 auto; padding: 5px 10px; border-radius: 99px; font-size: 12px; font-weight: 800;
+    background: #fde047; color: #713f12; box-shadow: 0 3px 0 #ca8a04;
+}
+.bgame-level-progress { display: flex; align-items: center; gap: 10px; }
+.bgame-level-progress .bgame-bar { flex: 1; margin: 0; height: 12px; }
+.bgame-level-progress b { font-size: 13px; min-width: 42px; text-align: center; }
+.bgame-stage .balin-stage-head { text-align: center; padding: 10px 6px 0; }
+.bgame-stage .balin-stage-head h2 { font-size: 21px; }
+
+.bgame-stage .balin-advance .btn,
+.bgame-stage .js-balin-finish {
+    min-width: 180px; padding: 12px 22px; border-radius: 18px; font-size: 15px; font-weight: 800;
+    background: linear-gradient(180deg, #4ade80, #16a34a); color: #fff; border: 0;
+    box-shadow: 0 6px 0 #15803d, 0 12px 20px -8px rgba(22, 163, 74, .6);
+}
+.bgame-stage .balin-advance .btn:active,
+.bgame-stage .js-balin-finish:not(:disabled):active { transform: translateY(5px); box-shadow: 0 1px 0 #15803d; }
+.bgame-stage .js-balin-finish:disabled { background: linear-gradient(180deg, #cbd5e1, #94a3b8); box-shadow: 0 6px 0 #64748b; }
+.bgame-stage .balin-advance { display: flex; justify-content: center; }
+.bgame-stage .balin-stage-foot { display: grid; justify-items: center; gap: 8px; padding-top: 6px; }
+.bgame-stage .is-entering { animation: bgame-pop .38s cubic-bezier(.2, 1.3, .4, 1); }
+@keyframes bgame-pop { from { transform: translateY(14px) scale(.96); opacity: 0; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .bgame-stage .is-entering { animation: none; } }
+
+/* =====================================================================
+   The modern scene — what a stage is made of.
+
+   These rules sit on top of the plain .balin-* look in app.css and are
+   only loaded on the island's own pages, so a stage reads like a level in
+   a game: soft cards, a gradient for every kind of block, buttons that
+   press, and answers that celebrate or shake.
+   ===================================================================== */
+
+.balin-scene { gap: 16px; }
+
+/* ------------------------------------------------------------ speech */
+
+.balin-bubble { gap: 12px; }
+.balin .balin-avatar {
+    flex: 0 0 44px; width: 44px; height: 44px; font-size: 23px; border: 0;
+    background: radial-gradient(circle at 35% 28%, var(--surface), var(--surface-2));
+    box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px color-mix(in srgb, var(--blue) 22%, var(--line)),
+                0 8px 16px -10px rgba(15, 23, 42, .5);
+}
+.balin .balin-bubble-body {
+    border-radius: 22px; padding: 12px 16px; border: 0;
+    background: linear-gradient(180deg, var(--surface), color-mix(in srgb, var(--surface-2) 75%, var(--surface)));
+    box-shadow: inset 0 0 0 1px var(--line), 0 14px 26px -22px rgba(15, 23, 42, .75);
+}
+.balin .balin-bubble.side-right .balin-bubble-body {
+    background: linear-gradient(180deg,
+        color-mix(in srgb, var(--bubble-accent) 14%, var(--surface)),
+        color-mix(in srgb, var(--bubble-accent) 6%, var(--surface)));
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--bubble-accent) 30%, var(--line)),
+                0 14px 26px -22px color-mix(in srgb, var(--bubble-accent) 70%, transparent);
+}
+.balin .balin-bubble.side-left  .balin-bubble-body { border-end-start-radius: 7px; }
+.balin .balin-bubble.side-right .balin-bubble-body { border-end-end-radius: 7px; }
+.balin .balin-bubble-name {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 12px; font-weight: 800; margin-bottom: 4px;
+}
+.balin .balin-bubble-name::before {
+    content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; opacity: .8;
+}
+.balin .balin-bubble-text { font-size: 14.5px; line-height: 2; }
+
+.balin .balin-note {
+    border: 0; border-radius: 20px; padding: 15px 18px; font-size: 14.5px;
+    background: var(--surface); box-shadow: inset 0 0 0 1px var(--line), 0 14px 26px -24px rgba(15, 23, 42, .8);
+}
+
+.balin .balin-system {
+    display: inline-flex; align-items: center; gap: 8px; align-self: center;
+    padding: 7px 16px; border-radius: 99px; font-size: 12px; font-weight: 600; color: var(--ink-2);
+    background: color-mix(in srgb, var(--ink) 5%, var(--surface));
+    box-shadow: inset 0 0 0 1px var(--line);
+}
+.balin .balin-system::before,
+.balin .balin-system::after { content: ''; width: 16px; height: 1px; background: var(--line); }
+.balin .balin-divider {
+    border: 0; height: 1px; margin: 4px auto; width: min(70%, 420px);
+    background: linear-gradient(90deg, transparent, var(--line), transparent);
+}
+
+/* ---------------------------------------------------------- callouts */
+
+.balin .balin-callout {
+    --tint: var(--blue); --callout-icon: '💡';
+    position: relative; border: 0; border-radius: 20px; padding: 14px 16px; padding-inline-start: 56px;
+    font-size: 14px; line-height: 1.95; color: var(--ink);
+    background: linear-gradient(180deg,
+        color-mix(in srgb, var(--tint) 12%, var(--surface)),
+        color-mix(in srgb, var(--tint) 5%, var(--surface)));
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tint) 26%, var(--line));
+}
+.balin .balin-callout::before {
+    content: var(--callout-icon); position: absolute; inset-inline-start: 13px; top: 13px;
+    width: 32px; height: 32px; border-radius: 12px; display: grid; place-items: center; font-size: 17px;
+    background: var(--surface);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tint) 30%, var(--line)),
+                0 5px 12px -8px color-mix(in srgb, var(--tint) 80%, transparent);
+}
+.balin .balin-callout-label {
+    font-size: 11.5px; font-weight: 800; letter-spacing: .02em; margin-bottom: 5px; color: var(--tint);
+}
+.balin .balin-callout.is-finding { --tint: var(--teal);  --callout-icon: '🩺'; }
+.balin .balin-callout.is-hint    { --tint: var(--blue);  --callout-icon: '💡'; }
+.balin .balin-callout.is-warning { --tint: var(--amber); --callout-icon: '⚠️'; }
+.balin .balin-callout.is-pearl   { --tint: #a855f7;      --callout-icon: '💎'; }
+.balin .balin-callout.is-ddx     { --tint: #6366f1;      --callout-icon: '🔍'; }
+
+/* ------------------------------------------------- vitals, labs, ddx */
+
+.balin .balin-vitals, .balin .balin-lab, .balin .balin-refs {
+    --tint: var(--blue);
+    border: 0; border-radius: 20px; padding: 15px 16px;
+    background: var(--surface); box-shadow: inset 0 0 0 1px var(--line), 0 14px 26px -24px rgba(15, 23, 42, .8);
+}
+.balin .balin-vitals { --tint: var(--teal); }
+.balin .balin-refs   { --tint: var(--ink-3); }
+.balin .balin-vitals .balin-callout-label,
+.balin .balin-lab .balin-callout-label,
+.balin .balin-refs .balin-callout-label {
+    display: inline-flex; align-items: center; gap: 7px; margin-bottom: 11px;
+    font-size: 12px; font-weight: 800; color: var(--ink-2);
+}
+.balin .balin-vitals .balin-callout-label::before,
+.balin .balin-lab .balin-callout-label::before,
+.balin .balin-refs .balin-callout-label::before {
+    content: var(--callout-icon, '🩺'); width: 28px; height: 28px; border-radius: 10px;
+    display: grid; place-items: center; font-size: 15px;
+    background: color-mix(in srgb, var(--tint) 14%, var(--surface));
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tint) 28%, var(--line));
+}
+.balin .balin-lab  { --callout-icon: '🧪'; --tint: #6366f1; }
+.balin .balin-refs { --callout-icon: '📚'; }
+
+.balin .balin-vitals-grid {
+    display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+}
+.balin .balin-vital {
+    --v: var(--green);
+    position: relative; overflow: hidden; display: grid; gap: 3px; align-content: start;
+    border: 0; border-radius: 16px; padding: 11px 13px; padding-inline-start: 16px;
+    background: linear-gradient(180deg, color-mix(in srgb, var(--v) 10%, var(--surface)), var(--surface));
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--v) 24%, var(--line));
+}
+.balin .balin-vital::before {
+    content: ''; position: absolute; inset-inline-start: 0; top: 0; bottom: 0; width: 5px; background: var(--v);
+}
+.balin .balin-vital.is-high     { --v: var(--amber); }
+.balin .balin-vital.is-low      { --v: var(--blue); }
+.balin .balin-vital.is-critical { --v: var(--red); }
+.balin .balin-vital-name  { font-size: 11.5px; color: var(--ink-3); font-weight: 600; }
+.balin .balin-vital-value { font-size: 19px; font-weight: 800; letter-spacing: -.01em; }
+.balin .balin-vital-value small { font-size: 11px; font-weight: 600; color: var(--ink-3); }
+.balin .balin-flag {
+    justify-self: start; padding: 2px 9px; border-radius: 99px; font-size: 10.5px; font-weight: 800;
+    background: color-mix(in srgb, var(--v) 18%, var(--surface)); color: color-mix(in srgb, var(--v) 75%, var(--ink));
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--v) 35%, transparent);
+}
+
+.balin .balin-lab-wrap { border-radius: 14px; overflow: auto; box-shadow: inset 0 0 0 1px var(--line); }
+.balin .balin-lab-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.balin .balin-lab-table thead th {
+    position: sticky; top: 0; z-index: 1; text-align: start; white-space: nowrap;
+    padding: 10px 11px; font-size: 11.5px; font-weight: 700; color: var(--ink-2);
+    background: color-mix(in srgb, var(--tint) 10%, var(--surface));
+    border-bottom: 1px solid var(--line);
+}
+.balin .balin-lab-table td { padding: 11px; border-top: 1px solid var(--line); }
+.balin .balin-lab-table tbody tr:first-child td { border-top: 0; }
+.balin .balin-lab-table tr.is-high td,
+.balin .balin-lab-table tr.is-low td      { background: color-mix(in srgb, var(--amber) 7%, transparent); }
+.balin .balin-lab-table tr.is-critical td { background: color-mix(in srgb, var(--red) 9%, transparent); }
+.balin .balin-lab-table tr.is-high    { --v: var(--amber); }
+.balin .balin-lab-table tr.is-low     { --v: var(--blue); }
+.balin .balin-lab-table tr.is-critical { --v: var(--red); }
+
+.balin .balin-ddx { counter-reset: ddx; list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.balin .balin-ddx li {
+    counter-increment: ddx; display: grid; grid-template-columns: 28px 1fr; gap: 11px; align-items: start;
+    border-radius: 14px; padding: 10px 12px; font-size: 13.5px; line-height: 1.85;
+    background: var(--surface); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tint) 20%, var(--line));
+}
+.balin .balin-ddx li::before {
+    content: counter(ddx); grid-row: 1 / -1; width: 28px; height: 28px; border-radius: 10px;
+    display: grid; place-items: center; font-size: 12.5px; font-weight: 800; color: #fff;
+    background: linear-gradient(160deg, color-mix(in srgb, var(--tint) 75%, #fff), var(--tint));
+}
+/* The name and its one-line reason stack in the second column. */
+.balin .balin-ddx li > strong, .balin .balin-ddx li > span { grid-column: 2; align-self: center; }
+.balin .balin-ddx li span { color: var(--ink-2); }
+
+.balin .balin-refs ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 7px; }
+.balin .balin-refs li {
+    position: relative; padding: 8px 12px; padding-inline-start: 34px; border-radius: 12px; font-size: 13px;
+    background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--line); word-break: break-word;
+}
+.balin .balin-refs li::before { content: '🔗'; position: absolute; inset-inline-start: 11px; top: 8px; font-size: 13px; }
+
+/* --------------------------------------------------------- questions */
+
+.balin .balin-question {
+    position: relative; overflow: hidden; border: 0; border-radius: 24px; padding: 20px 18px 18px;
+    background: linear-gradient(180deg, color-mix(in srgb, var(--blue) 7%, var(--surface)), var(--surface) 60%);
+    box-shadow: inset 0 0 0 1px var(--line), 0 20px 42px -30px rgba(15, 23, 42, .9);
+}
+.balin .balin-question::before {
+    content: ''; position: absolute; top: 0; inset-inline: 0; height: 5px;
+    background: linear-gradient(90deg, #6366f1, #22d3ee 45%, #34d399);
+}
+.balin .balin-question.is-answered::before { background: linear-gradient(90deg, #94a3b8, #cbd5e1); }
+.balin .balin-question-head { gap: 8px; margin-bottom: 10px; }
+.balin .balin-question-tag {
+    padding: 5px 13px; border-radius: 99px; font-size: 11px; font-weight: 800; color: #fff;
+    background: linear-gradient(135deg, #6366f1, #3b82f6);
+    box-shadow: 0 6px 14px -8px rgba(59, 130, 246, .9);
+}
+.balin .balin-chip { border-radius: 99px; font-weight: 700; }
+.balin .balin-question-prompt { font-size: 16px; font-weight: 700; line-height: 2; margin-bottom: 15px; }
+
+.balin .balin-hint-box .btn {
+    border-radius: 99px; border: 1.5px dashed color-mix(in srgb, var(--amber) 55%, var(--line));
+    color: color-mix(in srgb, var(--amber) 80%, var(--ink)); background: transparent; font-weight: 700;
+}
+.balin .balin-hint-text {
+    position: relative; margin-top: 9px; padding: 11px 13px; padding-inline-start: 40px; border-radius: 14px;
+    background: color-mix(in srgb, var(--amber) 10%, var(--surface));
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--amber) 28%, var(--line));
+}
+.balin .balin-hint-text::before { content: '💡'; position: absolute; inset-inline-start: 13px; top: 11px; }
+
+.balin .balin-options { gap: 10px; }
+.balin .balin-option {
+    align-items: center; gap: 12px; padding: 13px 14px; border-radius: 18px; font-size: 14px;
+    border: 1.5px solid var(--line); background: var(--surface);
+    box-shadow: 0 4px 0 color-mix(in srgb, var(--line) 75%, transparent), 0 14px 24px -22px rgba(15, 23, 42, .9);
+    transition: transform .13s var(--ease), box-shadow .13s var(--ease), border-color .13s, background .13s;
+}
+.balin .balin-option:hover:not(:disabled) {
+    transform: translateY(-2px); border-color: color-mix(in srgb, var(--blue) 60%, var(--line));
+    background: color-mix(in srgb, var(--blue) 5%, var(--surface));
+    box-shadow: 0 6px 0 color-mix(in srgb, var(--blue) 22%, var(--line)), 0 18px 28px -22px rgba(37, 99, 235, .9);
+}
+.balin .balin-option:not(:disabled):active {
+    transform: translateY(3px); box-shadow: 0 1px 0 color-mix(in srgb, var(--line) 75%, transparent);
+}
+.balin .balin-option:focus-visible { outline: 3px solid color-mix(in srgb, var(--blue) 45%, transparent); outline-offset: 3px; }
+.balin .balin-option-label {
+    flex: 0 0 32px; width: 32px; height: 32px; border-radius: 12px; border: 0; font-size: 13px; font-weight: 800;
+    color: var(--ink-2); background: linear-gradient(160deg, color-mix(in srgb, var(--blue) 16%, var(--surface)), var(--surface-2));
+    box-shadow: inset 0 0 0 1px var(--line);
+}
+.balin .balin-option-body { font-size: 14px; line-height: 1.9; }
+
+.balin .balin-option.is-chosen {
+    border-color: var(--blue); background: color-mix(in srgb, var(--blue) 8%, var(--surface));
+    box-shadow: 0 4px 0 color-mix(in srgb, var(--blue) 30%, var(--line));
+}
+.balin .balin-option.is-correct {
+    border-color: var(--green); background: color-mix(in srgb, var(--green) 11%, var(--surface));
+    box-shadow: 0 4px 0 color-mix(in srgb, var(--green) 35%, var(--line)), 0 16px 26px -20px rgba(22, 163, 74, .9);
+    animation: balin-right .45s cubic-bezier(.2, 1.4, .4, 1);
+}
+.balin .balin-option.is-correct .balin-option-label {
+    background: linear-gradient(160deg, #4ade80, #16a34a); color: #fff; box-shadow: 0 3px 8px -4px rgba(22, 163, 74, .9);
+}
+.balin .balin-option.is-wrong {
+    border-color: var(--red); background: color-mix(in srgb, var(--red) 10%, var(--surface));
+    box-shadow: 0 4px 0 color-mix(in srgb, var(--red) 32%, var(--line));
+    animation: balin-shake .4s ease;
+}
+.balin .balin-option.is-wrong .balin-option-label {
+    background: linear-gradient(160deg, #fb7185, #e11d48); color: #fff;
+}
+.balin .balin-option.is-pending { opacity: .55; }
+@keyframes balin-right { 0% { transform: scale(1); } 45% { transform: scale(1.03); } 100% { transform: scale(1); } }
+@keyframes balin-shake {
+    20% { transform: translateX(-6px); } 45% { transform: translateX(5px); }
+    70% { transform: translateX(-3px); } 100% { transform: none; }
+}
+
+.balin .balin-feedback { margin-top: 14px; display: grid; gap: 9px; justify-items: start; }
+.balin .balin-feedback-line {
+    display: inline-flex; align-items: center; gap: 7px; margin: 0;
+    padding: 7px 15px; border-radius: 99px; font-size: 13px; font-weight: 800;
+}
+.balin .balin-feedback-line.is-correct {
+    background: color-mix(in srgb, var(--green) 14%, var(--surface));
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--green) 35%, var(--line));
+}
+.balin .balin-feedback-line.is-wrong {
+    background: color-mix(in srgb, var(--red) 12%, var(--surface));
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--red) 32%, var(--line));
+}
+.balin .balin-explanation {
+    position: relative; width: 100%; border-radius: 16px; padding: 13px 15px; padding-inline-start: 46px;
+    font-size: 13.5px; line-height: 2;
+    background: color-mix(in srgb, var(--blue) 6%, var(--surface-2));
+    box-shadow: inset 0 0 0 1px var(--line);
+}
+.balin .balin-explanation:empty { display: none; }
+.balin .balin-explanation::before {
+    content: '💡'; position: absolute; inset-inline-start: 13px; top: 12px;
+    width: 26px; height: 26px; border-radius: 9px; display: grid; place-items: center; font-size: 14px;
+    background: var(--surface); box-shadow: inset 0 0 0 1px var(--line);
+}
+
+/* ------------------------------------------------- media and the exam */
+
+.balin .balin-media img, .balin .balin-media video {
+    border: 0; border-radius: 20px; box-shadow: inset 0 0 0 1px var(--line), 0 18px 34px -26px rgba(15, 23, 42, .9);
+}
+.balin .balin-media.is-audio {
+    border-radius: 18px; padding: 12px 14px; background: var(--surface); box-shadow: inset 0 0 0 1px var(--line);
+}
+.balin .balin-transcript summary { font-weight: 700; }
+
+.balin .balin-exam-node {
+    --tint: #7c3aed;
+    align-items: center; gap: 13px; border: 0; border-radius: 20px; padding: 14px 16px; text-decoration: none;
+    background: linear-gradient(135deg, color-mix(in srgb, var(--tint) 16%, var(--surface)), color-mix(in srgb, var(--tint) 6%, var(--surface)));
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tint) 30%, var(--line)), 0 14px 28px -24px color-mix(in srgb, var(--tint) 90%, transparent);
+    transition: transform .14s var(--ease), box-shadow .14s;
+}
+.balin .balin-exam-node:hover { transform: translateY(-2px); }
+.balin .balin-exam-node.is-passed { --tint: var(--green); }
+.balin .balin-exam-mark {
+    width: 44px; height: 44px; border-radius: 15px; display: grid; place-items: center; font-size: 22px;
+    background: var(--surface); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tint) 30%, var(--line));
+}
+.balin .balin-exam-title { font-size: 14.5px; font-weight: 800; }
+.balin .balin-exam-meta  { font-size: 12px; color: var(--ink-3); }
+
+.balin .balin-waiting {
+    align-self: center; margin: 0 auto; padding: 9px 16px; border-radius: 99px; font-size: 12.5px; font-weight: 600;
+    text-align: center; color: color-mix(in srgb, var(--amber) 80%, var(--ink));
+    background: color-mix(in srgb, var(--amber) 12%, var(--surface));
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--amber) 30%, var(--line));
+}
+.balin .balin-replay-note {
+    border: 0; border-radius: 16px; padding: 11px 15px; font-size: 12.5px; margin-top: 10px;
+    background: color-mix(in srgb, var(--amber) 11%, var(--surface));
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--amber) 28%, var(--line));
+}
+.balin .balin-stage-foot { border-top: 0; }
+.balin .balin-foot-note { font-size: 12.5px; }
+
+/* --------------------------------------------- the island's own pages */
+
+.balin-hero {
+    position: relative; overflow: hidden; border: 0; border-radius: 26px; padding: 20px 18px; color: #fff;
+    background: linear-gradient(135deg, #4f46e5, #0ea5e9 70%, #06b6d4);
+    box-shadow: 0 20px 40px -26px rgba(79, 70, 229, .95);
+}
+.balin-hero::before {
+    content: ''; position: absolute; inset-inline-end: -40px; top: -60px; width: 190px; height: 190px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(255, 255, 255, .3), transparent 65%);
+}
+.balin-hero-icon {
+    width: 58px; height: 58px; border-radius: 20px; font-size: 30px; background: rgba(255, 255, 255, .2);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .35), 0 6px 0 rgba(0, 0, 0, .12);
+}
+.balin-hero-title { font-size: 18px; color: #fff; }
+.balin-hero-sub   { color: rgba(255, 255, 255, .85); }
+.balin-xpbar { height: 12px; background: rgba(0, 0, 0, .22); box-shadow: inset 0 2px 0 rgba(0, 0, 0, .15); }
+.balin-xpbar > span { background: linear-gradient(90deg, #fde047, #f59e0b); }
+.balin-xpbar-note { color: rgba(255, 255, 255, .85); }
+.balin-hero-stats > div {
+    flex: 1 1 88px; border: 0; border-radius: 16px; padding: 10px 8px; text-align: center;
+    background: rgba(255, 255, 255, .16); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .22);
+}
+.balin-hero-stats strong { color: #fff; font-size: 19px; }
+.balin-hero-stats span   { color: rgba(255, 255, 255, .82); }
+.balin-hero-links .btn {
+    border-radius: 99px; font-weight: 700; color: #fff; border: 0;
+    background: rgba(255, 255, 255, .2); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .3);
+}
+.balin-hero-links .btn:hover { background: rgba(255, 255, 255, .3); }
+
+.balin-lessons { gap: 14px; }
+.balin-lesson-card {
+    --lesson-accent: var(--blue);
+    position: relative; overflow: hidden; border: 0; border-radius: 22px; padding: 16px; gap: 14px;
+    background: var(--surface);
+    box-shadow: inset 0 0 0 1px var(--line), 0 16px 32px -28px rgba(15, 23, 42, .9);
+    transition: transform .16s var(--ease), box-shadow .16s var(--ease);
+}
+.balin-lesson-card::before {
+    content: ''; position: absolute; top: 0; inset-inline: 0; height: 4px;
+    background: linear-gradient(90deg, var(--lesson-accent), color-mix(in srgb, var(--lesson-accent) 35%, var(--surface)));
+}
+.balin-lesson-card:hover {
+    transform: translateY(-4px);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--lesson-accent) 35%, var(--line)),
+                0 24px 40px -26px color-mix(in srgb, var(--lesson-accent) 80%, transparent);
+}
+.balin-lesson-icon {
+    flex: 0 0 58px; width: 58px; height: 58px; border-radius: 20px; display: grid; place-items: center; font-size: 29px;
+    background: linear-gradient(160deg,
+        color-mix(in srgb, var(--lesson-accent) 26%, var(--surface)),
+        color-mix(in srgb, var(--lesson-accent) 8%, var(--surface)));
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--lesson-accent) 28%, var(--line));
+}
+.balin-lesson-title { font-size: 16px; }
+.balin-lesson-meta { gap: 6px; }
+.balin-lesson-meta span {
+    padding: 3px 10px; border-radius: 99px; font-size: 11.5px; font-weight: 600;
+    background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--line);
+}
+.balin-progress { height: 10px; background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--line); }
+.balin-progress > span {
+    background: linear-gradient(90deg, color-mix(in srgb, var(--lesson-accent) 55%, #fff), var(--lesson-accent));
+}
+
+.balin-complete-card {
+    position: relative; overflow: hidden; border: 0; border-radius: 28px; padding: 34px 22px 26px;
+    background: linear-gradient(180deg, color-mix(in srgb, var(--blue) 9%, var(--surface)), var(--surface) 55%);
+    box-shadow: inset 0 0 0 1px var(--line), 0 26px 50px -30px rgba(15, 23, 42, .9);
+}
+.balin-complete-card::before {
+    content: ''; position: absolute; top: -90px; left: 50%; transform: translateX(-50%);
+    width: 260px; height: 260px; border-radius: 50%;
+    background: radial-gradient(circle, color-mix(in srgb, var(--blue) 22%, transparent), transparent 65%);
+}
+.balin-complete-mark { position: relative; font-size: 52px; animation: balin-cheer .7s cubic-bezier(.2, 1.4, .4, 1); }
+@keyframes balin-cheer { from { transform: scale(.5) rotate(-12deg); opacity: 0; } to { transform: none; opacity: 1; } }
+.balin-complete-card h2 { position: relative; font-size: 21px; }
+.balin-complete-stats > div {
+    border-radius: 16px; padding: 12px 8px;
+    background: color-mix(in srgb, var(--blue) 7%, var(--surface));
+    box-shadow: inset 0 0 0 1px var(--line);
+}
+.balin-complete-stats strong { font-size: 20px; }
+.balin-complete-rank {
+    display: inline-flex; align-items: center; gap: 7px; padding: 7px 15px; border-radius: 99px;
+    background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--line);
+}
+.balin-complete-actions .btn { border-radius: 99px; font-weight: 700; }
+
+.balin-exam-intro, .balin-exam-result {
+    border: 0; border-radius: 24px; padding: 20px;
+    background: var(--surface); box-shadow: inset 0 0 0 1px var(--line), 0 20px 40px -30px rgba(15, 23, 42, .9);
+}
+.balin-exam-rules > div { border-radius: 16px; }
+
+@media (prefers-reduced-motion: reduce) {
+    .balin .balin-option, .balin .balin-option.is-correct, .balin .balin-option.is-wrong,
+    .balin-lesson-card, .balin-complete-mark { animation: none; transition: none; }
+}
+
+/* Dark mode: the tints above already follow the theme; these are the
+   few places that were mixed against white on purpose. */
+:root[data-theme="dark"] .balin .balin-avatar { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px #334155, 0 8px 16px -10px #000; }
+:root[data-theme="dark"] .balin-hero { background: linear-gradient(135deg, #3730a3, #0369a1 70%, #0e7490); }
+:root[data-theme="dark"] .balin .balin-question::before { opacity: .85; }

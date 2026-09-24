@@ -28,6 +28,13 @@
     var tool       = 'off';
     var penColor   = 'yellow';
 
+    // Pen and notes (viewer-ink.js) listen to frame messages through here.
+    var inkEnabled   = script.getAttribute('data-ink') === '1';
+    var notesEnabled = script.getAttribute('data-notes') === '1';
+    var listeners    = {};
+    var loadHooks    = [];
+    var frameLoaded  = false;
+
     try {
         var savedColor = localStorage.getItem('helexa_hl_color');
         if (savedColor) { penColor = savedColor; }
@@ -91,10 +98,12 @@
     if (frame) {
         frame.addEventListener('load', function () {
             revealFrame();
+            frameLoaded = true;
             // The frame boots in reading mode; hand it back whatever the
             // toolbar is currently set to.
             toFrame({ source: 'helexa-shell', type: 'color', color: penColor });
             toFrame({ source: 'helexa-shell', type: 'tool', tool: tool });
+            loadHooks.forEach(function (fn) { try { fn(); } catch (e) { /* one hook must not stop the rest */ } });
         });
         // If the load event never fires (blocked, cached oddly, older browser),
         // show the frame anyway rather than leaving a spinner forever.
@@ -115,6 +124,11 @@
         if (data.type === 'state' && data.contentId === contentId && data.state) {
             post('/content/' + encodeURIComponent(contentId) + '/state', { state: data.state })
                 .catch(function () { /* retried on the next change */ });
+            return;
+        }
+
+        if (data.type && listeners[data.type]) {
+            listeners[data.type].forEach(function (fn) { fn(data.payload || {}, data); });
             return;
         }
 
@@ -328,6 +342,9 @@
 
         var palette = document.querySelector('[data-palette]');
         if (palette) { palette.hidden = tool !== 'pen'; }
+        var inkPalette = document.querySelector('[data-ink-palette]');
+        if (inkPalette) { inkPalette.hidden = tool !== 'draw'; }
+        document.body.classList.toggle('is-drawing', tool === 'draw');
 
         document.body.classList.toggle('is-erasing', tool === 'eraser');
         toFrame({ source: 'helexa-shell', type: 'tool', tool: tool });
@@ -395,7 +412,7 @@
             closeDrawer();
         });
 
-        if (!hlEnabled) { return; }
+        if (!hlEnabled && !inkEnabled && !notesEnabled) { return; }
 
         document.querySelectorAll('[data-tool]').forEach(function (button) {
             button.addEventListener('click', function () {
@@ -406,7 +423,7 @@
                 // the handles, then reach for the tool. The frame answers with
                 // "applied", and only if it had nothing does this fall through
                 // to arming the tool.
-                if (selectionReady) {
+                if (selectionReady && (wanted === 'pen' || wanted === 'eraser')) {
                     toFrame({ source: 'helexa-shell', type: 'apply', tool: wanted });
                     return;
                 }
@@ -451,8 +468,20 @@
 
         setColor(penColor);
         setHistory(false, false);
-        loadHighlights();
+        if (hlEnabled) { loadHighlights(); }
     }
+
+    window.HlxViewer = {
+        contentId: contentId,
+        csrf: csrf,
+        toFrame: toFrame,
+        toast: toast,
+        closeMenu: function () { closeMenu(); },
+        tool: function () { return tool; },
+        setTool: function (next) { setTool(next); },
+        on: function (type, fn) { (listeners[type] = listeners[type] || []).push(fn); },
+        onFrameLoad: function (fn) { if (frameLoaded) { fn(); } else { loadHooks.push(fn); } }
+    };
 
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', wireChrome);

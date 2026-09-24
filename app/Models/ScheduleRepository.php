@@ -85,7 +85,7 @@ final class ScheduleRepository extends BaseRepository
 
     public function create(array $data, ?int $createdBy): int
     {
-        return $this->insert(
+        $id = $this->insert(
             'INSERT INTO schedules (title, term_id, group_id, academic_year, effective_from, effective_to, is_active, created_by, created_at)
              VALUES (:title, :term, :group, :year, :from, :to, :active, :by, :now)',
             [
@@ -100,6 +100,8 @@ final class ScheduleRepository extends BaseRepository
                 'now'    => $this->now(),
             ]
         );
+
+        return $id;
     }
 
     public function update(int $id, array $data): void
@@ -190,11 +192,141 @@ final class ScheduleRepository extends BaseRepository
         );
     }
 
+    public function updateItem(int $id, int $scheduleId, array $data): void
+    {
+        $this->execute(
+            'UPDATE schedule_items SET weekday = :weekday, start_time = :start, end_time = :end, title = :title,
+                    subject_id = :subject, course_id = :course, teacher = :teacher, location = :location, color = :color
+             WHERE id = :id AND schedule_id = :schedule',
+            [
+                'weekday'  => $data['weekday'],
+                'start'    => $data['start_time'],
+                'end'      => $data['end_time'],
+                'title'    => $data['title'],
+                'subject'  => $data['subject_id'] ?? null,
+                'course'   => $data['course_id'],
+                'teacher'  => $data['teacher'] ?: null,
+                'location' => $data['location'] ?: null,
+                'color'    => $data['color'],
+                'id'       => $id,
+                'schedule' => $scheduleId,
+            ]
+        );
+    }
+
     public function deleteItem(int $id, int $scheduleId): void
     {
         $this->execute(
             'DELETE FROM schedule_items WHERE id = :id AND schedule_id = :schedule',
             ['id' => $id, 'schedule' => $scheduleId]
         );
+    }
+
+    /* ------------------------------------------------ choosing across groups */
+
+    /** Whether the choice migration has been run. Checked once per request. */
+    public static function choiceReady(): bool
+    {
+        static $ready = null;
+        if ($ready === null) {
+            try {
+                $ready = \HeleXa\Core\Database::selectOne("SHOW TABLES LIKE 'student_schedule_picks'") !== null;
+            } catch (\PDOException) {
+                $ready = false;
+            }
+        }
+        return $ready;
+    }
+
+    /**
+     * Every live schedule of a term — the term-wide one and every group's —
+     * for a student to choose classes from. Own group first.
+     */
+    public function visibleForTerm(int $termId, ?int $groupId): array
+    {
+        return $this->select(
+            'SELECT s.*, g.title AS group_title
+             FROM schedules s
+             LEFT JOIN student_groups g ON g.id = s.group_id
+             WHERE s.term_id = :term AND s.is_active = 1
+               AND (s.effective_from IS NULL OR s.effective_from <= :today1)
+               AND (s.effective_to   IS NULL OR s.effective_to   >= :today2)
+             ORDER BY (s.group_id <=> :group2) DESC, (s.group_id IS NULL) DESC, g.sort_order, g.title, s.id',
+            [
+                'term'   => $termId,
+                'group2' => $groupId ?? 0,
+                'today1' => date('Y-m-d'),
+                'today2' => date('Y-m-d'),
+            ]
+        );
+    }
+
+    /** Items of several schedules at once, each carrying its schedule and group. */
+    public function itemsForSchedules(array $scheduleIds): array
+    {
+        $ids = array_values(array_unique(array_filter(array_map('intval', $scheduleIds))));
+        if ($ids === []) {
+            return [];
+        }
+
+        // The ids are cast to int above; an IN list cannot be bound as one value.
+        return $this->select(
+            'SELECT i.*, c.title AS course_title, c.uuid AS course_uuid,
+                    sub.title AS subject_title, sub.color AS subject_color,
+                    s.title AS schedule_title, s.group_id, g.title AS group_title
+             FROM schedule_items i
+             JOIN schedules s ON s.id = i.schedule_id
+             LEFT JOIN student_groups g ON g.id = s.group_id
+             LEFT JOIN courses c    ON c.id = i.course_id
+             LEFT JOIN subjects sub ON sub.id = i.subject_id
+             WHERE i.schedule_id IN (' . implode(',', $ids) . ')
+             ORDER BY i.weekday, i.start_time, i.id'
+        );
+    }
+
+    /** @return array<int,int> picked item id => term id */
+    public function picksFor(int $userId): array
+    {
+        $out = [];
+        foreach ($this->select(
+            'SELECT item_id, term_id FROM student_schedule_picks WHERE user_id = :u',
+            ['u' => $userId]
+        ) as $row) {
+            $out[(int) $row['item_id']] = (int) $row['term_id'];
+        }
+        return $out;
+    }
+
+    /** @param array<int,int> $itemTerms item id => term id */
+    public function replacePicks(int $userId, array $itemTerms): void
+    {
+        \HeleXa\Core\Database::transaction(function () use ($userId, $itemTerms): void {
+            $this->execute('DELETE FROM student_schedule_picks WHERE user_id = :u', ['u' => $userId]);
+            foreach ($itemTerms as $itemId => $termId) {
+                $this->execute(
+                    'INSERT IGNORE INTO student_schedule_picks (user_id, item_id, term_id, created_at)
+                     VALUES (:u, :i, :t, :now)',
+                    ['u' => $userId, 'i' => (int) $itemId, 't' => (int) $termId, 'now' => $this->now()]
+                );
+            }
+        });
+    }
+
+    /** @return array<int,int> item id => how many students picked it */
+    public function pickCounts(int $scheduleId): array
+    {
+        if (!self::choiceReady()) {
+            return [];
+        }
+        $out = [];
+        foreach ($this->select(
+            'SELECT p.item_id, COUNT(*) AS c FROM student_schedule_picks p
+             JOIN schedule_items i ON i.id = p.item_id
+             WHERE i.schedule_id = :s GROUP BY p.item_id',
+            ['s' => $scheduleId]
+        ) as $row) {
+            $out[(int) $row['item_id']] = (int) $row['c'];
+        }
+        return $out;
     }
 }

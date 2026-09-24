@@ -52,6 +52,10 @@ final class ScheduleController extends Controller
         return $this->redirect('/admin/schedule/' . $id);
     }
 
+    /**
+     * The builder: the schedule's details, its sessions by day, and the
+     * session form — which edits a session when ?edit={item} is given.
+     */
     public function show(Request $request, array $params = []): Response
     {
         $schedule = $this->find((int) ($params['id'] ?? 0));
@@ -62,6 +66,11 @@ final class ScheduleController extends Controller
             $byDay[(int) $item['weekday']][] = $item;
         }
 
+        $editItem = null;
+        if ($request->int('edit') > 0) {
+            $editItem = $this->schedules->findItem($request->int('edit'), (int) $schedule['id']);
+        }
+
         // Subjects are scoped to the schedule's major (plus general ones),
         // the same rule terms already follow.
         $termRow = \HeleXa\Core\Database::selectOne(
@@ -70,12 +79,16 @@ final class ScheduleController extends Controller
         $subjects = (new SubjectRepository())->all($termRow['major_id'] ?? null, true);
 
         return $this->page('layouts.app', 'admin.schedule.builder', [
-            'title'    => 'جلسات ' . $schedule['title'],
-            'schedule' => $schedule,
-            'byDay'    => $byDay,
-            'weekdays' => Jalali::WEEKDAYS,
-            'courses'  => (new CourseRepository())->all(),
-            'subjects' => $subjects,
+            'title'      => 'جلسات ' . $schedule['title'],
+            'schedule'   => $schedule,
+            'byDay'      => $byDay,
+            'editItem'   => $editItem,
+            'pickCounts' => $this->schedules->pickCounts((int) $schedule['id']),
+            'terms'      => $this->academic->terms(),
+            'groups'     => $this->academic->groups(),
+            'weekdays'   => Jalali::WEEKDAYS,
+            'courses'    => (new CourseRepository())->all(),
+            'subjects'   => $subjects,
         ]);
     }
 
@@ -91,7 +104,7 @@ final class ScheduleController extends Controller
 
         $this->schedules->update((int) $schedule['id'], $data);
         ActivityLogger::log('schedule.updated', Auth::id(), 'schedule', (int) $schedule['id'], [], 'notice', $request);
-        $this->flash('success', 'برنامه به‌روزرسانی شد.');
+        $this->flash('success', 'مشخصات برنامه به‌روزرسانی شد.');
 
         return $this->redirect('/admin/schedule/' . $schedule['id']);
     }
@@ -110,46 +123,44 @@ final class ScheduleController extends Controller
     public function storeItem(Request $request, array $params = []): Response
     {
         $schedule = $this->find((int) ($params['id'] ?? 0));
+        $back     = '/admin/schedule/' . $schedule['id'];
 
-        $weekday = $request->int('weekday');
-        $start   = $this->time($request->string('start_time'));
-        $end     = $this->time($request->string('end_time'));
-        $title   = $request->string('title');
-
-        if ($weekday < 0 || $weekday > 6 || $start === null || $end === null || $title === '') {
-            $this->flash('error', 'روز، ساعت شروع، ساعت پایان و عنوان الزامی هستند.');
-            return $this->redirect('/admin/schedule/' . $schedule['id']);
-        }
-        if ($start >= $end) {
-            $this->flash('error', 'ساعت پایان باید بعد از ساعت شروع باشد.');
-            return $this->redirect('/admin/schedule/' . $schedule['id']);
+        $data = $this->itemData($request);
+        if (is_string($data)) {
+            $this->flash('error', $data);
+            return $this->redirect($back);
         }
 
-        // Independent of each other by design: a class period may name a
-        // subject, link to LMS content, both, or neither.
-        $courseId = $request->int('course_id') ?: null;
-        if ($courseId !== null && (new CourseRepository())->findById($courseId) === null) {
-            $courseId = null;
-        }
-        $subjectId = $request->int('subject_id') ?: null;
-        if ($subjectId !== null && (new SubjectRepository())->find($subjectId) === null) {
-            $subjectId = null;
-        }
-
-        $this->schedules->addItem((int) $schedule['id'], [
-            'weekday'    => $weekday,
-            'start_time' => $start,
-            'end_time'   => $end,
-            'title'      => $title,
-            'subject_id' => $subjectId,
-            'course_id'  => $courseId,
-            'teacher'    => $request->string('teacher'),
-            'location'   => $request->string('location'),
-            'color'      => preg_match('/^#[0-9a-fA-F]{6}$/', $request->string('color')) === 1 ? $request->string('color') : null,
-        ]);
-
+        $this->schedules->addItem((int) $schedule['id'], $data);
         $this->flash('success', 'جلسه اضافه شد.');
-        return $this->redirect('/admin/schedule/' . $schedule['id']);
+
+        return $this->redirect($back);
+    }
+
+    public function updateItem(Request $request, array $params = []): Response
+    {
+        $schedule = $this->find((int) ($params['id'] ?? 0));
+        $itemId   = (int) ($params['item'] ?? 0);
+        $back     = '/admin/schedule/' . $schedule['id'];
+
+        $current = $this->schedules->findItem($itemId, (int) $schedule['id']);
+        if ($current === null) {
+            throw HttpException::notFound('جلسه یافت نشد.');
+        }
+
+        $data = $this->itemData($request);
+        if (is_string($data)) {
+            $this->flash('error', $data);
+            return $this->redirect($back . '?edit=' . $itemId);
+        }
+        // The form has no colour field; an existing colour is kept.
+        $data['color'] ??= $current['color'];
+
+        $this->schedules->updateItem($itemId, (int) $schedule['id'], $data);
+        ActivityLogger::log('schedule.item_updated', Auth::id(), 'schedule', (int) $schedule['id'], ['item' => $itemId], 'info', $request);
+        $this->flash('success', 'جلسه ویرایش شد.');
+
+        return $this->redirect($back);
     }
 
     public function destroyItem(Request $request, array $params = []): Response
@@ -175,6 +186,45 @@ final class ScheduleController extends Controller
         return $schedule;
     }
 
+    /** @return array<string,mixed>|string the session's fields, or what is wrong */
+    private function itemData(Request $request): array|string
+    {
+        $weekday = $request->int('weekday');
+        $start   = $this->time($request->string('start_time'));
+        $end     = $this->time($request->string('end_time'));
+        $title   = mb_substr($request->string('title'), 0, 191);
+
+        if ($weekday < 0 || $weekday > 6 || $start === null || $end === null || $title === '') {
+            return 'روز، ساعت شروع، ساعت پایان و عنوان الزامی هستند.';
+        }
+        if ($start >= $end) {
+            return 'ساعت پایان باید بعد از ساعت شروع باشد.';
+        }
+
+        // Independent of each other by design: a class period may name a
+        // subject, link to LMS content, both, or neither.
+        $courseId = $request->int('course_id') ?: null;
+        if ($courseId !== null && (new CourseRepository())->findById($courseId) === null) {
+            $courseId = null;
+        }
+        $subjectId = $request->int('subject_id') ?: null;
+        if ($subjectId !== null && (new SubjectRepository())->find($subjectId) === null) {
+            $subjectId = null;
+        }
+
+        return [
+            'weekday'    => $weekday,
+            'start_time' => $start,
+            'end_time'   => $end,
+            'title'      => $title,
+            'subject_id' => $subjectId,
+            'course_id'  => $courseId,
+            'teacher'    => mb_substr($request->string('teacher'), 0, 191),
+            'location'   => mb_substr($request->string('location'), 0, 191),
+            'color'      => preg_match('/^#[0-9a-fA-F]{6}$/', $request->string('color')) === 1 ? $request->string('color') : null,
+        ];
+    }
+
     private function collect(Request $request): array
     {
         $termId  = $request->int('term_id') ?: null;
@@ -197,6 +247,7 @@ final class ScheduleController extends Controller
 
     private function date(string $value): ?string
     {
+        $value = Jalali::toLatinDigits($value);
         return preg_match('/^\d{4}-\d{2}-\d{2}$/', $value) === 1 ? $value : null;
     }
 

@@ -1,4 +1,60 @@
-<div class="grid grid-2">
+<?php if (!empty($tier)): ?>
+    <div style="margin-bottom:16px;">
+        <?php \HeleXa\Core\View::partial('partials.tier_card', ['tier' => $tier, 'self' => true]); ?>
+    </div>
+<?php endif; ?>
+<?php if (!empty($levelCard)): ?>
+    <div style="margin-bottom:16px;">
+        <?php \HeleXa\Core\View::partial('partials.level_card', ['card' => $levelCard]); ?>
+    </div>
+<?php endif; ?>
+<?php if (!empty($classPlan)): ?>
+    <section class="card" id="classes" style="margin-bottom:16px;">
+        <div class="card-head">
+            <div>
+                <h3 class="card-title" style="margin:0;">🗓 درس‌های اخذشده</h3>
+                <div class="muted" style="font-size:12.5px;">
+                    <?= $classPlan['custom']
+                        ? 'فقط همین کلاس‌ها در تقویم و داشبورد شما می‌آیند. برنامه کامل همه گروه‌ها در «برنامه هفتگی» هست.'
+                        : 'هنوز درسی انتخاب نکرده‌اید. از فهرست زیر، هر درسی را که دارید از همان گروه و ترمش تیک بزنید.' ?>
+                </div>
+            </div>
+            <a class="btn btn-ghost btn-sm" href="/student/calendar?tab=classes">برنامه هفتگی همه گروه‌ها</a>
+        </div>
+
+        <?php if ($classPlan['custom'] && $classPlan['week'] !== []): ?>
+            <div class="class-plan">
+                <?php foreach ($classPlan['week'] as $day => $items): ?>
+                    <div class="class-plan-day">
+                        <b><?= e($classPlan['weekdays'][$day] ?? '') ?></b>
+                        <div class="class-plan-list">
+                            <?php foreach ($items as $item): ?>
+                                <div class="class-plan-item">
+                                    <strong><?= e($item['title']) ?></strong>
+                                    <?php if (!empty($item['group_title'])): ?><span class="stat-chip chip-purple"><?= e($item['group_title']) ?></span><?php endif; ?>
+                                    <span class="stat-chip chip-gray"><?= e($item['term_title'] ?? '') ?></span>
+                                    <span class="muted" dir="ltr"><?= e(fa(substr((string) $item['start_time'], 0, 5))) ?>–<?= e(fa(substr((string) $item['end_time'], 0, 5))) ?></span>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+        <?php endif; ?>
+
+        <details class="class-picker-box"<?= $classPlan['custom'] ? '' : ' open' ?>>
+            <summary><?= $classPlan['custom'] ? '✏️ ویرایش درس‌های اخذشده' : '✅ انتخاب درس‌های اخذشده' ?></summary>
+            <?php \HeleXa\Core\View::partial('partials.class_picker', [
+                'choices'  => $classPlan['choices'],
+                'weekdays' => $classPlan['weekdays'],
+                'custom'   => $classPlan['custom'],
+                'action'   => '/account/profile',
+                'hidden'   => ['section' => 'classes'],
+                'token'    => $csrf_token,
+            ]); ?>
+        </details>
+    </section>
+<?php endif; ?><div class="grid grid-2">
     <div class="card">
         <h3 class="card-title">اطلاعات شخصی</h3>
 

@@ -8,6 +8,20 @@ final class Response
     private string $body = '';
     private int $status = 200;
     private array $headers = [];
+    /** @var (callable():void)|null writes the body itself, for large files */
+    private $writer = null;
+
+    /**
+     * A response whose body is written by a callback when it is sent, so a
+     * large file is copied to the client in chunks instead of being held in
+     * memory as a string.
+     */
+    public static function streamed(callable $writer, int $status = 200, array $headers = []): self
+    {
+        $response = self::make('', $status, $headers);
+        $response->writer = $writer;
+        return $response;
+    }
 
     public static function make(string $body = '', int $status = 200, array $headers = []): self
     {
@@ -59,6 +73,10 @@ final class Response
             foreach ($this->headers as $name => $value) {
                 header($name . ': ' . $value, true);
             }
+        }
+        if ($this->writer !== null) {
+            ($this->writer)();
+            return;
         }
         echo $this->body;
     }

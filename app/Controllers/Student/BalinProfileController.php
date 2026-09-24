@@ -28,6 +28,7 @@ final class BalinProfileController extends Controller
         $userId = (int) Auth::id();
 
         return $this->page('layouts.app', 'student.balin.profile', [
+            'balinGame' => true,
             'title'       => 'پروفایل بالینی من',
             'profile'     => (new ProfileService())->forStudent($userId),
             'competition' => (new CompetitionService())->currentOrFallback(),
@@ -43,6 +44,23 @@ final class BalinProfileController extends Controller
     public function leaderboard(Request $request, array $params = []): Response
     {
         $userId = (int) Auth::id();
+
+        // The ranking section follows the switch on «مرور جزیره»: switched off
+        // it does not exist for students; on "own rank" they see only their
+        // own standing — never another student.
+        $mode = \HeleXa\Services\Balin\MyRank::mode();
+        if ($mode === 'off') {
+            $this->flash('error', 'بخش رتبه‌بندی جزیره فعلاً فعال نیست.');
+            return $this->redirect('/student/balin');
+        }
+        if ($mode === 'self') {
+            return $this->page('layouts.app', 'student.balin.myrank', [
+                'balinGame' => true,
+                'title'     => 'رتبه من',
+                'rank'      => \HeleXa\Services\Balin\MyRank::forStudent($userId),
+            ]);
+        }
+
         $boards = new LeaderboardService();
         $boards->rebuildIfStale();
 
@@ -66,6 +84,7 @@ final class BalinProfileController extends Controller
         }
 
         return $this->page('layouts.app', 'student.balin.leaderboard', [
+            'balinGame' => true,
             'title'       => 'جدول رتبه‌بندی',
             'board'       => $type,
             'scope'       => $scopeId,

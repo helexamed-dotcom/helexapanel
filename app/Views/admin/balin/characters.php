@@ -12,7 +12,8 @@ $typeNames = ['teacher' => 'استاد', 'student' => 'دانشجو', 'doctor' =
 
     <p style="color:var(--ink-3); font-size:12.5px; margin:-8px 0 14px;">
         این‌ها موجودیت آموزشی‌اند، نه حساب کاربری واقعی. استاد به‌صورت پیش‌فرض سمت راست و
-        دانشجوها سمت چپ نمایش داده می‌شوند.
+        دانشجوها سمت چپ نمایش داده می‌شوند. برای هر شخصیت می‌توانید عکس بگذارید؛ عکس مربعی (حداقل ۲۰۰×۲۰۰) در گفت‌وگو
+        به‌صورت دایره‌ای نمایش داده می‌شود. بدون عکس، اموجی شخصیت نشان داده می‌شود.
     </p>
 
     <?php if ($characters === []): ?>
@@ -71,8 +72,13 @@ $typeNames = ['teacher' => 'استاد', 'student' => 'دانشجو', 'doctor' =
                                 <input type="text" name="color" maxlength="16" value="<?= e((string) $character['color']) ?>"></label>
                             <label class="field"><span>ترتیب</span>
                                 <input type="number" name="display_order" min="1" max="999" value="<?= (int) $character['display_order'] ?>"></label>
-                            <label class="field"><span>آیکون SVG</span>
-                                <input type="file" name="svg" accept="image/svg+xml,image/png,image/webp"></label>
+                            <label class="field"><span>عکس شخصیت (PNG، JPG، WEBP یا SVG)</span>
+                                <input type="file" name="svg" accept="image/png,image/jpeg,image/webp,image/svg+xml"></label>
+                            <?php if ($character['svg_path']): ?>
+                                <label class="field check">
+                                    <input type="checkbox" name="remove_image" value="1">
+                                    <span>حذف عکس و نمایش اموجی</span></label>
+                            <?php endif; ?>
                             <label class="field check">
                                 <input type="checkbox" name="is_active" value="1" <?= (int) $character['is_active'] === 1 ? 'checked' : '' ?>>
                                 <span>فعال</span></label>
@@ -112,7 +118,7 @@ $typeNames = ['teacher' => 'استاد', 'student' => 'دانشجو', 'doctor' =
         <label class="field"><span>آیکون (اموجی)</span><input type="text" name="icon" maxlength="8" placeholder="🧑‍⚕️"></label>
         <label class="field"><span>رنگ</span><input type="text" name="color" maxlength="16" placeholder="#2563eb"></label>
         <label class="field"><span>ترتیب</span><input type="number" name="display_order" min="1" max="999" value="100"></label>
-        <label class="field"><span>آیکون SVG</span><input type="file" name="svg" accept="image/svg+xml,image/png,image/webp"></label>
+        <label class="field"><span>عکس شخصیت (PNG، JPG، WEBP یا SVG)</span><input type="file" name="svg" accept="image/png,image/jpeg,image/webp,image/svg+xml"></label>
         <label class="field check"><input type="checkbox" name="is_active" value="1" checked><span>فعال</span></label>
         <div class="form-actions span-2"><button class="btn btn-primary" type="submit">افزودن شخصیت</button></div>
     </form>

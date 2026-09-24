@@ -43,6 +43,36 @@ final class EnrollmentRepository extends BaseRepository
         );
     }
 
+    /**
+     * Every enrolment a student has, in any state, for the admin's view of
+     * that student. is_live says whether it opens content right now — an
+     * "active" row whose window has closed does not.
+     */
+    public function allForStudent(int $userId): array
+    {
+        return $this->select(
+            'SELECT sc.*, c.uuid AS course_uuid, c.title AS course_title, c.status AS course_status,
+                    (sc.status = \'active\'
+                      AND (sc.starts_at IS NULL OR sc.starts_at <= :now1)
+                      AND (sc.ends_at   IS NULL OR sc.ends_at   >= :now2)) AS is_live
+             FROM student_courses sc
+             JOIN courses c ON c.id = sc.course_id AND c.deleted_at IS NULL
+             WHERE sc.user_id = :user
+             ORDER BY c.sort_order, c.title',
+            ['user' => $userId, 'now1' => $this->now(), 'now2' => $this->now()]
+        );
+    }
+
+    /** Changes one enrolment's status and leaves its dates alone. */
+    public function setStatus(int $userId, int $courseId, string $status): int
+    {
+        return $this->execute(
+            'UPDATE student_courses SET status = :status, updated_at = :now
+              WHERE user_id = :user AND course_id = :course',
+            ['status' => $status, 'now' => $this->now(), 'user' => $userId, 'course' => $courseId]
+        );
+    }
+
     public function forCourse(int $courseId): array
     {
         return $this->select(

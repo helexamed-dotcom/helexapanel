@@ -62,6 +62,7 @@ final class CourseController extends Controller
 
         $id = $this->courses->create($data + ['uuid' => Str::uuid4(), 'created_by' => Auth::id()]);
         ActivityLogger::log('course.created', Auth::id(), 'course', $id, ['title' => $data['title']], 'notice', $request);
+        \HeleXa\Services\PackageAccess::contentAdded('course', $id, Auth::id());
         $this->flash('success', 'دوره ساخته شد. حالا ساختار درختی و محتوا را اضافه کنید.');
 
         return $this->redirect('/admin/courses');
@@ -92,6 +93,12 @@ final class CourseController extends Controller
 
         $this->courses->update((int) $course['id'], $data);
         ActivityLogger::log('course.updated', Auth::id(), 'course', (int) $course['id'], [], 'notice', $request);
+
+        // Students assigned while the course was still a draft could not
+        // open it; they hear about it once, when it opens.
+        if (($data['status'] ?? '') === 'published' && $course['status'] !== 'published') {
+            \HeleXa\Services\NotificationService::coursePublished(['title' => $data['title']] + $course, Auth::id());
+        }
         $this->flash('success', 'دوره به‌روزرسانی شد.');
 
         return $this->redirect('/admin/courses');

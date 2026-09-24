@@ -13,6 +13,14 @@ if (!function_exists('e')) {
     }
 }
 
+if (!function_exists('t')) {
+    /** Interface string in the user's language; the Persian text is the key. */
+    function t(string $fa): string
+    {
+        return \HeleXa\Services\I18n::t($fa);
+    }
+}
+
 if (!function_exists('can')) {
     function can(string $permission): bool
     {

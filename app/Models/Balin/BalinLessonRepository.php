@@ -29,6 +29,22 @@ final class BalinLessonRepository extends BaseRepository
         );
     }
 
+    /**
+     * A lesson is open to a student when it is published and either
+     *   - access_mode = 'open'    and no admin closed it for them, or
+     *   - access_mode = 'granted' and they were given it.
+     *
+     * New lessons are created as 'granted', so nothing reaches a student until
+     * someone says so; the lessons that existed before this rule stay 'open'.
+     */
+    private const OPEN_TO_STUDENT =
+        "((l.access_mode = 'open'
+            AND NOT EXISTS (SELECT 1 FROM balin_lesson_blocks b
+                             WHERE b.lesson_id = l.id AND b.user_id = %s))
+          OR (l.access_mode = 'granted'
+            AND EXISTS (SELECT 1 FROM balin_lesson_grants g
+                         WHERE g.lesson_id = l.id AND g.user_id = %s)))";
+
     /** Student listing: published lessons only, with this student's progress. */
     public function publishedForStudent(int $userId): array
     {
@@ -48,9 +64,150 @@ final class BalinLessonRepository extends BaseRepository
                                WHERE m.lesson_id = l.id AND m.user_id = :mastery_user), 0) AS mastery_percent
              FROM balin_lessons l
              WHERE l.status = 'published'
+               AND " . sprintf(self::OPEN_TO_STUDENT, ':block_user', ':grant_user') . "
              ORDER BY l.display_order, l.id",
-            ['progress_user' => $userId, 'mastery_user' => $userId]
+            ['progress_user' => $userId, 'mastery_user' => $userId,
+             'block_user'    => $userId, 'grant_user'  => $userId]
         );
+    }
+
+    /**
+     * Whether an admin has closed this lesson for this one student.
+     *
+     * Checked by every student route that serves a lesson, a stage or an
+     * exam, not only by the island listing — a hidden card is not a closed
+     * door.
+     */
+    public function isBlockedFor(int $userId, int $lessonId): bool
+    {
+        // "Blocked" now means "not open to them", whichever of the two ways a
+        // lesson is governed: every route that guards a lesson asks this one
+        // question, so both rules have to live behind it.
+        return $this->selectOne(
+            'SELECT 1 FROM balin_lessons l
+             WHERE l.id = :lesson AND ' . sprintf(self::OPEN_TO_STUDENT, ':block_user', ':grant_user') . ' LIMIT 1',
+            ['lesson' => $lessonId, 'block_user' => $userId, 'grant_user' => $userId]
+        ) === null;
+    }
+
+    /** @return array<int,int> lesson ids closed for this student */
+    public function blockedIdsFor(int $userId): array
+    {
+        $rows = $this->select('SELECT lesson_id FROM balin_lesson_blocks WHERE user_id = :u', ['u' => $userId]);
+        return array_map(static fn (array $r): int => (int) $r['lesson_id'], $rows);
+    }
+
+    /* ------------------------------------------------- per-student access */
+
+    /** @return array<int,int> lesson ids this student was granted one by one */
+    public function grantedIdsFor(int $userId): array
+    {
+        $rows = $this->select('SELECT lesson_id FROM balin_lesson_grants WHERE user_id = :u', ['u' => $userId]);
+        return array_map(static fn (array $r): int => (int) $r['lesson_id'], $rows);
+    }
+
+    /** @return array<int,int> every lesson id, published or not, this student may open */
+    public function openIdsFor(int $userId): array
+    {
+        $rows = $this->select(
+            'SELECT l.id FROM balin_lessons l
+             WHERE ' . sprintf(self::OPEN_TO_STUDENT, ':block_user', ':grant_user'),
+            ['block_user' => $userId, 'grant_user' => $userId]
+        );
+        return array_map(static fn (array $r): int => (int) $r['id'], $rows);
+    }
+
+    /**
+     * Writes the set of lessons a student may open, whichever rule each one
+     * follows: an 'open' lesson is closed by adding a block, a 'granted' one
+     * is opened by adding a grant. The admin ticks one box either way.
+     *
+     * @param array<int,int> $openIds
+     */
+    public function setOpenLessons(int $userId, array $openIds, ?int $adminId): void
+    {
+        $wanted = array_values(array_unique(array_map('intval', $openIds)));
+        $modes  = $this->select('SELECT id, access_mode FROM balin_lessons');
+
+        $blocks = [];
+        $grants = [];
+        foreach ($modes as $row) {
+            $id   = (int) $row['id'];
+            $open = in_array($id, $wanted, true);
+            if ((string) $row['access_mode'] === 'granted') {
+                if ($open) {
+                    $grants[] = $id;
+                }
+            } elseif (!$open) {
+                $blocks[] = $id;
+            }
+        }
+
+        $this->syncBlocks($userId, $blocks, $adminId);
+        $this->syncGrants($userId, $grants, $adminId);
+    }
+
+    /** @param array<int,int> $lessonIds replaces this student's one-by-one grants */
+    public function syncGrants(int $userId, array $lessonIds, ?int $adminId): void
+    {
+        $wanted  = array_values(array_unique(array_map('intval', $lessonIds)));
+        $current = $this->grantedIdsFor($userId);
+
+        $this->grant($userId, array_diff($wanted, $current), $adminId);
+        foreach (array_diff($current, $wanted) as $lessonId) {
+            $this->execute('DELETE FROM balin_lesson_grants WHERE user_id = :u AND lesson_id = :l',
+                ['u' => $userId, 'l' => $lessonId]);
+        }
+    }
+
+    /**
+     * Adds grants without taking any away — what a package activation does.
+     *
+     * @param iterable<int> $lessonIds
+     */
+    public function grant(int $userId, iterable $lessonIds, ?int $adminId): int
+    {
+        $added = 0;
+        foreach ($lessonIds as $lessonId) {
+            $added += $this->execute(
+                'INSERT IGNORE INTO balin_lesson_grants (user_id, lesson_id, granted_by, created_at)
+                 VALUES (:u, :l, :a, :now)',
+                ['u' => $userId, 'l' => (int) $lessonId, 'a' => $adminId, 'now' => $this->now()]
+            );
+        }
+        return $added;
+    }
+
+    /** @param iterable<int> $lessonIds */
+    public function revokeGrants(int $userId, iterable $lessonIds): void
+    {
+        foreach ($lessonIds as $lessonId) {
+            $this->execute('DELETE FROM balin_lesson_grants WHERE user_id = :u AND lesson_id = :l',
+                ['u' => $userId, 'l' => (int) $lessonId]);
+        }
+    }
+
+    /**
+     * Replaces the set of lessons closed for a student.
+     *
+     * @param array<int,int> $lessonIds
+     */
+    public function syncBlocks(int $userId, array $lessonIds, ?int $adminId): void
+    {
+        $wanted  = array_values(array_unique(array_map('intval', $lessonIds)));
+        $current = $this->blockedIdsFor($userId);
+
+        foreach (array_diff($wanted, $current) as $lessonId) {
+            $this->execute(
+                'INSERT IGNORE INTO balin_lesson_blocks (user_id, lesson_id, blocked_by, created_at)
+                 VALUES (:u, :l, :a, :now)',
+                ['u' => $userId, 'l' => $lessonId, 'a' => $adminId, 'now' => $this->now()]
+            );
+        }
+        foreach (array_diff($current, $wanted) as $lessonId) {
+            $this->execute('DELETE FROM balin_lesson_blocks WHERE user_id = :u AND lesson_id = :l',
+                ['u' => $userId, 'l' => $lessonId]);
+        }
     }
 
     public function findByUuid(string $uuid): ?array
@@ -78,11 +235,14 @@ final class BalinLessonRepository extends BaseRepository
     {
         return $this->insert(
             'INSERT INTO balin_lessons
-                (uuid, slug, title, description, cover_path, icon, color, display_order, status,
+                (uuid, slug, title, description, cover_path, icon, color, display_order, status, access_mode,
                  estimated_minutes, xp_reward, extra_notes, created_by, created_at)
-             VALUES (:uuid, :slug, :title, :description, :cover, :icon, :color, :order, :status,
+             VALUES (:uuid, :slug, :title, :description, :cover, :icon, :color, :order, :status, :access,
                      :minutes, :xp, :notes, :by, :now)',
             [
+                // A new lesson reaches nobody until it is given out, however
+                // it was made — the builder, an import, anything.
+                'access'      => ($data['access_mode'] ?? '') === 'open' ? 'open' : 'granted',
                 'uuid'        => $data['uuid'],
                 'slug'        => $data['slug'],
                 'title'       => $data['title'],
@@ -112,10 +272,11 @@ final class BalinLessonRepository extends BaseRepository
             'UPDATE balin_lessons
              SET slug = :slug, title = :title, description = :description, cover_path = :cover,
                  icon = :icon, color = :color, estimated_minutes = :minutes, xp_reward = :xp,
-                 extra_notes = :notes, display_order = :order,
+                 extra_notes = :notes, display_order = :order, access_mode = :access,
                  version = version + 1, content_version = content_version + 1, updated_at = :now
              WHERE id = :id AND version = :version',
             [
+                'access'      => ($data['access_mode'] ?? '') === 'open' ? 'open' : 'granted',
                 'slug'        => $data['slug'],
                 'title'       => $data['title'],
                 'description' => $data['description'] ?? null,

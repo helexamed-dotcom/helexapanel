@@ -53,6 +53,10 @@ final class DashboardController extends Controller
                 'no_competition'   => BalinSettings::noCompetitionMode(),
                 'weights'          => BalinSettings::difficultyWeights(),
             ],
+            'avatars'    => [
+                'male'   => BalinSettings::avatarFor('male'),
+                'female' => BalinSettings::avatarFor('female'),
+            ],
         ]);
     }
 
@@ -143,6 +147,65 @@ final class DashboardController extends Controller
     }
 
     /** Rebuilds the leaderboards on demand. */
+    /**
+     * The player's token on the lesson maps: one image for male students and
+     * one for female students. Public images, so they go through the shared
+     * asset storage, which parses the bytes and sanitises SVG.
+     */
+    /**
+     * The ranking section, on «مرور جزیره»: off (gone for students), own rank
+     * only, or the full public leaderboard.
+     */
+    public function saveRanking(Request $request, array $params = []): Response
+    {
+        $mode = $request->string('ranking_mode');
+        if (!in_array($mode, \HeleXa\Services\Balin\MyRank::MODES, true)) {
+            $mode = 'self';
+        }
+        $this->settings->set('balin_ranking_mode', $mode, 'string');
+        \HeleXa\Services\Settings::flush();
+
+        \HeleXa\Services\ActivityLogger::log('balin.ranking_mode', \HeleXa\Services\Auth::id(), 'settings', null,
+            ['mode' => $mode], 'notice', $request);
+        $this->flash('success', [
+            'off'    => 'بخش رتبه‌بندی برای دانشجویان کاملاً غیرفعال شد.',
+            'self'   => 'دانشجویان فقط رتبه خودشان را می‌بینند.',
+            'public' => 'جدول رتبه‌بندی عمومی فعال شد.',
+        ][$mode]);
+
+        return $this->redirect('/admin/balin#ranking');
+    }
+
+    public function saveAvatars(Request $request, array $params = []): Response
+    {
+        foreach (['male', 'female'] as $gender) {
+            $key = 'balin_avatar_' . $gender;
+
+            if ($request->bool('remove_' . $gender)) {
+                $this->settings->set($key, '', 'string');
+                continue;
+            }
+
+            $file = $request->file('avatar_' . $gender);
+            if ($file === null || (int) ($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
+                continue;
+            }
+            try {
+                $path = \HeleXa\Services\ImageAssetStorage::storeUploaded($file, 'balin');
+                $this->settings->set($key, $path, 'string');
+            } catch (\Throwable $e) {
+                $this->flash('error', 'آپلود آواتار ناموفق بود: ' . $e->getMessage());
+                return $this->redirect('/admin/balin#avatars');
+            }
+        }
+
+        Settings::flush();
+        ActivityLogger::log('balin.avatars.updated', Auth::id(), 'setting', null, [], 'notice', $request);
+        $this->flash('success', 'آواتار بازیکن ذخیره شد.');
+
+        return $this->redirect('/admin/balin#avatars');
+    }
+
     public function rebuildBoards(Request $request, array $params = []): Response
     {
         $written = (new LeaderboardService())->rebuildAll();

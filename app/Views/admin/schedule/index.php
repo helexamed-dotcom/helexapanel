@@ -1,12 +1,20 @@
+<?php
+/**
+ * @var array $schedules
+ * @var array $terms
+ * @var array $groups
+ */
+?>
 <div class="card">
     <h3 class="card-title">ساخت برنامه هفتگی</h3>
-    <p style="color:var(--ink-3); font-size:12.5px; margin:-8px 0 14px;">
-        هر برنامه به یک ترم تعلق دارد. اگر گروه را خالی بگذارید، برنامه برای کل ترم اعمال می‌شود؛
-        اگر گروه مشخص کنید، برای آن گروه بر برنامه‌ی کل ترم اولویت دارد.
+    <p style="color:var(--ink-3); font-size:12.5px; margin:-8px 0 14px; line-height:2;">
+        هر برنامه به یک ترم تعلق دارد. اگر گروه را خالی بگذارید، برنامه برای کل ترم است؛ اگر گروه مشخص کنید،
+        برنامه همان گروه است. دانشجو برنامه <strong>همه گروه‌های</strong> ترم‌هایی که در آن‌ها ثبت شده را می‌بیند و
+        از پروفایلش مشخص می‌کند هر درس را از کدام گروه برداشته؛ تا وقتی انتخاب نکرده، برنامه گروه خودش نمایش داده می‌شود.
     </p>
     <form method="post" action="/admin/schedule" class="filters">
         <input type="hidden" name="_token" value="<?= e($csrf_token) ?>">
-        <input class="input" name="title" placeholder="عنوان، مثلاً برنامه ترم ۵" required>
+        <input class="input" name="title" placeholder="عنوان، مثلاً برنامه ترم ۵ — گروه ۲۳" required>
         <select class="input" name="term_id" required>
             <option value="">ترم</option>
             <?php foreach ($terms as $term): ?>
@@ -35,9 +43,9 @@
                 <tbody>
                 <?php foreach ($schedules as $row): ?>
                     <tr>
-                        <td><?= e($row['title']) ?></td>
+                        <td><a href="/admin/schedule/<?= (int) $row['id'] ?>"><?= e($row['title']) ?></a></td>
                         <td><?= e($row['term_title']) ?><?= $row['group_title'] ? ' / ' . e($row['group_title']) : ' / کل ترم' ?></td>
-                        <td><?= e($row['academic_year'] ?? '—') ?></td>
+                        <td><?= e($row['academic_year'] ? fa((string) $row['academic_year']) : '—') ?></td>
                         <td><?= e(fa((string) $row['item_count'])) ?></td>
                         <td>
                             <span class="stat-chip <?= (int) $row['is_active'] === 1 ? 'chip-green' : 'chip-gray' ?>">
@@ -45,9 +53,9 @@
                             </span>
                         </td>
                         <td class="row-actions">
-                            <a class="btn btn-primary btn-sm" href="/admin/schedule/<?= (int) $row['id'] ?>">جلسات</a>
+                            <a class="btn btn-primary btn-sm" href="/admin/schedule/<?= (int) $row['id'] ?>">ویرایش و جلسات</a>
                             <form method="post" action="/admin/schedule/<?= (int) $row['id'] ?>/delete"
-                                  data-confirm="این برنامه و همه جلساتش حذف شود؟">
+                                  data-confirm="این برنامه و همه جلساتش حذف شود؟ انتخاب دانشجویان از این برنامه هم پاک می‌شود.">
                                 <input type="hidden" name="_token" value="<?= e($csrf_token) ?>">
                                 <button class="btn btn-danger btn-sm" type="submit">حذف</button>
                             </form>

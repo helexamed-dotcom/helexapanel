@@ -22,13 +22,15 @@
     </script>
     <link rel="stylesheet" href="<?= asset('/assets/css/app.css') ?>">
     <link rel="stylesheet" href="<?= asset('/assets/css/pwa.css') ?>">
+    <link rel="stylesheet" href="<?= asset('/assets/css/suite.css') ?>">
     <meta name="theme-color" content="#00694F">
 </head>
 <body>
 <div class="auth-wrap">
     <?= $content ?? '' ?>
 </div>
+<?php /* app.js carries the theme toggle the card uses. auth.js is gone: every
+         line of it drove the texted-code tabs and the OTP conversation. */ ?>
 <script src="<?= asset('/assets/js/app.js') ?>" nonce="<?= e($cspNonce ?? '') ?>"></script>
-<script src="<?= asset('/assets/js/auth.js') ?>" nonce="<?= e($cspNonce ?? '') ?>"></script>
 </body>
 </html>

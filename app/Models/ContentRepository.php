@@ -15,6 +15,68 @@ final class ContentRepository extends BaseRepository
         );
     }
 
+    /**
+     * Every lesson in the system, newest first, with the course and section it
+     * sits under — the cross-course view the admin sidebar's "محتوای آموزشی"
+     * entry needs, which no query answered before.
+     *
+     * The filters are applied in SQL rather than by loading everything and
+     * sifting in PHP, because this list grows with the whole site, not with
+     * one course.
+     *
+     * @param  array{q?:string, course_id?:int, type?:string, status?:string} $filters
+     * @return array<int,array<string,mixed>>
+     */
+    public function searchAll(array $filters = [], int $limit = 200): array
+    {
+        $limit  = max(1, min($limit, 500));
+        $where  = ['cc.deleted_at IS NULL', 'c.deleted_at IS NULL'];
+        $params = [];
+
+        $term = trim((string) ($filters['q'] ?? ''));
+        if ($term !== '') {
+            // LIKE with both wildcards cannot use an index, but this table is
+            // administrative and bounded by the limit above; a FULLTEXT index
+            // would be the answer if it ever stops being.
+            // Three distinct placeholders for one value: the connection runs
+            // with native prepares, and MySQL refuses a named placeholder that
+            // appears twice in the same statement.
+            $like    = '%' . str_replace(['%', '_'], ['\%', '\_'], $term) . '%';
+            $where[] = '(cc.title LIKE :term1 OR cc.description LIKE :term2 OR c.title LIKE :term3)';
+            $params += ['term1' => $like, 'term2' => $like, 'term3' => $like];
+        }
+
+        if (!empty($filters['course_id'])) {
+            $where[]             = 'cc.course_id = :course';
+            $params['course']    = (int) $filters['course_id'];
+        }
+
+        if (!empty($filters['type'])) {
+            $where[]          = 'cc.content_type = :type';
+            $params['type']   = (string) $filters['type'];
+        }
+
+        if (!empty($filters['status'])) {
+            $where[]          = 'cc.status = :status';
+            $params['status'] = (string) $filters['status'];
+        }
+
+        return $this->select(
+            'SELECT cc.*, c.title AS course_title, c.uuid AS course_uuid,
+                    s.title AS section_title
+             FROM course_contents cc
+             JOIN courses c ON c.id = cc.course_id
+             LEFT JOIN course_sections s ON s.id = cc.section_id
+             WHERE ' . implode(' AND ', $where) . '
+             -- updated_at is null until the first edit, and MySQL sorts nulls
+             -- last on DESC, which would bury freshly created lessons at the
+             -- bottom of a list whose whole promise is "newest first".
+             ORDER BY COALESCE(cc.updated_at, cc.created_at) DESC, cc.id DESC
+             LIMIT ' . $limit,
+            $params
+        );
+    }
+
     public function findByUuid(string $uuid): ?array
     {
         return $this->selectOne(

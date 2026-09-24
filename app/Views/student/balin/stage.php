@@ -14,9 +14,46 @@
  * @var bool  $requirements
  */
 $mediaUrl = static fn (string $uuid): string => '/student/balin/media/' . $uuid;
-?>
-<div class="balin balin-stage" data-stage="<?= e($stage['uuid']) ?>" data-csrf="<?= e($csrf_token) ?>"
+
+// Clinical blocks keep one entry per line; tables use " | " between cells.
+$lines = static fn (?string $body): array => array_values(array_filter(
+    array_map('trim', preg_split('/\R/u', (string) $body) ?: []),
+    static fn (string $l): bool => $l !== ''
+));
+$cells = static fn (string $line): array => array_map('trim', explode('|', $line));
+$flag  = static function (?string $value): string {
+    $v = mb_strtolower(trim((string) $value));
+    return match (true) {
+        in_array($v, ['high', 'h', 'بالا', '↑', 'افزایش'], true)            => 'high',
+        in_array($v, ['low', 'l', 'پایین', '↓', 'کاهش'], true)              => 'low',
+        in_array($v, ['critical', 'c', 'بحرانی', 'panic'], true)           => 'critical',
+        default                                                            => 'normal',
+    };
+};
+$flagLabel = ['high' => '↑ بالا', 'low' => '↓ پایین', 'critical' => '⚠ بحرانی', 'normal' => ''];?>
+<div class="balin balin-stage bgame-stage" data-stage="<?= e($stage['uuid']) ?>" data-csrf="<?= e($csrf_token) ?>"
      data-replay="<?= $replay ? '1' : '0' ?>">
+    <?php $startPercent = $replay ? 100 : 0; ?>
+    <div class="bgame-level-hud">
+        <div class="bgame-level-top">
+            <a class="bgame-level-back" href="/student/balin/lesson/<?= e($lesson['uuid']) ?>" aria-label="بازگشت به نقشه" title="بازگشت به نقشه">🗺️</a>
+            <div class="bgame-level-title">
+                <small><?= e(($lesson['icon'] ?: '🩺') . ' ' . $lesson['title']) ?></small>
+                <strong><?= e($stage['title']) ?></strong>
+            </div>
+            <?php if ((int) $stage['xp_reward'] > 0): ?>
+                <span class="bgame-level-xp">⚡ <?= e(fa((int) $stage['xp_reward'])) ?> XP</span>
+            <?php endif; ?>
+        </div>
+        <div class="bgame-level-progress">
+            <div class="bgame-bar" role="progressbar" aria-label="پیشرفت مرحله" aria-valuemin="0" aria-valuemax="100"
+                 aria-valuenow="<?= $startPercent ?>" data-stage-progress>
+                <i style="width: <?= $startPercent ?>%;"></i>
+            </div>
+            <b data-stage-percent><?= e(fa($startPercent)) ?>٪</b>
+        </div>
+    </div>
+
     <nav class="balin-crumb" aria-label="مسیر">
         <a href="/student/balin">جزیره بالین</a>
         <span aria-hidden="true">›</span>
@@ -90,6 +127,75 @@ $mediaUrl = static fn (string $uuid): string => '/student/balin/media/' . $uuid;
 
         <?php elseif ($type === 'divider'): ?>
             <hr class="balin-divider">
+
+        <?php elseif ($type === 'vitals'): ?>
+            <div class="balin-vitals" role="group" aria-label="علائم حیاتی">
+                <div class="balin-callout-label">علائم حیاتی</div>
+                <div class="balin-vitals-grid">
+                    <?php foreach ($lines($block['body']) as $line):
+                        $c = $cells($line); $f = $flag($c[3] ?? null); ?>
+                        <div class="balin-vital is-<?= e($f) ?>">
+                            <span class="balin-vital-name"><?= e($c[0] ?? '') ?></span>
+                            <span class="balin-vital-value" dir="ltr"><?= e($c[1] ?? '') ?> <small><?= e($c[2] ?? '') ?></small></span>
+                            <?php if ($flagLabel[$f] !== ''): ?><span class="balin-flag is-<?= e($f) ?>"><?= e($flagLabel[$f]) ?></span><?php endif; ?>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+
+        <?php elseif ($type === 'lab'): ?>
+            <div class="balin-lab">
+                <div class="balin-callout-label">نتایج آزمایش</div>
+                <div class="balin-lab-wrap">
+                    <table class="balin-lab-table">
+                        <thead><tr><th>آزمایش</th><th>نتیجه</th><th>محدوده طبیعی</th><th></th></tr></thead>
+                        <tbody>
+                        <?php foreach ($lines($block['body']) as $line):
+                            $c = $cells($line); $f = $flag($c[4] ?? null); ?>
+                            <tr class="is-<?= e($f) ?>">
+                                <td dir="auto"><?= e($c[0] ?? '') ?></td>
+                                <td dir="ltr"><b><?= e($c[1] ?? '') ?></b> <small><?= e($c[2] ?? '') ?></small></td>
+                                <td dir="ltr"><?= e($c[3] ?? '') ?></td>
+                                <td><?php if ($flagLabel[$f] !== ''): ?><span class="balin-flag is-<?= e($f) ?>"><?= e($flagLabel[$f]) ?></span><?php endif; ?></td>
+                            </tr>
+                        <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        <?php elseif ($type === 'ddx'): ?>
+            <div class="balin-callout is-ddx">
+                <div class="balin-callout-label">تشخیص‌های افتراقی</div>
+                <ol class="balin-ddx">
+                    <?php foreach ($lines($block['body']) as $line):
+                        $parts = preg_split('/\s+[—–-]\s+/u', $line, 2) ?: [$line]; ?>
+                        <li><strong><?= e($parts[0]) ?></strong><?php if (isset($parts[1])): ?><span> — <?= e($parts[1]) ?></span><?php endif; ?></li>
+                    <?php endforeach; ?>
+                </ol>
+            </div>
+
+        <?php elseif ($type === 'pearl'): ?>
+            <div class="balin-callout is-pearl">
+                <div class="balin-callout-label">نکته کلیدی</div>
+                <div><?= nl2br(e($block['body'])) ?></div>
+            </div>
+
+        <?php elseif ($type === 'reference'): ?>
+            <div class="balin-refs">
+                <div class="balin-callout-label">منابع</div>
+                <ul>
+                    <?php foreach ($lines($block['body']) as $line): ?>
+                        <li dir="auto">
+                            <?php if (preg_match('~^https?://\S+$~i', $line) === 1): ?>
+                                <a href="<?= e($line) ?>" target="_blank" rel="noopener noreferrer"><?= e($line) ?></a>
+                            <?php else: ?>
+                                <?= e($line) ?>
+                            <?php endif; ?>
+                        </li>
+                    <?php endforeach; ?>
+                </ul>
+            </div>
 
         <?php elseif ($type === 'image' && $block['media_uuid']): ?>
             <figure class="balin-media align-<?= e($block['media_position'] ?: 'center') ?>"

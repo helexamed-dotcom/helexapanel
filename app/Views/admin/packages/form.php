@@ -48,6 +48,30 @@
             </span>
         </label>
 
+        <label class="switch-row">
+            <input type="checkbox" name="is_full_access" value="1"
+                <?= (int) ($old['is_full_access'] ?? 0) === 1 ? 'checked' : '' ?>>
+            <span>
+                پکیج کامل (فول آپشن): همه دوره‌ها، همه درس‌های بانک سوال، همه درس‌های جزیره بالین و همه فلش‌کارت‌ها
+                <span style="display:block; color:var(--ink-3); font-size:11.5px;">
+                    محتوایی که بعداً اضافه شود هم خودکار برای دارندگان این پکیج باز می‌شود.
+                    هنگام فعال‌سازی می‌توانید تاریخ پایان بگذارید.
+                </span>
+            </span>
+        </label>
+
+        <label class="switch-row">
+            <input type="checkbox" name="is_free" value="1"
+                <?= (int) ($old['is_free'] ?? 0) === 1 ? 'checked' : '' ?>>
+            <span>
+                پکیج رایگان: برای همه دانشجویان
+                <span style="display:block; color:var(--ink-3); font-size:11.5px;">
+                    هر کسی ثبت‌نام کند (خودش یا توسط مدیر) این پکیج خودکار برایش فعال می‌شود.
+                    بعد از انتخاب محتوا، در صفحه پکیج دکمه «فعال برای همه دانشجویان فعلی» را بزنید.
+                </span>
+            </span>
+        </label>
+
         <div style="display:flex; gap:10px; margin-top:14px;">
             <button class="btn btn-primary" type="submit">ثبت پکیج</button>
             <a class="btn btn-ghost" href="/admin/packages">انصراف</a>

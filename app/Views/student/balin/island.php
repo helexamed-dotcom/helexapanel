@@ -39,7 +39,12 @@ $level = $profile['level'];
 
         <div class="balin-hero-links">
             <a class="btn btn-ghost btn-sm" href="/student/balin/profile">پروفایل بالینی</a>
-            <a class="btn btn-ghost btn-sm" href="/student/balin/leaderboard">جدول رتبه‌بندی</a>
+            <?php $rankMode = \HeleXa\Services\Balin\MyRank::mode(); ?>
+            <?php if ($rankMode !== 'off'): ?>
+                <a class="btn btn-ghost btn-sm" href="/student/balin/leaderboard">
+                    <?= $rankMode === 'public' ? 'جدول رتبه‌بندی' : '🏅 رتبه من' ?>
+                </a>
+            <?php endif; ?>
         </div>
     </section>
 

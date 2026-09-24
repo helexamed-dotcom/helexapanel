@@ -42,15 +42,23 @@ final class StudentController extends Controller
             'direction' => $request->string('direction', 'desc'),
         ];
 
+        $flagged = \HeleXa\Services\IpWatch::flaggedUserIds();
+        $filters['priority_ids'] = $flagged;
+
         $total     = $this->users->countFiltered($filters);
         $paginator = new Paginator($total, self::PER_PAGE, $request->int('page', 1), '/admin/students', [
             'q' => $filters['search'], 'status' => $filters['status'],
             'term_id' => $filters['term_id'], 'group_id' => $filters['group_id'],
         ]);
 
+        $students = $this->users->paginate($filters, self::PER_PAGE, $paginator->offset());
+
         return $this->page('layouts.app', 'admin.students.index', [
             'title'     => 'دانشجویان',
-            'students'  => $this->users->paginate($filters, self::PER_PAGE, $paginator->offset()),
+            'students'  => $students,
+            'flagged'   => array_flip($flagged),
+            // One batch for the whole page: four queries, not four per row.
+            'tiers'     => \HeleXa\Services\StudentTier::forMany(array_map(static fn (array $s): int => (int) $s['id'], $students)),
             'paginator' => $paginator,
             'filters'   => $filters,
             'terms'        => $this->academic->terms(),
@@ -123,6 +131,12 @@ final class StudentController extends Controller
         $this->academic->syncSemesters($id, $data['terms'], $data['major_id']);
 
         ActivityLogger::log('student.created', Auth::id(), 'user', $id, ['username' => $data['username']], 'notice', $request);
+
+        // Every new student gets the free packages, however the account was made.
+        $created = $this->users->findById($id);
+        if ($created !== null) {
+            \HeleXa\Services\PackageAccess::grantFree($created, Auth::id());
+        }
 
         // Shown once, immediately after creation.
         $_SESSION['_temp_password'] = ['username' => $data['username'], 'password' => $temporary];
