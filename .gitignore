@@ -11,3 +11,8 @@ storage/cache/*
 # Release archives are built from a commit, so committing one back would
 # duplicate the whole tree and be stale the moment anything changes.
 *.zip
+
+# Files people upload (lesson images, receipts, product photos, …) are data,
+# not source.
+storage/private/uploads/*
+!storage/private/uploads/.gitkeep
