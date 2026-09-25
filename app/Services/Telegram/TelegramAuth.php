@@ -25,7 +25,11 @@ use HeleXa\Services\Settings;
  *                                    (choose a username and a password).
  *                      Known number → a one-time link to choose a new
  *                                    password (and a username if wanted).
- *   🔑 / /password   → a new-password link, once the number is verified.
+ *   🔑 / /password   → a new-password link, once the number is verified;
+ *   the «تغییر رمز عبور» glass button does the same.
+ *
+ * The greeting texts and the two glass buttons under them («ورود به سایت»
+ * with the admin's link, «تغییر رمز عبور») are set in the admin panel.
  *
  * Passwords are never typed into Telegram: the link opens a page on the
  * site, so the password is not left in a chat history.
@@ -43,6 +47,10 @@ final class TelegramAuth
 
     public function handle(array $update): void
     {
+        if (is_array($update['callback_query'] ?? null)) {
+            $this->callback($update['callback_query']);
+            return;
+        }
         $m = $update['message'] ?? null;
         if (!is_array($m) || ($m['chat']['type'] ?? '') !== 'private' || !is_array($m['from'] ?? null) || !empty($m['from']['is_bot'])) {
             return;
@@ -58,7 +66,7 @@ final class TelegramAuth
         $text = trim((string) ($m['text'] ?? ''));
         if (str_starts_with($text, '/start')) {
             $this->welcome($fromId, $chatId);
-        } elseif ($text === '/password' || str_contains($text, 'تعیین رمز')) {
+        } elseif ($text === '/password' || str_contains($text, 'تعیین رمز') || str_contains($text, 'تغییر رمز')) {
             $this->resetRequest($fromId, $chatId);
         } else {
             $this->help($fromId, $chatId);
@@ -70,24 +78,52 @@ final class TelegramAuth
         return (string) Config::get('app.app.name', 'HeleXa Med');
     }
 
+    /** A glass button pressed under one of the bot's messages. */
+    private function callback(array $q): void
+    {
+        $from = $q['from'] ?? null;
+        $chat = $q['message']['chat'] ?? null;
+        if (!is_array($from) || !empty($from['is_bot']) || !is_array($chat) || ($chat['type'] ?? '') !== 'private') {
+            return;
+        }
+        $fromId = (int) $from['id'];
+        $chatId = (int) $chat['id'];
+        $this->tg->touch($fromId, $chatId, $from['username'] ?? null, $from['first_name'] ?? null);
+        Bot::answerCallback((string) ($q['id'] ?? ''));
+        if (($q['data'] ?? '') === 'reset') {
+            $this->resetRequest($fromId, $chatId);
+        }
+    }
+
+    private function isLinked(int $fromId): bool
+    {
+        $acc = $this->tg->account($fromId);
+        return $acc !== null && $acc['user_id'] !== null && $acc['verified_at'] !== null;
+    }
+
     private function welcome(int $fromId, int $chatId): void
     {
         $acc = $this->tg->account($fromId);
-        $linked = $acc !== null && $acc['user_id'] !== null && $acc['verified_at'] !== null;
-        $text = '👋 سلام! به ربات ورود <b>' . Bot::h($this->site()) . "</b> خوش آمدی.\n\n"
-            . ($linked
-                ? "حسابت با این تلگرام وصل است ✅\nبرای ورود به سایت از شماره موبایل (یا نام کاربری) و رمزت استفاده کن.\nاگر رمز را فراموش کرده‌ای، «🔑 تعیین رمز تازه» را بزن."
-                : "برای ساختن حساب یا ورود، دکمه <b>«📱 ارسال شماره من»</b> را پایین صفحه بزن.\n"
-                  . "شماره از خود حساب تلگرامت خوانده می‌شود؛ نیازی به تایپ کردن نیست.");
-        Bot::send($chatId, $text, Bot::contactKeyboard($linked));
+        $name = (string) ($acc['first_name'] ?? '');
+        if ($this->isLinked($fromId)) {
+            Bot::send($chatId, Bot::render('telegram_text_member', $name), Bot::menuButtons());
+            return;
+        }
+        Bot::send($chatId, Bot::render('telegram_text_welcome', $name), Bot::menuButtons());
+        // The share-my-number button lives in the reply keyboard, which cannot
+        // sit under the same message as the glass buttons.
+        Bot::send($chatId, '👇 دکمه <b>«📱 ارسال شماره من»</b>', Bot::contactKeyboard());
     }
 
     private function help(int $fromId, int $chatId): void
     {
-        $acc = $this->tg->account($fromId);
-        $linked = $acc !== null && $acc['user_id'] !== null && $acc['verified_at'] !== null;
-        Bot::send($chatId, "برای ادامه از دکمه‌های پایین صفحه استفاده کن:\n📱 <b>ارسال شماره من</b> — ساختن حساب یا ورود"
-            . ($linked ? "\n🔑 <b>تعیین رمز تازه</b> — اگر رمزت را فراموش کرده‌ای" : ''), Bot::contactKeyboard($linked));
+        $linked = $this->isLinked($fromId);
+        Bot::send($chatId, $linked
+            ? 'از دکمه‌های زیر استفاده کن:'
+            : "برای ساختن حساب یا ورود، دکمه <b>«📱 ارسال شماره من»</b> را پایین صفحه بزن.", Bot::menuButtons());
+        if (!$linked) {
+            Bot::send($chatId, '👇', Bot::contactKeyboard());
+        }
     }
 
     private function contact(array $m, int $fromId, int $chatId): void
@@ -143,11 +179,12 @@ final class TelegramAuth
         $secret = $this->tg->issue($fromId, $phone, 'reset', (int) $user['id']);
         ActivityLogger::log('telegram.reset_link', (int) $user['id'], 'user', (int) $user['id'], [], 'notice');
         Bot::send($chatId, "✅ شماره تأیید شد. با این شماره از قبل حساب داری (<b>" . Bot::h((string) $user['full_name']) . "</b>).",
-            Bot::contactKeyboard(true));
+            ['remove_keyboard' => true]);
         Bot::send($chatId, "برای ورود از شماره و رمزت استفاده کن. اگر رمز نداری یا فراموشش کرده‌ای، با دکمه زیر رمز تازه (و اگر خواستی نام کاربری) بساز.\n"
             . "⏳ لینک یک‌بارمصرف است و " . TelegramRepository::LINK_MINUTES . " دقیقه اعتبار دارد.",
             Bot::linkButton('🔑 تعیین رمز', self::linkUrl($secret)));
     }
+
 
     private function resetRequest(int $fromId, int $chatId): void
     {
@@ -167,8 +204,8 @@ final class TelegramAuth
         }
         $secret = $this->tg->issue($fromId, (string) $acc['phone'], 'reset', (int) $user['id']);
         ActivityLogger::log('telegram.reset_link', (int) $user['id'], 'user', (int) $user['id'], [], 'notice');
-        Bot::send($chatId, "🔑 برای ساختن رمز تازه روی دکمه بزن.\n⏳ لینک یک‌بارمصرف است و " . TelegramRepository::LINK_MINUTES . ' دقیقه اعتبار دارد.',
-            Bot::linkButton('🔑 تعیین رمز تازه', self::linkUrl($secret)));
+        Bot::send($chatId, "🔑 برای تغییر رمز عبور روی دکمه بزن.\n⏳ لینک یک‌بارمصرف است و " . TelegramRepository::LINK_MINUTES . ' دقیقه اعتبار دارد.',
+            Bot::linkButton('🔑 ساختن رمز تازه', self::linkUrl($secret)));
     }
 
     private function withinLimit(int $fromId, int $chatId): bool

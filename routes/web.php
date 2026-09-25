@@ -613,6 +613,7 @@ $router->group('/admin', [
     $router->get('/telegram',          [\HeleXa\Controllers\Admin\TelegramController::class, 'index'],   $tgs);
     $router->post('/telegram',         [\HeleXa\Controllers\Admin\TelegramController::class, 'save'],    $tgs);
     $router->post('/telegram/webhook', [\HeleXa\Controllers\Admin\TelegramController::class, 'webhook'], $tgs);
+    $router->post('/telegram/texts',   [\HeleXa\Controllers\Admin\TelegramController::class, 'saveTexts'], $tgs);
 
     /* ------------------------------------------- 🏆 امتیاز، لیگ و پست‌ها */
     $pts = [PermissionMiddleware::class . ':points.manage'];

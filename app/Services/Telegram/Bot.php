@@ -129,9 +129,70 @@ final class Bot
                 'input_field_placeholder' => 'برای ادامه، دکمه «ارسال شماره من» را بزن'];
     }
 
+    /** A one-time link as a glass button, with «ورود به سایت» under it. */
     public static function linkButton(string $text, string $url): array
     {
-        return ['inline_keyboard' => [[['text' => $text, 'url' => $url]]]];
+        return self::menuButtons(false, [[['text' => $text, 'url' => $url]]]);
+    }
+
+    /* ---------------------------------------------- texts the admin sets */
+
+    public const TEXT_DEFAULTS = [
+        'telegram_text_welcome' => "👋 سلام {name}! به ربات ورود **{site}** خوش آمدی.\n\nبرای ساختن حساب یا ورود، دکمه **«📱 ارسال شماره من»** را پایین صفحه بزن؛ شماره از خود حساب تلگرامت خوانده می‌شود و نیازی به تایپ کردن نیست.",
+        'telegram_text_member'  => "👋 سلام {name}! حسابت با این تلگرام به **{site}** وصل است ✅\n\nبرای ورود از شماره موبایل (یا نام کاربری) و رمزت استفاده کن. اگر رمز را فراموش کرده‌ای، «تغییر رمز عبور» را بزن.",
+        'telegram_btn_site'     => '🌐 ورود به سایت',
+        'telegram_btn_reset'    => '🔑 تغییر رمز عبور',
+        'telegram_site_url'     => '',
+    ];
+
+    public static function text(string $key): string
+    {
+        $v = trim((string) Settings::get($key, ''));
+        return $v !== '' ? $v : self::TEXT_DEFAULTS[$key];
+    }
+
+    /** Where «ورود به سایت» goes: the admin's link, else the site's login page. */
+    public static function siteUrl(): string
+    {
+        $url = trim((string) Settings::get('telegram_site_url', ''));
+        return $url !== '' ? $url : rtrim((string) Config::get('app.app.url', ''), '/') . '/login';
+    }
+
+    /**
+     * An admin text for Telegram: escaped, **bold** kept as bold, and
+     * {name} / {site} filled in.
+     */
+    public static function render(string $key, string $name = ''): string
+    {
+        $t = self::h(self::text($key));
+        $t = preg_replace('/\*\*(.+?)\*\*/us', '<b>$1</b>', $t) ?? $t;
+        return strtr($t, [
+            '{name}' => self::h($name),
+            '{site}' => self::h((string) Config::get('app.app.name', 'HeleXa Med')),
+        ]);
+    }
+
+    /**
+     * The glass buttons under a message: «ورود به سایت» (a link) and
+     * «تغییر رمز عبور» (answered by the bot with a one-time link).
+     */
+    public static function menuButtons(bool $withReset = true, array $extra = []): array
+    {
+        $rows = $extra;
+        $url = self::siteUrl();
+        if (preg_match('~^https?://[^\s/$.?#][^\s]*$~i', $url) === 1) {
+            $rows[] = [['text' => self::text('telegram_btn_site'), 'url' => $url]];
+        }
+        if ($withReset) {
+            $rows[] = [['text' => self::text('telegram_btn_reset'), 'callback_data' => 'reset']];
+        }
+        return ['inline_keyboard' => $rows];
+    }
+
+    /** Stops the spinner on a pressed glass button (with an optional toast). */
+    public static function answerCallback(string $id, string $text = ''): void
+    {
+        self::call('answerCallbackQuery', ['callback_query_id' => $id] + ($text !== '' ? ['text' => $text] : []));
     }
 
     /** Text for Telegram's HTML mode. */

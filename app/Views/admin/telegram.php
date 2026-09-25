@@ -9,11 +9,16 @@
  * @var array|null  $me     getMe
  * @var array|null  $stats
  * @var bool        $https
+ * @var array       $texts     the admin's texts (empty = built-in)
+ * @var array       $defaults
+ * @var string      $loginUrl
+ * @var string      $siteName
  */
 use HeleXa\Core\View;
 
 $icon = static fn (string $n, int $s = 0) => View::partial('partials.icon', ['name' => $n] + ($s ? ['size' => $s] : []));
 $hookOk = is_array($info) && ($info['url'] ?? '') === $webhook;
+$val = static fn (string $k): string => $texts[$k] !== '' ? $texts[$k] : $defaults[$k];
 ?>
 <div class="ad-page sa">
     <section class="ad-hero tone-sky">
@@ -81,4 +86,57 @@ $hookOk = is_array($info) && ($info['url'] ?? '') === $webhook;
             <?php endif; ?>
         </section>
     </div>
+
+    <form class="ad-card tg-texts" id="texts" method="post" action="/admin/telegram/texts" data-tg-texts
+          data-site="<?= e($siteName) ?>" data-login="<?= e($loginUrl) ?>">
+        <input type="hidden" name="_token" value="<?= e($csrf_token) ?>">
+        <header class="ad-card-head">
+            <span class="app-ic tone-violet"><?php $icon('chat'); ?></span>
+            <div><h3>متن ربات و دکمه‌های شیشه‌ای</h3>
+                <p>پیامی که دانشجو بعد از /start می‌بیند و دو دکمه شیشه‌ای زیرش: «ورود به سایت» با لینک شما و «تغییر رمز عبور» که ربات برایش لینک یک‌بارمصرف می‌فرستد.
+                   در متن می‌توانید <code dir="ltr">{name}</code> (نام تلگرامی دانشجو) و <code dir="ltr">{site}</code> (نام سایت) بنویسید؛ هر چیزی را بین دو جفت ستاره بگذارید پررنگ می‌شود.</p></div>
+        </header>
+
+        <div class="tg-texts-grid">
+            <div class="tg-texts-fields">
+                <label class="hx-field">پیام خوش‌آمد — کسی که هنوز حساب وصل ندارد
+                    <textarea class="input" name="telegram_text_welcome" rows="5" maxlength="3000" data-tg-in="welcome"><?= e($val('telegram_text_welcome')) ?></textarea>
+                </label>
+                <label class="hx-field">پیام خوش‌آمد — دانشجویی که حسابش به تلگرام وصل است
+                    <textarea class="input" name="telegram_text_member" rows="4" maxlength="3000" data-tg-in="member"><?= e($val('telegram_text_member')) ?></textarea>
+                </label>
+                <label class="hx-field">لینک دکمه «ورود به سایت»
+                    <input class="input" name="telegram_site_url" dir="ltr" maxlength="255" value="<?= e($texts['telegram_site_url']) ?>" placeholder="<?= e($loginUrl) ?>" data-tg-in="url">
+                    <small class="hx-muted">خالی بماند، صفحه ورود همین سایت باز می‌شود.</small>
+                </label>
+                <div class="tg-two">
+                    <label class="hx-field">متن دکمه ورود<input class="input" name="telegram_btn_site" maxlength="40" value="<?= e($val('telegram_btn_site')) ?>" data-tg-in="btnSite"></label>
+                    <label class="hx-field">متن دکمه تغییر رمز<input class="input" name="telegram_btn_reset" maxlength="40" value="<?= e($val('telegram_btn_reset')) ?>" data-tg-in="btnReset"></label>
+                </div>
+                <div class="le-actions">
+                    <button class="btn btn-primary" type="submit"><?php $icon('check', 16); ?> ذخیره متن‌ها</button>
+                    <button class="btn btn-ghost" type="submit" name="reset_texts" value="1" data-confirm="همه متن‌ها و دکمه‌ها به حالت پیش‌فرض برگردد؟">بازگشت به پیش‌فرض</button>
+                </div>
+            </div>
+
+            <div class="tg-preview" aria-label="پیش‌نمایش">
+                <div class="tg-seg" role="tablist">
+                    <button type="button" class="is-on" data-tg-show="welcome">دانشجوی تازه</button>
+                    <button type="button" data-tg-show="member">حساب وصل</button>
+                </div>
+                <div class="tg-phone">
+                    <div class="tg-chat-head"><span class="tg-ava"><?php $icon('send', 16); ?></span><b><?= e($username !== '' ? '@' . $username : 'ربات شما') ?></b></div>
+                    <div class="tg-chat">
+                        <div class="tg-me" dir="ltr">/start</div>
+                        <div class="tg-msg"><div class="tg-bubble" data-tg-out></div>
+                            <div class="tg-kb"><span data-tg-out-site></span><span data-tg-out-reset></span></div>
+                        </div>
+                        <div class="tg-msg" data-tg-contact><div class="tg-bubble">👇 دکمه <b>«📱 ارسال شماره من»</b></div></div>
+                    </div>
+                    <div class="tg-reply" data-tg-contact>📱 ارسال شماره من</div>
+                </div>
+                <small class="hx-muted">دکمه‌های شیشه‌ای همین‌طور زیر پیام نمایش داده می‌شوند.</small>
+            </div>
+        </div>
+    </form>
 </div>

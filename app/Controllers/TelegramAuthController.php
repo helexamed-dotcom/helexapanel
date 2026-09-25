@@ -162,6 +162,7 @@ final class TelegramAuthController extends Controller
             }
             Bot::send((int) $link['chat_id'], "🎉 ثبت‌نام کامل شد!\nاز این به بعد با شماره <b>" . Bot::h((string) $link['phone'])
                 . '</b> یا نام کاربری <b>' . Bot::h($data['username']) . '</b> و رمزت وارد سایت شو.', ['remove_keyboard' => true]);
+            Bot::send((int) $link['chat_id'], '👇', Bot::menuButtons());
         } else {
             $id = (int) $existing['id'];
             $users->updatePassword($id, Auth::hashPassword($data['password']));
@@ -173,7 +174,7 @@ final class TelegramAuthController extends Controller
             Auth::revokeRememberTokens($id, 'password_change');
             ActivityLogger::log('user.telegram_password_reset', $id, 'user', $id, [], 'notice', $request);
             Bot::send((int) $link['chat_id'], "🔑 رمز تازه‌ات ثبت شد. اگر این کار را خودت نکرده‌ای، فوراً به پشتیبانی خبر بده.",
-                Bot::contactKeyboard(true));
+                Bot::menuButtons());
             $data['username'] = $data['username'] !== '' ? $data['username'] : (string) $existing['username'];
         }
 

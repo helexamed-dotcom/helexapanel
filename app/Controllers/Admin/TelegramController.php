@@ -41,6 +41,11 @@ final class TelegramController extends Controller
             'me'           => $me,
             'stats'        => TelegramRepository::ready() ? (new TelegramRepository())->stats() : null,
             'https'        => str_starts_with(Bot::webhookUrl(), 'https://'),
+            'texts'        => array_combine(array_keys(Bot::TEXT_DEFAULTS), array_map(
+                static fn (string $k): string => (string) Settings::get($k, ''), array_keys(Bot::TEXT_DEFAULTS))),
+            'defaults'     => Bot::TEXT_DEFAULTS,
+            'loginUrl'     => rtrim((string) \HeleXa\Core\Config::get('app.app.url', ''), '/') . '/login',
+            'siteName'     => (string) \HeleXa\Core\Config::get('app.app.name', 'HeleXa Med'),
             'extraCss'     => ['shop-admin'],
         ]);
     }
@@ -83,6 +88,39 @@ final class TelegramController extends Controller
         return $this->redirect('/admin/telegram');
     }
 
+    /**
+     * The bot's words: the greeting for a new visitor and for a student
+     * whose account is linked, the «ورود به سایت» link and the two glass
+     * buttons' labels. Empty means the built-in text.
+     */
+    public function saveTexts(Request $request, array $params = []): Response
+    {
+        $repo = new SettingRepository();
+        $actor = (int) Auth::id();
+        $url = trim($request->string('telegram_site_url'));
+        if ($url !== '' && preg_match('~^https?://[^\s/$.?#][^\s]*$~i', $url) !== 1) {
+            $this->flash('error', 'لینک سایت باید با https:// شروع شود؛ مثلاً https://helexamed.ir');
+            return $this->redirect('/admin/telegram#texts');
+        }
+        $limits = ['telegram_text_welcome' => 3000, 'telegram_text_member' => 3000, 'telegram_btn_site' => 40, 'telegram_btn_reset' => 40, 'telegram_site_url' => 255];
+        foreach ($limits as $key => $max) {
+            $value = $key === 'telegram_site_url' ? $url : trim(str_replace("\r\n", "\n", mb_substr((string) $request->input($key, ''), 0, $max)));
+            if ($request->bool('reset_texts')) {
+                $value = '';
+            }
+            $repo->set($key, $value, 'string', $actor);
+        }
+        Settings::flush();
+        $message = $request->bool('reset_texts') ? 'متن‌ها به حالت پیش‌فرض برگشت.' : 'متن‌ها و دکمه‌های ربات ذخیره شد.';
+        // The glass buttons need Telegram to send button presses too.
+        if (Bot::enabled()) {
+            $message .= ' ' . $this->setWebhook($actor);
+        }
+        ActivityLogger::log('telegram.texts', $actor, 'settings', null, [], 'notice', $request);
+        $this->flash('success', $message);
+        return $this->redirect('/admin/telegram#texts');
+    }
+
     public function webhook(Request $request, array $params = []): Response
     {
         if (Bot::token() === '') {
@@ -110,7 +148,7 @@ final class TelegramController extends Controller
         $r = Bot::call('setWebhook', [
             'url'                  => $url,
             'secret_token'         => $secret,
-            'allowed_updates'      => ['message'],
+            'allowed_updates'      => ['message', 'callback_query'],
             'drop_pending_updates' => true,
             'max_connections'      => 20,
         ]);

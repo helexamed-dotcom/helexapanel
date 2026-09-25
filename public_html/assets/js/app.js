@@ -901,3 +901,41 @@ document.querySelectorAll('[data-title-source]').forEach(function (select) {
         fit();
     });
 })();
+
+/* The bot texts form in the admin panel: a live Telegram-like preview. */
+(function () {
+    'use strict';
+    var form = document.querySelector('[data-tg-texts]');
+    if (!form) { return; }
+    var box = form.querySelector('.tg-preview');
+    var mode = 'welcome';
+    var input = function (k) { var el = form.querySelector('[data-tg-in="' + k + '"]'); return el ? el.value : ''; };
+    var esc = function (s) { var d = document.createElement('div'); d.textContent = s; return d.innerHTML; };
+    function render() {
+        var html = esc(input(mode)).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>')
+            .split('{name}').join('سارا').split('{site}').join(esc(form.getAttribute('data-site') || ''));
+        form.querySelector('[data-tg-out]').innerHTML = html;
+        var site = form.querySelector('[data-tg-out-site]');
+        site.textContent = input('btnSite');
+        site.className = 'is-link';
+        site.title = input('url') || form.getAttribute('data-login') || '';
+        form.querySelector('[data-tg-out-reset]').textContent = input('btnReset');
+        box.classList.toggle('is-member', mode === 'member');
+    }
+    form.addEventListener('input', render);
+    form.querySelectorAll('[data-tg-show]').forEach(function (b) {
+        b.addEventListener('click', function () {
+            mode = b.getAttribute('data-tg-show');
+            form.querySelectorAll('[data-tg-show]').forEach(function (x) { x.classList.toggle('is-on', x === b); });
+            render();
+        });
+    });
+    form.querySelectorAll('textarea[data-tg-in]').forEach(function (t) {
+        t.addEventListener('focus', function () {
+            var want = t.getAttribute('data-tg-in');
+            var btn = form.querySelector('[data-tg-show="' + want + '"]');
+            if (btn && mode !== want) { btn.click(); }
+        });
+    });
+    render();
+})();
