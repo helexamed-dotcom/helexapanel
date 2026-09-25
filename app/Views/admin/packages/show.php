@@ -12,7 +12,7 @@
  */
 $isFull  = (int) ($package['is_full_access'] ?? 0) === 1;
 $isFree  = (int) ($package['is_free'] ?? 0) === 1;
-$groups  = [
+$kinds   = [
     'qbank_subject'    => ['بانک سوال', 'درس‌های بانک سوال که با این پکیج باز می‌شوند'],
     'balin_lesson'     => ['جزیره بالین', 'درس‌های جزیره که با این پکیج باز می‌شوند'],
     'flashcard_course' => ['فلش‌کارت', 'درس‌های فلش‌کارت که با این پکیج باز می‌شوند'],
@@ -62,6 +62,27 @@ $itemTotal = array_sum(array_map('count', $chosen));
         <button class="btn btn-primary btn-sm" type="submit">ذخیره</button>
     </form>
 
+    <?php $pkgModules = \HeleXa\Services\StudentTypes::decodeModules($package['modules'] ?? '[]'); ?>
+    <form method="post" action="/admin/packages/<?= e($package['uuid']) ?>/modules" class="pk-sections" id="sections">
+        <input type="hidden" name="_token" value="<?= e($csrf_token) ?>">
+        <div class="pk-sections-head">
+            <b>بخش‌هایی که این پکیج روشن می‌کند</b>
+            <small><?= $isFull
+                ? 'پکیج کامل است: همه بخش‌ها و همه محتوا (حتی آنچه بعداً اضافه شود) برای دارندگانش باز است.'
+                : 'این بخش‌ها برای دارنده پکیج روشن می‌شوند، حتی اگر نوع دانشجویی‌اش آن‌ها را نداشته باشد. بخشی که در کل سایت خاموش است روشن نمی‌شود.' ?></small>
+        </div>
+        <div class="pk-sections-grid">
+            <?php foreach (\HeleXa\Services\Modules::CATALOG as $key => [$label, , $ic, $tone]): ?>
+                <label class="pk-sec<?= $isFull ? ' is-locked' : '' ?>">
+                    <input type="checkbox" name="modules[]" value="<?= e($key) ?>" <?= $isFull || in_array($key, $pkgModules, true) ? 'checked' : '' ?> <?= $isFull ? 'disabled' : '' ?>>
+                    <span class="app-ic tone-<?= e($tone) ?>"><?php \HeleXa\Core\View::partial('partials.icon', ['name' => $ic, 'size' => 16]); ?></span>
+                    <span><?= e($label) ?></span>
+                </label>
+            <?php endforeach; ?>
+        </div>
+        <?php if (!$isFull): ?><button class="btn btn-primary btn-sm" type="submit">ذخیره بخش‌ها</button><?php endif; ?>
+    </form>
+
     <?php if ($isFree): ?>
         <div class="qb-hint" style="margin:10px 0 0; display:flex; flex-wrap:wrap; gap:10px; align-items:center;">
             <span>
@@ -96,7 +117,7 @@ $itemTotal = array_sum(array_map('count', $chosen));
     <?php else: ?>
         <form method="post" action="/admin/packages/<?= e($package['uuid']) ?>/items">
             <input type="hidden" name="_token" value="<?= e($csrf_token) ?>">
-            <?php foreach ($groups as $type => [$label, $hint]): ?>
+            <?php foreach ($kinds as $type => [$label, $hint]): ?>
                 <?php $rows = $catalogue[$type] ?? []; $picked = $chosen[$type] ?? []; ?>
                 <h4 style="margin:16px 0 6px; font-size:14px;"><?= e($label) ?></h4>
                 <?php if ($rows === []): ?>

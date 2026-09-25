@@ -167,17 +167,7 @@ final class FigureController extends Controller
     /** @return array<int,true> */
     private function heldPackages(int $userId): array
     {
-        $out = [];
-        try {
-            foreach (Database::select(
-                "SELECT package_id FROM package_activations WHERE user_id = :u AND status = 'active'
-                   AND (starts_at IS NULL OR starts_at <= NOW()) AND (ends_at IS NULL OR ends_at >= NOW())",
-                ['u' => $userId]
-            ) as $r) {
-                $out[(int) $r['package_id']] = true;
-            }
-        } catch (\PDOException) {
-        }
-        return $out;
+        // A full-access package holds every package's content.
+        return \HeleXa\Services\AccessProfile::heldMap($userId);
     }
 }

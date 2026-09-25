@@ -139,6 +139,8 @@ final class StudentTypes
     {
         Database::execute('UPDATE users SET student_type_id = :t WHERE id = :u', ['t' => $typeId, 'u' => $userId]);
         self::$typeOf[$userId] = (int) $typeId;
+        // The packages that come with a type follow the type.
+        AccessProfile::syncTypePackages($userId, (int) $typeId, Auth::id());
         Modules::flush();
     }
 

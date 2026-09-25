@@ -62,6 +62,24 @@ $statusForm = static function (string $action, string $current) use ($statusLabe
 
     <?php \HeleXa\Core\View::partial('partials.tier_card', ['tier' => $tier, 'self' => false]); ?>
 
+    <?php $sections = \HeleXa\Services\AccessProfile::explain($student); ?>
+    <section class="qb-section" id="sections">
+        <div class="qb-section-head">
+            <h3><?php $icon('grid'); ?> بخش‌های فعال برای این دانشجو</h3>
+            <a class="btn btn-ghost btn-sm" href="/admin/access-matrix">نقشه دسترسی ←</a>
+        </div>
+        <div class="am-probe">
+            <?php foreach ($sections as $s): ?>
+                <div class="am-probe-row<?= $s['on'] ? ' is-on' : '' ?>">
+                    <span class="app-ic tone-<?= e($s['tone']) ?>"><?php \HeleXa\Core\View::partial('partials.icon', ['name' => $s['icon'], 'size' => 14]); ?></span>
+                    <b><?= e($s['label']) ?></b>
+                    <em><?= $s['on'] ? 'روشن' : 'خاموش' ?></em>
+                    <small><?= e($s['why']) ?></small>
+                </div>
+            <?php endforeach; ?>
+        </div>
+    </section>
+
     <?php /* ========================================================= courses */ ?>
     <section class="qb-section" id="courses">
         <div class="qb-section-head"><h3><?php $icon('book'); ?> دوره‌ها</h3></div>

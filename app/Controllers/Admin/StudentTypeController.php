@@ -34,6 +34,7 @@ final class StudentTypeController extends Controller
             'editing' => $editId > 0 ? StudentTypes::find($editId) : null,
             'catalog' => Modules::CATALOG,
             'colors'  => StudentTypes::COLORS,
+            'packages' => $this->packageOptions(),
             'pending' => StudentTypes::pendingCount(),
         ]);
     }
@@ -49,6 +50,12 @@ final class StudentTypeController extends Controller
         $modules = array_values(array_intersect(array_keys(Modules::CATALOG), array_map('strval', (array) $request->input('modules', []))));
         $color   = in_array($request->string('color'), StudentTypes::COLORS, true) ? $request->string('color') : 'blue';
         $icon    = preg_match('/^[a-z\-]{2,24}$/', $request->string('icon')) === 1 ? $request->string('icon') : 'school';
+
+        $packageIds = array_values(array_intersect(
+            array_map('intval', array_column($this->packageOptions(), 'id')),
+            array_map('intval', (array) $request->input('package_ids', []))
+        ));
+        $before = $id > 0 ? \HeleXa\Services\AccessProfile::typePackageIds(StudentTypes::find($id)) : [];
 
         $values = [
             'title'    => $title,
@@ -68,14 +75,23 @@ final class StudentTypeController extends Controller
                 $values + ['id' => $id]
             );
         } else {
-            Database::insert(
+            $id = Database::insert(
                 'INSERT INTO student_types (slug, title, description, color, icon, modules, requires_approval, is_active, sort_order, created_at)
                  VALUES (:slug, :title, :desc, :color, :icon, :modules, :approval, :active, :sort, NOW())',
                 $values + ['slug' => 't-' . strtolower(Str::token(4))]
             );
         }
-        ActivityLogger::log('student_type.saved', Auth::id(), 'student_type', $id ?: null, ['title' => $title], 'info', $request);
-        $this->flash('success', 'نوع دانشجو ذخیره شد.');
+        $moved = 0;
+        try {
+            Database::execute('UPDATE student_types SET package_ids = :p WHERE id = :id', ['p' => json_encode($packageIds), 'id' => $id]);
+            sort($before);
+            sort($packageIds);
+            $moved = \HeleXa\Services\AccessProfile::applyTypeChange($id, $before, $packageIds, Auth::id());
+        } catch (\PDOException) {
+            // 2026_10_04_access_profiles.sql not run yet: sections only
+        }
+        ActivityLogger::log('student_type.saved', Auth::id(), 'student_type', $id ?: null, ['title' => $title, 'packages' => $packageIds], 'info', $request);
+        $this->flash('success', 'نوع دانشجو ذخیره شد.' . ($moved > 0 ? ' پکیج‌های ' . fa((string) $moved) . ' دانشجوی این نوع به‌روز شد.' : ''));
 
         return $this->redirect('/admin/student-types');
     }
@@ -169,5 +185,15 @@ final class StudentTypeController extends Controller
                 : 'درخواست «' . $typeTitle . '» تأیید نشد. در صورت نیاز با پشتیبانی در تماس باشید.',
             '/student'
         );
+    }
+
+    /** Packages a type can hand over: published ones, full-access included. */
+    private function packageOptions(): array
+    {
+        try {
+            return Database::select("SELECT id, title, is_full_access, is_free FROM packages WHERE deleted_at IS NULL AND status <> 'archived' ORDER BY sort_order, id");
+        } catch (\PDOException) {
+            return [];
+        }
     }
 }

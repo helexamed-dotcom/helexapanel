@@ -304,6 +304,28 @@ final class PackageController extends Controller
         return $this->redirect('/admin/packages/' . $package['uuid']);
     }
 
+    /**
+     * POST /admin/packages/{uuid}/modules — the sections this package turns
+     * on, on top of what each holder's student type allows.
+     */
+    public function saveModules(Request $request, array $params = []): Response
+    {
+        $package = $this->find((string) ($params['uuid'] ?? ''));
+        $keys = array_values(array_intersect(array_keys(\HeleXa\Services\Modules::CATALOG), array_map('strval', (array) $request->input('modules', []))));
+        try {
+            \HeleXa\Core\Database::execute('UPDATE packages SET modules = :m, updated_at = NOW() WHERE id = :id',
+                ['m' => json_encode($keys), 'id' => (int) $package['id']]);
+        } catch (\PDOException) {
+            $this->flash('error', 'ابتدا مهاجرت 2026_10_04_access_profiles.sql را اجرا کنید.');
+            return $this->redirect('/admin/packages/' . $package['uuid']);
+        }
+        \HeleXa\Services\AccessProfile::flush();
+        \HeleXa\Services\ActivityLogger::log('package.modules', \HeleXa\Services\Auth::id(), 'package', (int) $package['id'], ['modules' => $keys], 'info', $request);
+        $this->flash('success', 'بخش‌های این پکیج ذخیره شد؛ برای همه دارندگانش فوراً اعمال می‌شود.');
+
+        return $this->redirect('/admin/packages/' . $package['uuid'] . '#sections');
+    }
+
     /* ------------------------------------------------------------ helpers */
 
     private function find(string $uuid): array
@@ -319,6 +341,10 @@ final class PackageController extends Controller
     private function isEmptyPackage(array $package): bool
     {
         if ((int) ($package['is_full_access'] ?? 0) === 1) {
+            return false;
+        }
+        // A package that only turns sections on is not empty.
+        if (\HeleXa\Services\StudentTypes::decodeModules($package['modules'] ?? '[]') !== []) {
             return false;
         }
         if ($this->packages->courseIds((int) $package['id']) !== []) {

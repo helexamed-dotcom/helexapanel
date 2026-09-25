@@ -27,6 +27,7 @@ $groups = [
     ['کاربران', 'users', 'blue', [
         ['/admin/students',               'دانشجویان',         'users',   'manage_students', 0, false],
         ['/admin/student-types',          'انواع دانشجو',       'school',  'manage_students', can('manage_students') ? \HeleXa\Services\StudentTypes::pendingCount() : 0, false],
+        ['/admin/access-matrix',          'نقشه دسترسی',        'grid',    'manage_students', 0, false],
         ['/admin/access',                 'دسترسی‌ها',          'key',     'manage_students', 0, false],
         ['/admin/academic',               'ساختار آموزشی',      'layers',  'manage_students', 0, false],
         ['/admin/admins',                 'مدیران',             'user',    'manage_admins',   0, false],

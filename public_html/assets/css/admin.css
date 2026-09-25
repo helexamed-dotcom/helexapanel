@@ -197,3 +197,34 @@ html[dir="rtl"] .ad-quick-btn { padding: 6px 6px 6px 12px; }
 .is-admin-shell .form-grid { gap: 14px 18px; }
 .is-admin-shell .form-grid > .span-2 { grid-column: 1 / -1; }
 .is-admin-shell .form-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* the package page and the type form */
+.pk-sections { display: grid; gap: 10px; margin-top: 14px; padding: 14px; border-radius: 16px; background: color-mix(in srgb, #f59e0b 6%, var(--surface)); border: 1px solid color-mix(in srgb, #f59e0b 25%, var(--line)); }
+.pk-sections-head { display: grid; gap: 2px; }
+.pk-sections-head small { color: var(--ink-3); font-size: 12px; line-height: 1.8; }
+.pk-sections-grid { display: flex; flex-wrap: wrap; gap: 6px; }
+.pk-sec { position: relative; display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px 5px 6px; border-radius: 12px; cursor: pointer; font-size: 12.5px; font-weight: 700;
+    background: var(--surface); box-shadow: inset 0 0 0 1.5px var(--line); opacity: .6; transition: opacity .15s, box-shadow .15s; }
+.pk-sec input { position: absolute; opacity: 0; pointer-events: none; }
+.pk-sec .app-ic { width: 24px; height: 24px; border-radius: 8px; }
+.pk-sec:has(input:checked) { opacity: 1; box-shadow: inset 0 0 0 2px #10b981; }
+.pk-sec.is-locked { cursor: default; }
+.pk-sections .btn { justify-self: start; }
+.ad-chips-pick { display: flex; flex-wrap: wrap; gap: 6px; }
+.ad-chip-pick { position: relative; cursor: pointer; }
+.ad-chip-pick input { position: absolute; opacity: 0; pointer-events: none; }
+.ad-chip-pick span { display: inline-block; padding: 6px 12px; border-radius: 99px; font-size: 12.5px; font-weight: 700; background: var(--surface-2); box-shadow: inset 0 0 0 1.5px var(--line); color: var(--ink-2); }
+.ad-chip-pick input:checked + span { background: linear-gradient(135deg, #f59e0b, #f97316); color: #fff; box-shadow: none; }
+.ad-chip-pick input:focus-visible + span { outline: 2px solid var(--blue); outline-offset: 2px; }
+
+/* a student's sections, with the reason for each */
+.am-probe { display: grid; gap: 4px; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+.am-probe-row { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 2px 8px; padding: 7px 10px; border-radius: 12px;
+    background: color-mix(in srgb, #ef4444 6%, transparent); opacity: .85; }
+.am-probe-row.is-on { background: color-mix(in srgb, #10b981 9%, transparent); opacity: 1; }
+.am-probe-row .app-ic { width: 26px; height: 26px; border-radius: 8px; grid-row: span 2; }
+.am-probe-row b { font-size: 13px; }
+.am-probe-row em { font-style: normal; font-size: 11px; font-weight: 800; color: #dc2626; }
+.am-probe-row.is-on em { color: #059669; }
+.am-probe-row small { grid-column: 2 / -1; font-size: 11px; color: var(--ink-3); }
+

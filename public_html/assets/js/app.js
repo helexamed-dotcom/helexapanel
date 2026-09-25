@@ -939,3 +939,17 @@ document.querySelectorAll('[data-title-source]').forEach(function (select) {
     });
     render();
 })();
+
+/* نقشه دسترسی: a column's «همه / هیچ» button. */
+(function () {
+    'use strict';
+    var form = document.querySelector('[data-am]');
+    if (!form) { return; }
+    form.addEventListener('click', function (e) {
+        var b = e.target.closest('[data-am-toggle]');
+        if (!b) { return; }
+        var boxes = form.querySelectorAll('input[data-am-col="' + b.getAttribute('data-am-toggle') + '"]:not(:disabled)');
+        var allOn = Array.prototype.every.call(boxes, function (x) { return x.checked; });
+        boxes.forEach(function (x) { x.checked = !allOn; });
+    });
+})();

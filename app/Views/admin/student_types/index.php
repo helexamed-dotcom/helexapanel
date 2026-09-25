@@ -5,6 +5,7 @@
  * @var array      $catalog
  * @var array      $colors
  * @var int        $pending
+ * @var array      $packages
  */
 use HeleXa\Core\View;
 
@@ -93,6 +94,19 @@ $iconChoices = ['school', 'lesson', 'stethoscope', 'target', 'trophy', 'book', '
                     </label>
                 <?php endforeach; ?>
             </div>
+            <?php $typePkgs = \HeleXa\Services\AccessProfile::typePackageIds($editing); ?>
+            <div class="hx-label" style="margin-top:16px">پکیج‌هایی که با این نوع خودکار داده می‌شود</div>
+            <p class="hx-muted" style="margin:0 0 8px;font-size:12.5px">وقتی نوع دانشجو تأیید شود این پکیج‌ها (با همه محتوایشان) برایش فعال می‌شوند و اگر نوعش عوض شود، پس گرفته می‌شوند. پکیجی که خودش خریده یا مدیر داده دست نمی‌خورد.</p>
+            <?php if ($packages === []): ?>
+                <div class="ad-empty">هنوز پکیجی نیست؛ از <a href="/admin/packages">پکیج‌ها</a> بسازید.</div>
+            <?php else: ?>
+                <div class="ad-chips-pick">
+                    <?php foreach ($packages as $p): ?>
+                        <label class="ad-chip-pick"><input type="checkbox" name="package_ids[]" value="<?= (int) $p['id'] ?>" <?= in_array((int) $p['id'], $typePkgs, true) ? 'checked' : '' ?>>
+                            <span><?= (int) $p['is_full_access'] === 1 ? '⭐ ' : '' ?><?= e($p['title']) ?></span></label>
+                    <?php endforeach; ?>
+                </div>
+            <?php endif; ?>
             <button class="btn btn-primary" type="submit" style="margin-top:16px"><?= $editing ? 'ذخیره تغییرات' : 'ساخت نوع' ?></button>
         </form>
     </section>

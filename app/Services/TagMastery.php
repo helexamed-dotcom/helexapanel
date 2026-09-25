@@ -381,15 +381,7 @@ final class TagMastery
     /** @return array<int,true> */
     private static function heldPackages(int $userId): array
     {
-        $out = [];
-        foreach (self::rows(
-            "SELECT package_id FROM package_activations WHERE user_id = :u AND status = 'active'
-               AND (starts_at IS NULL OR starts_at <= NOW()) AND (ends_at IS NULL OR ends_at >= NOW())",
-            ['u' => $userId]
-        ) as $r) {
-            $out[(int) $r['package_id']] = true;
-        }
-        return $out;
+        return AccessProfile::heldMap($userId);
     }
 
     private static function rows(string $sql, array $params): array

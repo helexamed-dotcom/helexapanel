@@ -222,19 +222,8 @@ final class LessonController extends Controller
     /** @return array<int,true> package ids the student holds right now */
     private function heldPackages(int $userId): array
     {
-        $out = [];
-        try {
-            foreach (Database::select(
-                "SELECT pa.package_id FROM package_activations pa WHERE pa.user_id = :u AND pa.status = 'active'
-                   AND (pa.starts_at IS NULL OR pa.starts_at <= NOW()) AND (pa.ends_at IS NULL OR pa.ends_at >= NOW())",
-                ['u' => $userId]
-            ) as $r) {
-                $out[(int) $r['package_id']] = true;
-            }
-        } catch (\PDOException) {
-            // packages not installed
-        }
-        return $out;
+        // A full-access package holds every package's content.
+        return \HeleXa\Services\AccessProfile::heldMap($userId);
     }
 
     private function usedTags(): array

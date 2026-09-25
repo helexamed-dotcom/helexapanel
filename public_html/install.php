@@ -100,6 +100,7 @@ const FRESH_INSTALL_MIGRATIONS = [
     '2026_10_01_figures.sql',
     '2026_10_02_telegram_auth.sql',
     '2026_10_03_lesson_pages.sql',
+    '2026_10_04_access_profiles.sql',
 ];
 
 /** Splits the schema on semicolons at end of line; the file contains no procedures. */

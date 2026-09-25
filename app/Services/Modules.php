@@ -16,7 +16,9 @@ use HeleXa\Core\Database;
  *   1. the site-wide switch (Admin → تنظیمات → بخش‌ها), `modules_off`;
  *   2. the student's type (ترمی، علوم پایه، دستیاری …), whose own module list
  *      the admin sets on «نوع دانشجو»; a student without an approved type
- *      gets `modules_default`, or everything when that is empty;
+ *      gets `modules_default`, or everything when that is empty — widened by
+ *      the sections their live packages turn on, and lifted altogether by a
+ *      full-access package (see AccessProfile);
  *   3. the module's own publication switch where it has one (Balin island
  *      and the question bank can be closed or "coming soon").
  *
@@ -88,8 +90,11 @@ final class Modules
         $keys = array_values(array_diff($all, $off));
 
         if (Auth::check() && Auth::isStudent()) {
-            $allowed = self::forStudentType((array) Auth::user());
+            $user = (array) Auth::user();
+            $profile = AccessProfile::forUser((int) ($user['id'] ?? 0));
+            $allowed = $profile['full'] !== null ? null : self::forStudentType($user);
             if ($allowed !== null) {
+                $allowed = array_merge($allowed, $profile['modules']);
                 $keys = array_values(array_intersect($keys, $allowed));
             }
         }

@@ -506,6 +506,8 @@ $router->group('/admin', [
 
     /* ----------------------------------------------- student types */
     $stc = \HeleXa\Controllers\Admin\StudentTypeController::class;
+    $router->get('/access-matrix',  [\HeleXa\Controllers\Admin\AccessMatrixController::class, 'index'], $students);
+    $router->post('/access-matrix', [\HeleXa\Controllers\Admin\AccessMatrixController::class, 'save'],  $students);
     $router->get('/student-types',                  [$stc, 'index'],    $students);
     $router->post('/student-types',                 [$stc, 'save'],     $students);
     $router->get('/student-types/requests',         [$stc, 'requests'], $students);
@@ -564,6 +566,7 @@ $router->group('/admin', [
     $router->post('/packages/{uuid}/delete',     [PackageController::class, 'destroy'],   $packages);
     $router->post('/packages/{uuid}/courses',    [PackageController::class, 'addCourse'],  $packages);
     $router->post('/packages/{uuid}/items',      [PackageController::class, 'saveItems'],  $packages);
+    $router->post('/packages/{uuid}/modules',    [PackageController::class, 'saveModules'], $packages);
     $router->post('/packages/{uuid}/everyone',   [PackageController::class, 'grantEveryone'], $packages);
     $router->post('/packages/{uuid}/courses/{course}/remove', [PackageController::class, 'removeCourse'], $packages);
     $router->post('/packages/{uuid}/activate',   [PackageController::class, 'activate'],   $packages);
